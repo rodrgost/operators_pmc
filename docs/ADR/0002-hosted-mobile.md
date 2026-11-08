@@ -1,5 +1,6 @@
 # ADR 0002 — Hospedagem privada e interface mobile
 
+Nota posterior: o modelo de agregado JSON e seu limite de tamanho foram substituídos pela persistência normalizada do ADR 0004. As decisões abaixo documentam a etapa anterior.
 O usuário solicitou acesso por link dentro do ChatGPT, com o print 33973.jpg como padrão de todas as telas e foco principal em celular.
 
 - Preservar a aplicação local original. Esta edição online usa frontend Nuxt gerado como SPA e API Worker ESM.

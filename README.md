@@ -1,12 +1,18 @@
 # Edição online privada — v0.1.1
 
-Esta edição adapta a fundação do OPERATORS para acesso por link no ChatGPT. A interface Nuxt é incorporada a um Worker ESM; partidas são persistidas em D1 e isoladas pela identidade autenticada da plataforma.
+Esta edição adapta a fundação do OPERATORS para acesso por link no ChatGPT. A interface Nuxt é incorporada a um Worker ESM; partidas são persistidas em tabelas relacionais D1 e isoladas pela identidade autenticada da plataforma.
 
 A edição local Fastify/SQLite original continua disponível no ZIP v0.1.0. Os comandos abaixo descrevem essa base; nesta edição, use `npm run dev:local` para executá-la.
 
 Para conferir a edição online localmente: `npm ci`, `npm run build:online`, `npm run dev`. O adaptador local usa SQLite e identidade de preview; não é publicado.
 
-Para verificar: `npm test` e `npm run typecheck`. O deploy usa `.openai/hosting.json`, migration Drizzle e `dist/server/index.js`. Não alterar a identidade do Site nem a audiência privada.
+Para verificar: `npm test` e `npm run typecheck` (execute o build online antes do typecheck em uma instalação limpa). O deploy usa `.openai/hosting.json`, migration Drizzle e `dist/server/index.js`. Não alterar a identidade do Site nem a audiência privada.
+
+O preview online escuta somente em `127.0.0.1:3000`. Use `npm run dev -- --port 3002` ou `PORT` para escolher outra porta.
+
+A persistência online separa estado atual, comandos, eventos, resumos e ledger. Saves antigos são importados atomicamente na primeira abertura, preservando o JSON original. O histórico é paginado em SQL e não há mais o teto artificial de 1,5 MB por campanha. Novas campanhas usam diretamente as tabelas normalizadas.
+
+O preview aplica migrations pendentes ao iniciar. Antes de atualizar um banco existente, mantenha backup consistente. Nesta revisão, o backup local anterior à normalização está em `data/online-preview.before-normalization.sqlite`. Depois de avançar nas tabelas novas, o JSON antigo deixa de representar o estado atual; não volte ao Worker antigo sem um procedimento de migração reversa. Detalhes em `docs/ADR/0004-normalized-online-storage.md`.
 
 O visual prioriza celular em todas as telas. O escopo funcional continua sendo a fundação, sem recrutamento ou missões.
 
@@ -22,7 +28,7 @@ Instale **Node.js 24 LTS** (inclui SQLite nativo) e npm. Extraia o ZIP e abra um
 
 ```sh
 npm ci
-npm run dev
+npm run dev:local
 ```
 
 Abra **http://127.0.0.1:3000**. O backend escuta somente em **127.0.0.1:3001**. Para parar, use Ctrl+C.

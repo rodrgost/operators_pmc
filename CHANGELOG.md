@@ -14,3 +14,21 @@
 - Edição online privada, com API Worker e D1 por usuário autenticado.
 - Compare-and-swap por turno, idempotência e testes de concorrência.
 - Padrão visual minimalista preto/cinza, com prioridade para celular em todas as áreas.
+
+## Não publicado — 2026-11-08
+
+- Corrige porta padrão do preview; valida porta e restringe bind a loopback, preservando Origin.
+- Compartilha regras puras de resolução temporal entre Node e Worker sem alterar hashes, saves ou versão de regras.
+- Registra falhas parciais online e libera locks, inclusive no limite de tamanho do save; mantém retomada explícita.
+- Corrige consultas por IDs que coincidem com propriedades herdadas de objetos.
+- Preserva requestId de criação na interface após falha de rede ou de atualização da tela.
+- Amplia regressões de recuperação, concorrência, 336 turnos, criação e preview.
+
+### Persistência normalizada
+
+- Adiciona cinco tabelas relacionais, índices, FKs e checks para a edição online.
+- Importa saves legados atomicamente na primeira abertura, preservando dados, IDs, hashes, retry e retomada.
+- Usa batch transacional com revisão e token de commit por turno; histórico paginado em SQL.
+- Remove limite artificial de 1,5 MB por campanha e regravação integral do histórico.
+- Corrige runner de migrations do preview e compartilha adaptador transacional com os testes.
+- Validação: 31 testes, typecheck, build e smoke HTTP local aprovados. Não publicado.

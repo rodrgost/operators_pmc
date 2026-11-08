@@ -8,6 +8,13 @@
       "when": 1794148217931,
       "tag": "0000_open_wilson_fisk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794156113318,
+      "tag": "0001_burly_longshot",
+      "breakpoints": true
     }
   ]
 }

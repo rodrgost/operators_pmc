@@ -641,3 +641,11 @@ Esses tópicos não devem ser inventados pelo Codex como se fossem escolhas defi
 O usuário definiu prioridade mobile para toda a interface. O print 33973.jpg é a referência visual global: fundo preto, cartões cinza-escuro arredondados, tipografia simples, números destacados e cores restritas aos estados. Aplicar a todas as páginas, formulários, listas, confirmações e estados vazios. No celular, usar fluxo vertical, controles de toque, sem dependência de hover nem tabelas com rolagem horizontal.
 
 O usuário solicitou uma edição acessível por link aqui no ChatGPT. Essa edição é privada, com salvamento online e autenticação da plataforma. A aplicação local original permanece válida; a adaptação de hospedagem está documentada no ADR 0002.
+
+## Nota de implementação da fundação — 2026-11-08
+
+As correções de recuperação online, retry de criação e motor compartilhado estão registradas no ADR 0003. Preservam os requisitos, contratos, saves e regras desta especificação. A revisão local não implementa novas fases nem substitui os critérios de aceitação do MVP completo. Resultados de validação em docs/VALIDATION.md.
+
+## Persistência online normalizada — 2026-11-08
+
+A edição online implementa agora tabelas para campanha/estado atual, comandos, eventos, resumos e fatos financeiros, com isolamento por dono e transação por turno. A nomenclatura usa prefixo online_ para distinguir a edição D1 da base local. Os agregados legados são importados atomicamente na primeira abertura, preservados como arquivo histórico e deixam de ser autoridade após a importação. Não há novo subsistema de jogo nem alteração das regras. Contratos HTTP, hashes e resultados existentes permanecem compatíveis. ADR 0004 descreve schema, transições, importação e rollback; docs/VALIDATION.md registra os 31 testes e a verificação local. Não houve publicação.

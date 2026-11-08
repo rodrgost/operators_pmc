@@ -6,10 +6,25 @@ const currency=(value:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',c
 const date=computed(()=>game.value?new Date(game.value.date).toLocaleString('pt-BR',{timeZone:'UTC',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'')
 const country=computed(()=>world.value.find(c=>c.id===selectedCountry.value)||world.value[0])
 const pendingAdvance=ref<any>(null)
+const pendingCreation=ref<any>(null)
 async function api(path:string,options:any={}){return await $fetch<any>('/api/v1'+path,options)}
 async function load(){games.value=await api('/games')}
-async function select(id:string){busy.value=true;error.value='';try{game.value=await api('/games/'+id);[events.value,world.value,ledger.value]=await Promise.all([api(`/games/${id}/timeline`),api(`/games/${id}/world/countries`),api(`/games/${id}/finances/ledger`)]);localStorage.setItem('operators-game',id);pendingAdvance.value=null;result.value=null}catch(e:any){error.value=e.data?.message||'Não foi possível abrir a partida.'}finally{busy.value=false}}
-async function create(){busy.value=true;error.value='';try{const created=await api('/games',{method:'POST',body:{requestId:crypto.randomUUID(),name:name.value,seed:seed.value}});await load();await select(created.id);showCreate.value=false}catch(e:any){error.value=e.data?.message||'Não foi possível criar a partida.'}finally{busy.value=false}}
+async function select(id:string){busy.value=true;error.value='';try{game.value=await api('/games/'+id);[events.value,world.value,ledger.value]=await Promise.all([api(`/games/${id}/timeline`),api(`/games/${id}/world/countries`),api(`/games/${id}/finances/ledger`)]);localStorage.setItem('operators-game',id);pendingAdvance.value=null;result.value=null;return true}catch(e:any){error.value=e.data?.message||'Não foi possível abrir a partida.';return false}finally{busy.value=false}}
+async function create(){
+ if(busy.value)return;
+ busy.value=true;error.value='';
+ try{
+  const command=pendingCreation.value||{requestId:crypto.randomUUID(),name:name.value,seed:seed.value};
+  pendingCreation.value=command;
+  const created=await api('/games',{method:'POST',body:command});
+  await load();
+  if(!await select(created.id))return;
+  pendingCreation.value=null;showCreate.value=false;
+ }catch(e:any){
+  if(e.status>=400&&e.status<500)pendingCreation.value=null;
+  error.value=e.data?.message||'Falha de conexão. Tente novamente para recuperar a mesma criação.';
+ }finally{busy.value=false}
+}
 async function advance(){if(!game.value||busy.value)return;busy.value=true;error.value='';try{const command=pendingAdvance.value||{requestId:crypto.randomUUID(),expectedVersion:game.value.stateVersion,turns:Number(batch.value),stopOnImportant:stop.value};pendingAdvance.value=command;const r=await api(`/games/${game.value.id}/advance`,{method:'POST',body:command});const id=game.value.id;await select(id);result.value=r;pendingAdvance.value=null}catch(e:any){error.value=e.data?.message||'Falha de conexão. Tente novamente para consultar a mesma requisição.';if(e.status===409){pendingAdvance.value=null;await select(game.value.id);error.value='A partida foi alterada. Dados atualizados; revise antes de avançar.'}}finally{busy.value=false}}
 async function resume(){busy.value=true;error.value='';try{const r=await api(`/games/${game.value.id}/advances/${result.value.requestId}/resume`,{method:'POST',body:{expectedVersion:game.value.stateVersion}});await select(game.value.id);result.value=r}catch(e:any){error.value=e.data?.message||'Não foi possível retomar.'}finally{busy.value=false}}
 onMounted(async()=>{try{await load();const id=localStorage.getItem('operators-game');if(id&&games.value.some(g=>g.id===id))await select(id);else if(games.value.length)await select(games.value[0].id)}catch{error.value='Não foi possível conectar. Atualize a página para tentar novamente.'}})
@@ -20,7 +35,7 @@ onMounted(async()=>{try{await load();const id=localStorage.getItem('operators-ga
  <main><header><div class="breadcrumb">ASTERRA <span>/</span> {{game?.name||'Nova companhia'}}</div><div class="header-status">SINGLE PLAYER <span>•</span> TEMPO MANUAL</div></header>
  <div class="content"><div class="page-heading"><div><div class="eyebrow">OPERAÇÃO INDEPENDENTE</div><h1>{{tab==='overview'?'Painel de comando':nav.find(n=>n[0]===tab)?.[2]}}</h1><p>Decisões estratégicas. Consequências persistentes.</p></div><button class="secondary" @click="showCreate=!showCreate">＋ Nova partida</button></div>
  <div v-if="error" role="alert" class="error">{{error}}</div>
- <section v-if="!game||showCreate" class="panel create"><div><span class="eyebrow">INICIAR CAMPANHA</span><h2>Sua companhia começa aqui.</h2><p>Crie um save com semente determinística. Cada turno representa 6 horas.</p></div><form @submit.prevent="create"><label>Nome da companhia<input v-model="name" required minlength="2" maxlength="60"></label><label>Semente da campanha<input v-model="seed" required maxlength="100"></label><button class="primary" :disabled="busy">{{busy?'Criando…':'Estabelecer companhia →'}}</button></form></section>
+ <section v-if="!game||showCreate" class="panel create"><div><span class="eyebrow">INICIAR CAMPANHA</span><h2>Sua companhia começa aqui.</h2><p>Crie um save com semente determinística. Cada turno representa 6 horas.</p></div><form @submit.prevent="create"><label>Nome da companhia<input v-model="name" :disabled="busy||!!pendingCreation" required minlength="2" maxlength="60"></label><label>Semente da campanha<input v-model="seed" :disabled="busy||!!pendingCreation" required maxlength="100"></label><button class="primary" :disabled="busy">{{busy?'Criando…':pendingCreation?'Repetir criação':'Estabelecer companhia →'}}</button></form></section>
  <template v-if="game">
  <div class="campaign-bar"><label>COMPANHIA<select :value="game.id" :disabled="busy" @change="select(($event.target as HTMLSelectElement).value)"><option v-for="g in games" :key="g.id" :value="g.id">{{g.name}}</option></select></label><span><i class="live-dot"></i> CAMPANHA ATIVA</span><span>REGRAS {{game.rulesVersion}}</span></div>
  <template v-if="tab==='overview'">
