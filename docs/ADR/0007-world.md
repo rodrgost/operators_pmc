@@ -1,0 +1,15 @@
+# ADR 0007 — Mundo causal e rivais
+
+Status: implementado, 2026-11-08. Parâmetros provisórios configuráveis em packages/rules/world.json.
+
+Schema incremental: organizações por campanha com recursos/objetivos e relação com companhia; regiões e estimativa pública persistida; influências normalizadas e relações bilaterais canônicas; conflitos e participantes; eventos com origem/contrato; rivais agregados e seus contratos reservados. Não simular operadores individuais dos rivais. Migração schema-only, flags e versão world-0.1 por campanha; ativar no primeiro acesso ao Mundo, a partir do turno atual, sem inventar eventos anteriores. Fluxos antigos de API mantêm resultados até ativação.
+
+Sequência: abertura/expiração e mundo/rivais; etapas de missões; consequências regionais dos resultados; finanças/pessoal; publicação de demandas emergentes; estimativas e commit único. Eventos afetam regiões uma vez na criação e preservam origem. Conflitos exercem pressão por turno, têm intensidade e duração, encerram sem reaplicar consequências. Crises podem encadear confronto e novas ofertas. Cooldown inicial 12 turnos, no máximo dois eventos ativos por região; indicadores e recursos 0–100, relações -100–100. Influências somam 100; controlador político é distinto da presença econômica/operacional.
+
+Rivais disputam uma oferta a cada quatro turnos, alternando prioridade, somente available com pelo menos quatro turnos de exposição. accepted/active do jogador são protegidos. Reserva, custo no orçamento rival, término, remuneração e efeito regional são persistidos. Nunca cobrar ações dos rivais no caixa do jogador. Orçamento privado, capacidade e reputação agregadas; apresentação pública em faixas e notícias. Resultado concorrente com aceite do jogador usa o mesmo CAS/revisão da campanha.
+
+Missão do jogador concluída melhora segurança/estabilidade/economia, reduz tensão/conflito e melhora relação com cliente. Falha piora segurança/tensão e relação; retirada tem consequência diplomática reduzida. Reforços não alteram causalidade; resultados aplicados uma vez no turno terminal da missão. Contratos emergentes têm source world_event e originEventId, usam o mesmo motor de missões e ficam disponíveis somente após o commit do turno que os gerou.
+
+Mundo público exibe estimativas persistidas por região, confiança/fonte/data e presença aproximada, atualizadas a cada quatro turnos ou notícia relevante. Não devolver indicadores reais, recursos, RNG, orçamento privado ou effects_json. Histórico paginado preserva causas e vínculos com contratos. Inteligência de múltiplas fontes/envelhecimento avançado permanece Fase 6.
+
+Testes: seed 5/15/13, determinismo, recuperação/limites, somas de influência, crise→evento→contrato, conflitos/participantes, rivais/reserva/orçamento, aceite concorrente, efeitos de missão, origem/idempotência, rollback/retomada, estimativas estáveis/sem segredos e 336 turnos. Interface Mundo país/região/notícias/rivais, mantendo contexto ao abrir Contratos. Publicar somente após validação, preservando site privado. Não criar novos backups locais.

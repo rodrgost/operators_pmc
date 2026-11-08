@@ -30,3 +30,14 @@ Fonte principal local: C:\Users\rodrg\DEV\operators_pmc. A cópia em .sites-runt
 - Implantação: appgdep_6af0b65a89cc81918a91af4d24873ff0, succeeded.
 - Versão salva: appgprj_6af0867c8b0081919a17665415f89c70~appgver_54e5f073d948819191c630af83f3bd3c.
 - Mesma URL privada; build aprovado. Saldo US$ 100.000 sem quebra confirmado visualmente no site após recarregar. Campanha existente permaneceu no turno 1, sem contratação nem avanço durante o smoke hospedado.
+
+## Operações 0.3.0 — 2026-11-08
+
+- Commit publicado: fa5508fcf6a2e4a123e5ebc38e19b7b9becb5a1d.
+- Implantação: appgdep_6af0bce0e2208191afe049273b8740ea, succeeded.
+- Versão salva: appgprj_6af0867c8b0081919a17665415f89c70~appgver_169c636661d48191b7115654b99381b1.
+- URL privada preservada: https://operators-pmc-command.rodrgost.chatgpt.site/.
+- Schema remoto conferido pelo conector Sites: 20 tabelas, incluindo contratos, missões, assignments, decisões e relatórios.
+- Validação local: 64 testes em 10 arquivos, build e typecheck aprovados. Ciclo aceitar, planejar, iniciar e concluir missão foi validado no navegador local entre T9 e T13; pagamento proporcional e reputação registrados. Layout de operações/relatórios inspecionado em 390 px.
+- Conferência visual final do site hospedado pendente: aprovação automática de navegação negada porque o limite de uso foi atingido. Não foi tentado contornar esse bloqueio. A publicação foi confirmada como succeeded independentemente dessa conferência.
+- Nenhuma missão de teste criada ou avançada na campanha hospedada nesta revisão. Não foram criados novos backups locais.

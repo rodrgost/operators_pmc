@@ -67,3 +67,14 @@ Publicação 0.2.0 concluída: serviço confirmou succeeded; schema remoto com 1
 - Conteúdo de operações/relatórios inspecionado em 390 px via iframe de QA. Acertos e ledger usam centavos; resumo de caixa continua compacto.
 - Migration 0003_workable_leo.sql é incremental/schema-only, com tabelas de contratos, missões, assignments, decisões e relatórios e flags/versionamento por campanha.
 - Sem novos backups locais; sem estoque, combate tático ou mundo causal fictício. Publicação e conferência remota registradas em DEPLOYMENT.md.
+
+Publicação 0.3.0 confirmada pelo serviço Sites como succeeded; schema remoto com 20 tabelas conferido. O smoke visual final hospedado ficou pendente porque a aprovação automática de navegação foi negada por limite de uso. Resultados funcionais da missão descritos acima são da validação local, não de uma campanha hospedada. Identificadores em DEPLOYMENT.md.
+
+
+## Mundo 0.4.0 — 2026-11-08
+
+74 testes em 11 arquivos aprovados, incluindo dez novos testes mundiais: inicialização 5 países/15 regiões/13 organizações/3 rivais; projeções sem atributos internos; 336 turnos com indicadores limitados e influência somando 100; cooldown/teto de eventos; crise → confronto e contrato com origem; rivais respeitando aceite e caixa do jogador; hashes iguais em lote e individual; histórico paginado; rollback e retomada sem duplicação; disputa concorrente; missão real com pagamento e consequência única; ativação de partida anterior sem retroatividade. Typecheck e build online aprovados.
+
+Preview no navegador: campanha local QA Fundação ativada em T13 e avançada até T41, com notícias causais, contratos emergentes, conflitos e resultados de rivais; causa de notícia T29 consultou notícia T16; navegar de Varkov abriu contratos filtrados. Layout do dossiê verificado em 390 px com quatro indicadores em duas colunas, sem quebra do conteúdo. Nenhum avanço de QA realizado no banco hospedado. O bloqueio de navegação da revisão anterior tinha prazo 16:11; a validação atual após 16:45 foi permitida.
+
+Limites: parâmetros de balanceamento provisórios; PMCs rivais agregadas, sem operadores individuais; inteligência avançada, kits e sede ficam para fases posteriores.

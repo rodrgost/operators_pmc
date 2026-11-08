@@ -6,7 +6,7 @@ import ts from 'typescript';
 function setup(failAt:'create'|'list'|'select'){
  let fail=true,ids=0;const campaigns=new Map<string,any>();const posted:any[]=[];
  const source=readFileSync('apps/web/pages/index.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0];
- const context:any={ref:(value:any)=>({value}),computed:(fn:any)=>({get value(){return fn()}}),onMounted:()=>{},localStorage:{setItem:()=>{}},crypto:{randomUUID:()=>`creation-${++ids}`},$fetch:async(path:string,options:any={})=>{
+ const context:any={useState:(_key:string,init:any)=>({value:init()}),ref:(value:any)=>({value}),computed:(fn:any)=>({get value(){return fn()}}),onMounted:()=>{},localStorage:{setItem:()=>{}},crypto:{randomUUID:()=>`creation-${++ids}`},$fetch:async(path:string,options:any={})=>{
   if(options.method==='POST'){
    const command=options.body;posted.push(command);
    if(!campaigns.has(command.requestId))campaigns.set(command.requestId,{id:command.requestId,name:command.name});

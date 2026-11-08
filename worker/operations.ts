@@ -11,7 +11,7 @@ export const decisionSchema=commandSchema.extend({choice:z.enum(['proceed','safe
 const clean=(rows:any[])=>rows.map(({game_id,...r})=>r);
 export async function readOperations(db:Database,gameId:string):Promise<Operations>{
  const rows=await db.batch([
-  db.prepare("SELECT * FROM online_contracts WHERE game_id=? AND (expires_turn>(SELECT current_turn FROM online_games WHERE id=?) OR status IN ('accepted','active')) ORDER BY id").bind(gameId,gameId),
+  db.prepare("SELECT * FROM online_contracts WHERE game_id=? AND (expires_turn>(SELECT current_turn FROM online_games WHERE id=?) OR status IN ('accepted','active','rival_active')) ORDER BY id").bind(gameId,gameId),
   db.prepare("SELECT * FROM online_missions WHERE game_id=? AND status IN ('active','awaiting_decision','returning') ORDER BY id").bind(gameId),
   db.prepare("SELECT a.* FROM online_mission_assignments a JOIN online_missions m ON m.game_id=a.game_id AND m.id=a.mission_id WHERE a.game_id=? AND m.status IN ('active','awaiting_decision','returning') ORDER BY a.mission_id,a.operator_id").bind(gameId),
   db.prepare("SELECT d.* FROM online_decisions d JOIN online_missions m ON m.game_id=d.game_id AND m.id=d.mission_id WHERE d.game_id=? AND m.status IN ('active','awaiting_decision','returning') ORDER BY d.id").bind(gameId),
@@ -91,7 +91,7 @@ export async function operationAction(db:Database,id:string,owner:string,kind:st
 }
 export async function operationsView(db:Database,g:Campaign){
  const rows=await db.batch([
-  db.prepare("SELECT * FROM online_contracts WHERE game_id=? AND (expires_turn>? OR status IN ('accepted','active')) ORDER BY offered_turn DESC,id LIMIT 50").bind(g.id,g.state.turn),
+  db.prepare("SELECT * FROM online_contracts WHERE game_id=? AND (expires_turn>? OR status IN ('accepted','active','rival_active')) ORDER BY offered_turn DESC,id LIMIT 50").bind(g.id,g.state.turn),
   db.prepare('SELECT m.*,(SELECT title FROM online_contracts c WHERE c.game_id=m.game_id AND c.id=m.contract_id) AS contract_title FROM online_missions m WHERE m.game_id=? ORDER BY m.started_turn DESC,m.rowid DESC LIMIT 30').bind(g.id),
   db.prepare("SELECT * FROM online_decisions WHERE game_id=? AND status='pending' ORDER BY expires_turn,id LIMIT 30").bind(g.id),
   db.prepare('SELECT a.* FROM online_mission_assignments a WHERE a.game_id=? AND a.mission_id IN(SELECT id FROM online_missions WHERE game_id=? ORDER BY started_turn DESC,rowid DESC LIMIT 30) ORDER BY operator_id').bind(g.id,g.id),

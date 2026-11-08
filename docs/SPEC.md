@@ -657,3 +657,10 @@ Implementados recrutamento semanal determinístico, operadores, vínculos e reno
 ## Incremento 0.3.0 — Contratos e missões
 
 Implementado ciclo comercial aceitar→planejar→iniciar→executar etapas→relatório/ledger, com formação imutável, reforços temporários, diretrizes/autonomia, decisões críticas e retirada. Valores propostos de adiantamento, mobilização, duração, capacidade, remuneração parcial e devolução constam em packages/rules/operations.json e ADR 0006. Ofertas desta fase não exigem equipamento; kits e sede permanecem posteriores. O motor suporta source/originEventId comuns a ofertas comerciais e emergentes, mas geração causal depende da Fase 4. Não representa aceite do mundo dinâmico ou do MVP completo.
+
+
+## Incremento 0.4.0 — mundo causal (2026-11-08)
+
+Implementados indicadores regionais estimados, influência normalizada, controle político, organizações/relações, conflitos com participantes, notícias com origem consultável, demandas emergentes e três PMCs rivais agregadas. Rivais consomem somente ofertas disponíveis após quatro turnos e usam orçamento próprio. Missões do jogador produzem consequências regionais/diplomáticas no mesmo commit do pagamento. Ativação no primeiro acesso aos dados mundiais, a partir do turno atual, sem retroatividade.
+
+Regras provisórias em packages/rules/world.json; ADR 0007; migration incremental 0004_parallel_scream.sql, nove tabelas novas (29 no total). Estado atual carregado separadamente do histórico paginado. Estimativas persistidas atualizam a cada quatro turnos ou notícia; valores internos e RNG não são enviados ao navegador. Não há novos backups. Próximo incremento: Fase 5, logística, equipamentos/kits e sede.

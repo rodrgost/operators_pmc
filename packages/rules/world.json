@@ -1,0 +1,168 @@
+{
+  "version": "world-0.1",
+  "cooldownTurns": 12,
+  "maxActiveEventsPerRegion": 2,
+  "recoveryCadence": 4,
+  "rivalCadence": 4,
+  "offerGraceTurns": 4,
+  "rivalJobTurns": 4,
+  "rivalCostCents": 50000,
+  "rivalWeeklyCents": 200000,
+  "rivalBudgetCapCents": 50000000,
+  "rivalInfluenceGain": 3,
+  "missionInfluenceGain": 3,
+  "missionSecurityGain": 5,
+  "missionTensionReduction": 4,
+  "missionStabilityGain": 3,
+  "missionEconomyGain": 2,
+  "missionConflictReduction": 7,
+  "missionRelationGain": 4,
+  "failureTensionGain": 4,
+  "failureSecurityLoss": 2,
+  "intelCadence": 4,
+  "intelConfidence": 55,
+  "intelRadius": 12,
+  "conflictDuration": 28,
+  "conflictPressure": 1,
+  "conflictEndIntensity": 10,
+  "controlThreshold": 60,
+  "initial": {
+    "valdoria": [
+      78,
+      75,
+      80,
+      25
+    ],
+    "karsen": [
+      42,
+      45,
+      70,
+      75
+    ],
+    "solmar": [
+      62,
+      58,
+      78,
+      48
+    ],
+    "norvik": [
+      48,
+      42,
+      55,
+      62
+    ],
+    "arken": [
+      82,
+      80,
+      85,
+      20
+    ]
+  },
+  "rivals": [
+    {
+      "id": "pmc-iron",
+      "capacity": 2,
+      "budgetCents": 5000000,
+      "reputation": 65,
+      "specialization": "security",
+      "goal": "Contratos corporativos e estabilidade"
+    },
+    {
+      "id": "pmc-wolf",
+      "capacity": 1,
+      "budgetCents": 4000000,
+      "reputation": 50,
+      "specialization": "extraction",
+      "goal": "Operações agressivas e expansão"
+    },
+    {
+      "id": "pmc-aegis",
+      "capacity": 1,
+      "budgetCents": 4500000,
+      "reputation": 60,
+      "specialization": "reconnaissance",
+      "goal": "Tecnologia e reconhecimento"
+    }
+  ],
+  "events": [
+    {
+      "type": "industrial_crisis",
+      "category": "economic",
+      "title": "Crise industrial",
+      "chance": 0.16,
+      "duration": 8,
+      "effects": {
+        "stability": -5,
+        "security": -4,
+        "economy": -8,
+        "tension": 8
+      },
+      "contract": "escort"
+    },
+    {
+      "type": "armed_conflict",
+      "category": "conflict",
+      "title": "Confronto armado",
+      "chance": 0.18,
+      "duration": 8,
+      "effects": {
+        "stability": -7,
+        "security": -8,
+        "economy": -4,
+        "tension": 8
+      },
+      "contract": "extraction"
+    },
+    {
+      "type": "humanitarian_need",
+      "category": "humanitarian",
+      "title": "Demanda humanitária",
+      "chance": 0.12,
+      "duration": 6,
+      "effects": {
+        "stability": -3,
+        "economy": -3,
+        "tension": 3
+      },
+      "contract": "rescue"
+    },
+    {
+      "type": "security_incident",
+      "category": "security",
+      "title": "Incidente de segurança",
+      "chance": 0.1,
+      "duration": 5,
+      "effects": {
+        "security": -5,
+        "tension": 4
+      },
+      "contract": "security"
+    },
+    {
+      "type": "political_reform",
+      "category": "political",
+      "title": "Iniciativa de estabilização",
+      "chance": 0.06,
+      "duration": 4,
+      "effects": {
+        "stability": 5,
+        "security": 2,
+        "tension": -4
+      },
+      "contract": null
+    },
+    {
+      "type": "corporate_investment",
+      "category": "corporate",
+      "title": "Investimento corporativo",
+      "chance": 0.08,
+      "duration": 6,
+      "effects": {
+        "economy": 5,
+        "stability": 2,
+        "tension": -2
+      },
+      "contract": "recovery"
+    }
+  ]
+}

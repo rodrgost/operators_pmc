@@ -34,6 +34,10 @@ Fase 3: contratos comerciais, planejamento e missões autônomas, com snapshots 
 
 O usuário autorizou manter e atualizar o site privado https://operators-pmc-command.rodrgost.chatgpt.site/ enquanto Sites estiver incluído no plano e sem contratar serviços adicionais. Preservar project_id e audiência de `.openai/hosting.json`. Validar e publicar após cada incremento concluído. A cópia em .sites-runtime/publish-source/.sites-checkout serve somente para sincronização e empacotamento do repositório já vinculado ao site; fonte principal continua na pasta acima.
 
+## Incremento 0.4.0 implementado
+
+Fase 4: mundo causal, regiões, presença/influência, controle político, conflitos, organizações, relações, notícias encadeadas, contratos emergentes e PMCs rivais abstratas. Rotas worker/world.ts, motor packages/engine/world.ts, regras packages/rules/world.json, UI WorldPanel.vue, ADR 0007 e migration 0004_parallel_scream.sql. Transação por turno inclui mundo, missões, pessoal e finanças. Ativação sem retroatividade ao acessar dados mundiais. Preservar o histórico, estimativas públicas e proteção de contratos aceitos contra rivais.
+
 ## Próximo incremento efetivo
 
-Fase 4: simulação mundial causal, indicadores regionais, conflitos e rivais abstratos, integrando contratos emergentes via source/originEventId ao mesmo motor já existente. Antes de codificar, apresentar dados, transições e testes; preservar decisões, salários, reservas e ledger. Ainda não existem eventos causais no mundo; os boletins continuam demonstrativos. Referências atuais: worker/operations.ts, packages/engine/operations.ts, packages/rules/operations.json, docs/ADR/0006-operations.md e drizzle/0003_workable_leo.sql. A interface usa apps/web/components/OperationsPanel.vue.
+Fase 5: logística, equipamentos/kits e sede. Antes de codificar, apresentar modelo, transições e testes. Preservar causalidade, snapshots, decisões, salários, reservas e ledger. Não adicionar combate tático, multiplayer ou LLM. Ver docs/VALIDATION.md e docs/DEPLOYMENT.md para checks e publicação.

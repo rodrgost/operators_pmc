@@ -635,3 +635,10 @@ Esses tópicos não devem ser inventados pelo Codex como se fossem escolhas defi
 ---
 
 **Fim da especificação v1.0.**
+
+
+## Incremento 0.4.0 — mundo causal (2026-11-08)
+
+Implementados indicadores regionais estimados, influência normalizada, controle político, organizações/relações, conflitos com participantes, notícias com origem consultável, demandas emergentes e três PMCs rivais agregadas. Rivais consomem somente ofertas disponíveis após quatro turnos e usam orçamento próprio. Missões do jogador produzem consequências regionais/diplomáticas no mesmo commit do pagamento. Ativação no primeiro acesso aos dados mundiais, a partir do turno atual, sem retroatividade.
+
+Regras provisórias em packages/rules/world.json; ADR 0007; migration incremental 0004_parallel_scream.sql, nove tabelas novas (29 no total). Estado atual carregado separadamente do histórico paginado. Estimativas persistidas atualizam a cada quatro turnos ou notícia; valores internos e RNG não são enviados ao navegador. Não há novos backups. Próximo incremento: Fase 5, logística, equipamentos/kits e sede.

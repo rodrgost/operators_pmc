@@ -63,3 +63,10 @@ Abra **Contratos**, aceite uma oferta e planeje a formação: equipe permanente,
 Avance o tempo para executar as quatro etapas. Decisões críticas interrompem o lote obrigatoriamente; responda em **Operações** ou avance sabendo que o prazo aplicará a política automática. Relatórios mostram abordagem, resultados, saúde e fadiga. O pagamento final depende da qualidade; falha ou retirada devolve o adiantamento, mantém o custo de mobilização e pode reduzir reputação. Retirada retorna em um turno e libera a formação. Custos e consequências são revisados antes dos comandos.
 
 O catálogo renova a cada 28 turnos e contém seis tipos de contratos. Risco e dificuldade exibidos são estimativas persistidas do contratante, com confiança e fonte. Valores reais e sorteios não são entregues ao frontend. Parâmetros e regras em packages/rules/operations.json e docs/ADR/0006-operations.md.
+
+
+## Incremento 0.4.0 — mundo causal (2026-11-08)
+
+Implementados indicadores regionais estimados, influência normalizada, controle político, organizações/relações, conflitos com participantes, notícias com origem consultável, demandas emergentes e três PMCs rivais agregadas. Rivais consomem somente ofertas disponíveis após quatro turnos e usam orçamento próprio. Missões do jogador produzem consequências regionais/diplomáticas no mesmo commit do pagamento. Ativação no primeiro acesso aos dados mundiais, a partir do turno atual, sem retroatividade.
+
+Regras provisórias em packages/rules/world.json; ADR 0007; migration incremental 0004_parallel_scream.sql, nove tabelas novas (29 no total). Estado atual carregado separadamente do histórico paginado. Estimativas persistidas atualizam a cada quatro turnos ou notícia; valores internos e RNG não são enviados ao navegador. Não há novos backups. Próximo incremento: Fase 5, logística, equipamentos/kits e sede.
