@@ -1,0 +1,71 @@
+{
+  "version": "intelligence-0.1",
+  "analysisTurns": 2,
+  "analysisCostCents": 25000,
+  "analysisCapacity": 2,
+  "topics": {
+    "stability": {
+      "ttl": 16,
+      "decay": 2
+    },
+    "security": {
+      "ttl": 8,
+      "decay": 4
+    },
+    "economy": {
+      "ttl": 28,
+      "decay": 1
+    },
+    "tension": {
+      "ttl": 4,
+      "decay": 8
+    },
+    "difficulty": {
+      "ttl": 12,
+      "decay": 3
+    },
+    "risk": {
+      "ttl": 4,
+      "decay": 8
+    }
+  },
+  "sources": {
+    "public": {
+      "name": "Dados públicos",
+      "level": 1,
+      "confidence": 55,
+      "radius": 12,
+      "noise": 4
+    },
+    "client": {
+      "name": "Contratante",
+      "level": 1,
+      "confidence": 45,
+      "radius": 12,
+      "noise": 7
+    },
+    "analysis": {
+      "name": "Análise remunerada",
+      "level": 2,
+      "confidence": 65,
+      "radius": 8,
+      "noise": 10
+    },
+    "recon_mission": {
+      "name": "Reconhecimento prévio",
+      "level": 2,
+      "confidence": 75,
+      "radius": 7,
+      "noise": 7
+    },
+    "in_mission": {
+      "name": "Reconhecimento durante missão",
+      "level": 3,
+      "confidence": 80,
+      "radius": 5,
+      "noise": 6
+    }
+  },
+  "conflictMinimumConfidence": 30,
+  "staleLevelMaximum": 1
+}

@@ -89,3 +89,14 @@ Smoke hospedado concluído: dossiê de Varkov carregado em Vanguard Security T1,
 Navegador local QA Fundação: logística ativada em T41; compra de Combate I (USD 1.800), entrega T45; upgrade de treino (USD 2.500), capacidade 1 até T48 e 2 em T49. Escolta com dois operadores e kit selecionado planejada/iniciada T49; concluída T53, kit devolvido com condição 88 e suprimentos 68, reparo USD 108 e reposição USD 115,20 apresentados separadamente. Interfaces de sede/catálogo verificadas em 390 px. Sem novos backups.
 
 Balanceamento provisório e agregação dos kits por missão; não há combate tático, veículos detalhados, múltiplas bases ou fabricação. Inteligência progressiva permanece Fase 6.
+
+Smoke pós-publicação 0.5.0: acesso privado preservado, catálogo de 18 kits carregado no navegador autenticado, estoque vazio, custo inicial da sede USD 600/semana; 35 tabelas confirmadas via Sites. Nenhuma ação de custo nem avanço de campanha hospedada.
+
+
+## Inteligência 0.6.0 — 2026-11-08
+
+109 testes em 15 arquivos: 14 funcionais de inteligência e dois de recuperação da interface, além dos 93 existentes. Cobertura: importação/estabilidade, projeções seguras/owner, níveis/validade/idade, fontes conflitantes, análise paga idempotente/prazo/escopo/vagas/caixa, histórico encadeado, análise de oferta expirada sem reabertura, reconhecimento em missão e independente, política baseada em risco percebido sem alterar verdade, snapshots, concorrência, rollback com turno confirmado/retomada, equivalência por 336 turnos, migração de missão antiga e fluxo integrado com kits/mundo/ledger. Typecheck e build online aprovados.
+
+Navegador local: QA Fundação em T53 contratou análise de segurança de Varkov por USD 250, entrega em T55. Dossiê mostrou fonte pública de T52 (55%→43%) e análise remunerada de T55 (65%), nível verificado, intervalo 32–48 e validade T63. Comparação de fontes conferida em 390 px; sem estouro ou corte de conteúdo. Nenhum backup novo criado.
+
+Limites: confiança e ruído são parâmetros de balanceamento provisórios; análise não garante verdade. Missões antigas sem snapshot preservam política anterior; não se inventa reconhecimento passado. UX/balanceamento final de todos os módulos permanece Fase 7.

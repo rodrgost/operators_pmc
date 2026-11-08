@@ -53,3 +53,15 @@ Fonte principal local: C:\Users\rodrg\DEV\operators_pmc. A cópia em .sites-runt
 - Nove tabelas mundiais adicionadas por migration incremental; nenhum novo backup criado e nenhum avanço de QA no banco hospedado.
 
 - Conferência pós-publicação: conector confirmou 29 tabelas; navegador autenticado carregou o dossiê de Varkov na campanha hospedada Vanguard Security em T1, com indicadores estimados e versão 0.4.0. Nenhuma contratação, missão ou avanço realizado online no smoke.
+
+
+## Logística e sede 0.5.0 — 2026-11-08
+
+- Commit publicado: c2e1cd518d005ce0d2a238b752999ffec4301ab8.
+- Implantação: appgdep_6af0d9fd882081918ed56f519d1e6aa4, succeeded.
+- Versão salva: appgprj_6af0867c8b0081919a17665415f89c70~appgver_dc8e4f9a55d08191af9f0cd91c370403.
+- URL privada preservada: https://operators-pmc-command.rodrgost.chatgpt.site/.
+- Conector Sites confirmou 35 tabelas no D1, incluindo sede/módulos, kits, alocações, atividades e progresso.
+- 93 testes em 13 arquivos, typecheck, build online e diff check aprovados. Ciclo equipado e melhoria validados no preview, com revisão móvel em 390 px.
+- Smoke hospedado: Sede e logística e catálogo de 18 kits carregaram na campanha Vanguard Security, estoque vazio e manutenção inicial USD 600/semana. Nenhuma compra, upgrade, contratação, missão ou avanço realizado no banco hospedado. Inicialização dos módulos ocorreu pelo acesso normal à interface.
+- Nenhum novo backup local criado. Preview encerrado após a validação.

@@ -2,11 +2,11 @@
 
 Pasta principal: `C:\Users\rodrg\DEV\operators_pmc`.
 
-## Estado atual — 0.5.0
+## Estado atual — 0.6.0
 
 Fundação e persistência normalizada implementadas, agora com operadores, recrutamento semanal, vínculos 4/8/12 semanas, pagamentos e dívidas salariais, renovação, equipes permanentes, líderes/substitutos, histórico de composição, reservas exclusivas de agenda e familiaridade por treino conjunto. Interface mobile preto/cinza; manter esse padrão em todas as telas.
 
-Agora também implementados: contratos comerciais, planejamento, snapshots de formação, reforços, etapas autônomas, decisões críticas com prazo/fallback, retirada, relatórios e pagamentos. Mundo causal, rivais, kits e módulos da sede implementados. Inteligência progressiva permanece pendente. Reforços de missão preservam vínculo permanente; a formação enviada é imutável.
+Agora também implementados: contratos comerciais, planejamento, snapshots de formação, reforços, etapas autônomas, decisões críticas com prazo/fallback, retirada, relatórios e pagamentos. Mundo causal, rivais, kits e módulos da sede implementados. Inteligência progressiva implementada; UX e balanceamento permanecem próximos. Reforços de missão preservam vínculo permanente; a formação enviada é imutável.
 
 ## Executar e verificar
 
@@ -42,6 +42,10 @@ Fase 4: mundo causal, regiões, presença/influência, controle político, confl
 
 Fase 5: catálogo 18 kits (seis categorias × três qualidades), compra/entrega, carga do depósito/missão, alocação exclusiva com snapshot, desgaste/consumo, retorno, reparo/reposição separados; cinco módulos 1–5 com upgrades, capacidades e manutenção/dívida. Treino individual por atributo/progresso, vagas de treino/tratamento, interrupção e recuperação grave mínima. Rotas worker/logistics.ts; motor packages/engine/logistics.ts; regras packages/rules/logistics.json; UI LogisticsPanel.vue em Visão geral → Sede e logística. Migration 0005_new_proudstar.sql; ADR 0008. Não gerar backups novos.
 
+## Incremento 0.6.0 implementado
+
+Fase 6: registros imutáveis por alvo/assunto/fonte, quatro níveis, confiança/validade/idade e fontes conflitantes; análises pagas com prazo; reconhecimento independente regional e durante missão; snapshot de conhecimento de partida; risco percebido na utilidade/autorização, sem bônus universal nem alteração da verdade. Motor packages/engine/intelligence.ts, worker/intelligence.ts, regras intelligence.json, UI IntelligencePanel.vue integrada a Mundo/Contratos/Operações, ADR 0009 e migration 0006_mysterious_ironclad.sql (39 tabelas). Índice corrente separado do histórico paginado. Ativação importa estimativas existentes, preserva data original e missões já enviadas.
+
 ## Próximo incremento efetivo
 
-Fase 6: inteligência progressiva, fontes e envelhecimento de registros, estimativas contextuais integradas a Mundo/Contratos/Operações. Antes de codificar, apresentar modelo, transições e testes. Preservar histórico, causalidade, kits, snapshots, decisões, salários, reservas e ledger. Não adicionar combate tático, multiplayer ou LLM. Ver docs/VALIDATION.md e docs/DEPLOYMENT.md.
+Fase 7: UX, balanceamento e qualidade. Rever navegação e resumo de lote, campanhas longas com os seis módulos, sinais de dívida/agenda/inteligência, filtros e mobile. Apresentar ajustes antes de alterar regras; preservar histórico, fontes, causalidade, kits, snapshots, decisões, salários, reservas e ledger. Não adicionar combate tático, multiplayer ou LLM. Ver docs/VALIDATION.md e docs/DEPLOYMENT.md. Sem backups novos.

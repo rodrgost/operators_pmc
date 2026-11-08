@@ -1,3 +1,5 @@
+import {ensureIntelligence,readIntelligence,intelligenceWrites,intelligenceView,analysisAction,analysisSchema} from './intelligence.ts';
+import {collectSources,resolveAnalyses,collectReconnaissance,intelligenceCanonical,dossier,config as intelligenceConfig} from '../packages/engine/intelligence.ts';
 import {ensureLogistics,readLogistics,logisticsWrites,logisticsView,logisticsAction,purchaseSchema} from './logistics.ts';
 import {logisticsStart,facilityTurn,facilitiesFinance,logisticsCanonical,config as logisticsConfig} from '../packages/engine/logistics.ts';
 import {ensureWorld,readWorld,worldWrites,worldRoute} from './world.ts';
@@ -53,7 +55,8 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
    const nextState={...g.state,turn:g.state.turn+1};
    const [randomHash,hash]=await Promise.all([digest(drawInput(g.seed,nextState.turn,'bulletin','world','country')),digest(stateInput(nextState))]);
    const next=resolveTurn(g.state,g.startDate,drawFromHash(randomHash),hash);
-   let effects:any=null,opEffects:any=null,worldEffects:any=null,logistics:any=null,logisticsEvents:any[]=[],logisticsLedger:any[]=[];
+   let effects:any=null,opEffects:any=null,worldEffects:any=null,logistics:any=null,logisticsEvents:any[]=[],logisticsLedger:any[]=[],intelligence:any=null,intelligenceEvents:any[]=[];
+   if(g.intelligenceInitialized){if(g.intelligenceVersion!==intelligenceConfig.version)throw new ApiError(422,'INTELLIGENCE_RULES_MISMATCH','Regras de inteligência indisponíveis.');intelligence=await readIntelligence(db,g);}
    if(g.logisticsInitialized){if(g.logisticsVersion!==logisticsConfig.version)throw new ApiError(422,'LOGISTICS_RULES_MISMATCH','Regras de logística indisponíveis.');logistics=await readLogistics(db,id);logisticsEvents=logisticsStart(logistics,next.state.turn);}
    if(g.personnelInitialized){
     if(g.personnelVersion!==balance.version)throw new ApiError(422,'PERSONNEL_RULES_MISMATCH','Regras de pessoal indisponíveis.');
@@ -63,8 +66,10 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
      if(g.operationsVersion!==opsConfig.version)throw new ApiError(422,'OPERATIONS_RULES_MISMATCH','Regras de operações indisponíveis.');
      let operations=await readOperations(db,id);
      if(g.worldInitialized){if(g.worldVersion!==worldConfig.version)throw new ApiError(422,'WORLD_RULES_MISMATCH','Regras mundiais indisponíveis.');const resolved=await worldTurn(await readWorld(db,id),operations,next.state.turn,g.seed,digest);worldEffects=resolved.world;operations=resolved.operations;}
-     opEffects=await operationsTurn(operations,p,next.state.turn,next.state.cashCents,next.state.reputation,g.seed,digest,logistics??undefined);
+     if(intelligence)intelligenceEvents.push(...await resolveAnalyses(intelligence,worldEffects,operations,next.state.turn,g.seed,digest));
+     opEffects=await operationsTurn(operations,p,next.state.turn,next.state.cashCents,next.state.reputation,g.seed,digest,logistics??undefined,intelligence??undefined);
      if(worldEffects)applyMissionResults(worldEffects,opEffects.operations,next.state.turn);
+     if(intelligence)intelligenceEvents.push(...await collectReconnaissance(intelligence,worldEffects,opEffects.operations,opEffects.reports,next.state.turn,g.seed,digest));
      turnPersonnel=opEffects.personnel;next.state.cashCents=opEffects.cash;next.state.reputation=opEffects.reputation;
     }
     const managed=logistics?facilityTurn(logistics,turnPersonnel,next.state.turn):[];
@@ -73,16 +78,17 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
     if(logistics){const finance=facilitiesFinance(logistics,next.state.turn,next.state.cashCents);next.state.cashCents=finance.cash;logisticsLedger=finance.ledger;logisticsEvents.push(...finance.events);}
     next.state.status=next.state.cashCents<0||logistics?.headquarters.arrears_cents>0?'financial_crisis':effects.status;
     if(worldEffects){await publishWorldContracts(worldEffects,opEffects.operations,g.seed,next.state.turn,digest);await refreshIntel(worldEffects,g.seed,next.state.turn,digest);next.summary.events=next.summary.events.filter(e=>e.type!=='public_bulletin');}
+    if(intelligence){await collectSources(intelligence,worldEffects,opEffects.operations,next.state.turn,digest);intelligence.snapshots=intelligence.snapshots.filter((s:any)=>opEffects.operations.missions.some((m:any)=>m.id===s.mission_id&&['active','awaiting_decision','returning'].includes(m.status)));}
     const weekly=next.summary.events.find(e=>e.type==='weekly_close');if(weekly)weekly.description='Semana encerrada. Consulte os pagamentos e vínculos no livro-razão.';
-    for(const e of [...logisticsEvents,...(worldEffects?worldNotifications(worldEffects,next.state.turn):[]),...(opEffects?.events??[]),...effects.events])next.summary.events.push({...e,turn:next.state.turn,sequence:next.summary.events.length});
+    for(const e of [...intelligenceEvents,...logisticsEvents,...(worldEffects?worldNotifications(worldEffects,next.state.turn):[]),...(opEffects?.events??[]),...effects.events])next.summary.events.push({...e,turn:next.state.turn,sequence:next.summary.events.length});
     next.summary.events.forEach((e,i)=>e.sequence=i);
-    next.summary.stateHash=await digest([stateInput(next.state),balance.version,canonical(effects.personnel),...(opEffects?[opsConfig.version,opsCanonical(opEffects.operations)]:[]),...(worldEffects?[worldConfig.version,worldCanonical(worldEffects)]:[]),...(logistics?[logisticsConfig.version,logisticsCanonical(logistics)]:[])]);
+    next.summary.stateHash=await digest([stateInput(next.state),balance.version,canonical(effects.personnel),...(opEffects?[opsConfig.version,opsCanonical(opEffects.operations)]:[]),...(worldEffects?[worldConfig.version,worldCanonical(worldEffects)]:[]),...(logistics?[logisticsConfig.version,logisticsCanonical(logistics)]:[]),...(intelligence?[intelligenceConfig.version,intelligenceCanonical(intelligence)]:[])]);
    }
    const processed=entry.processed+1;
    const important=entry.command.stopOnImportant&&next.summary.events.some(e=>e.important)&&processed<entry.command.turns;
    const status=opEffects?.critical?'interrupted':important?'interrupted':processed===entry.command.turns?'completed':'processing';
    const reason=opEffects?.critical?'critical_decision':important?'important_event':null;
-   if(!await commitTurn(db,g,entry,next.summary,next.state,status,reason,effects?(guard,args)=>personnelWrites(db,g,effects.personnel,guard,args,[...(opEffects?.ledger??[]),...effects.ledger,...logisticsLedger],[...(opEffects?.history??[]),...effects.history]).concat(opEffects?operationsWrites(db,g,opEffects.operations,guard,args,opEffects.reports):[]).concat(worldEffects?worldWrites(db,g,worldEffects,guard,args):[]).concat(logistics?logisticsWrites(db,g,logistics,guard,args):[]):undefined))continue;
+   if(!await commitTurn(db,g,entry,next.summary,next.state,status,reason,effects?(guard,args)=>personnelWrites(db,g,effects.personnel,guard,args,[...(opEffects?.ledger??[]),...effects.ledger,...logisticsLedger],[...(opEffects?.history??[]),...effects.history]).concat(opEffects?operationsWrites(db,g,opEffects.operations,guard,args,opEffects.reports):[]).concat(worldEffects?worldWrites(db,g,worldEffects,guard,args):[]).concat(logistics?logisticsWrites(db,g,logistics,guard,args):[]).concat(intelligence?intelligenceWrites(db,g,intelligence,guard,args):[]):undefined))continue;
    if(status!=='processing')return result({...g,state:next.state,stateVersion:g.stateVersion+1},{...entry,processed},status,reason);
   }catch(error){return failAdvance(db,owner,id,command.requestId,error instanceof ApiError?error.code:'turn_failed');}
  }return busy();
@@ -98,7 +104,7 @@ export async function handleApi(request:Request,env:{DB:Database}){
    if(Number(request.headers.get('content-length')||0)>16384)throw new ApiError(413,'TOO_LARGE','Requisição muito grande.');
   }
   const path=url.pathname.replace(/^\/api\/v1\/?/,'').split('/');
-  if(path[0]==='health')return json({status:'ok',phase:'logistics-online',rulesVersion:RULES_VERSION});
+  if(path[0]==='health')return json({status:'ok',phase:'intelligence-online',rulesVersion:RULES_VERSION});
   if(path[0]!=='games')throw new ApiError(404,'NOT_FOUND','Rota não encontrada.');
   if(!path[1]){
    if(request.method==='GET')return json(await listGames(db,owner));
@@ -108,6 +114,11 @@ export async function handleApi(request:Request,env:{DB:Database}){
   }
   const id=path[1],g=await getGame(db,id,owner);
   if(path.length===2&&request.method==='GET')return json(projection(g));
+  if(path[2]==='intelligence'){
+   await ensureIntelligence(db,id,owner,digest);const current=await getGame(db,id,owner);
+   if(request.method==='POST'&&path[3]==='analyses')return json(await analysisAction(db,id,owner,analysisSchema.parse(await request.json()),digest),201);
+   if(request.method==='GET'){const {offset,limit}=paginationSchema.parse(Object.fromEntries(url.searchParams));const type=url.searchParams.get('targetType'),target=url.searchParams.get('targetId'),topic=url.searchParams.get('topic')??undefined;if(type&&target)return json(await intelligenceView(db,current,type,target,offset,limit,topic));if(type||target||topic)throw new ApiError(400,'INVALID_TARGET','Informe tipo e identificador do alvo.');const rows=await db.prepare('SELECT id,target_type AS targetType,target_id AS targetId,topic,requested_turn AS requestedTurn,due_turn AS dueTurn,cost_cents AS costCents,status,completed_turn AS completedTurn FROM online_intel_analyses WHERE game_id=? ORDER BY requested_turn DESC,id LIMIT ? OFFSET ?').bind(id,limit,offset).all();return json({currentTurn:current.state.turn,stateVersion:current.stateVersion,analyses:rows.results,analysis:{costCents:intelligenceConfig.analysisCostCents,turns:intelligenceConfig.analysisTurns,capacity:intelligenceConfig.analysisCapacity}});}
+  }
   if(path[2]==='world'&&request.method==='GET'){await ensureWorld(db,id,owner,digest);const current=await getGame(db,id,owner);const {offset,limit}=paginationSchema.parse(Object.fromEntries(url.searchParams));return json(await worldRoute(db,current,path,url,offset,limit));}
   if(['logistics','equipment','headquarters'].includes(path[2])){
    await ensureLogistics(db,id,owner,digest);const current=await getGame(db,id,owner);
@@ -120,20 +131,20 @@ export async function handleApi(request:Request,env:{DB:Database}){
     if(path[2]==='operations')return json(await operationsView(db,current));
     if(path[2]==='contracts'){
      if(!path[3]){const view=await operationsView(db,current);const status=url.searchParams.get('status'),type=url.searchParams.get('type'),region=url.searchParams.get('region');return json(view.contracts.filter(c=>(!status||c.status===status)&&(!type||c.type===type)&&(!region||c.regionId===region)));}
-     const c=await db.prepare('SELECT * FROM online_contracts WHERE game_id=? AND id=?').bind(id,path[3]).first();if(!c)throw new ApiError(404,'NOT_FOUND','Contrato não encontrado.');return json(contractProjection(c,current.logisticsInitialized));
+     const c=await db.prepare('SELECT * FROM online_contracts WHERE game_id=? AND id=?').bind(id,path[3]).first();if(!c)throw new ApiError(404,'NOT_FOUND','Contrato não encontrado.');return json(contractProjection(c,current.logisticsInitialized,current.intelligenceInitialized?dossier(await readIntelligence(db,current),'contract',c.id,current.state.turn):undefined));
     }
     if(path[2]==='decisions')return json((await operationsView(db,current)).decisions);
     if(path[2]==='missions'){
      if(!path[3])return json((await operationsView(db,current)).missions);
      const m=await db.prepare('SELECT * FROM online_missions WHERE game_id=? AND id=?').bind(id,path[3]).first();if(!m)throw new ApiError(404,'NOT_FOUND','Missão não encontrada.');
      if(path[4]==='reports'){const {offset,limit}=paginationSchema.parse(Object.fromEntries(url.searchParams));const r=await db.prepare('SELECT id,turn,summary_json FROM online_mission_reports WHERE game_id=? AND mission_id=? ORDER BY turn,id LIMIT ? OFFSET ?').bind(id,m.id,limit,offset).all();return json(r.results.map(r=>({id:r.id,turn:r.turn,...JSON.parse(r.summary_json)})));}
-     const a=await db.prepare('SELECT * FROM online_mission_assignments WHERE game_id=? AND mission_id=? ORDER BY operator_id').bind(id,m.id).all();return json(missionProjection(m,a.results));
+     const a=await db.prepare('SELECT * FROM online_mission_assignments WHERE game_id=? AND mission_id=? ORDER BY operator_id').bind(id,m.id).all();const snapshot=await db.prepare('SELECT snapshot_json FROM online_mission_intelligence WHERE game_id=? AND mission_id=?').bind(id,m.id).first();return json({...missionProjection(m,a.results),intelligenceAtDeparture:snapshot?JSON.parse(snapshot.snapshot_json):null});
     }
    }
    if(request.method==='POST'){
     const body=await request.json();
     if(path[2]==='contracts'&&path[4]==='plan'){
-     const {g:latest,p}=await readPersonnel(db,id,owner),o=await readOperations(db,id),c=o.contracts.find(c=>c.id===path[3]);const plan=validatePlan(latest,p,o,c,planSchema.parse(body),latest.logisticsInitialized?await readLogistics(db,id):undefined);return json({...plan,stateVersion:latest.stateVersion});
+     const {g:latest,p}=await readPersonnel(db,id,owner),o=await readOperations(db,id),c=o.contracts.find(c=>c.id===path[3]);const plan=validatePlan(latest,p,o,c,planSchema.parse(body),latest.logisticsInitialized?await readLogistics(db,id):undefined,latest.intelligenceInitialized?await readIntelligence(db,latest):undefined);return json({...plan,stateVersion:latest.stateVersion});
     }
     if(path[2]==='contracts'&&['accept','cancel'].includes(path[4]))return json(await operationAction(db,id,owner,path[4],path[3],commandSchema.parse(body),digest));
     if(path[2]==='contracts'&&path[4]==='start')return json(await operationAction(db,id,owner,'start',path[3],startSchema.parse(body),digest),201);
