@@ -55,3 +55,5 @@ As correções e a normalização foram publicadas no site privado existente. O 
 - Testes de hash em lote/individual incluem pessoal; os 336 turnos da fundação continuam compatíveis quando o módulo não foi ativado.
 - Reserva de missão testada como fixture para impedir dupla agenda; missões reais e reforços ainda não existem e não foram alegados como validados.
 - Preview usa SQLite; publicação e smoke hospedado serão registrados em DEPLOYMENT.md. Não foram criados novos backups locais nesta fase.
+
+Publicação 0.2.0 concluída: serviço confirmou succeeded; schema remoto com 15 tabelas e carregamento de recrutamento na campanha existente confirmados no navegador. Não houve contratação de operadores ou avanço de turnos na campanha hospedada durante essa conferência.
