@@ -1,3 +1,5 @@
+import {readLogistics,logisticsWrites,equipmentPlan,logisticsView} from './logistics.ts';
+import {moduleCapacity,config as logisticsConfig,type Logistics} from '../packages/engine/logistics.ts';
 import {z} from 'zod';
 import {countries,organizations} from '../packages/rules/index.ts';
 import {type Database,type Statement,type Campaign,ApiError,mutate,getGame,projection} from './persistence.ts';
@@ -5,7 +7,7 @@ import {ensurePersonnel,readPersonnel,personnelWrites,directives,commandSchema} 
 import {availability,employment,type Personnel,type Digest} from '../packages/engine/personnel.ts';
 import {config,offers,emptyOperations,liveStatuses,type Operations} from '../packages/engine/operations.ts';
 const id=z.string().min(1).max(180);
-export const planSchema=z.object({squadId:id,memberIds:z.array(id).min(2).max(6),reinforcementIds:z.array(id).max(config.maxReinforcements).default([]),leaderId:id.optional(),deputyId:id.nullable().optional(),directives:directives.optional()}).strict();
+export const planSchema=z.object({squadId:id,memberIds:z.array(id).min(2).max(6),reinforcementIds:z.array(id).max(config.maxReinforcements).default([]),leaderId:id.optional(),deputyId:id.nullable().optional(),directives:directives.optional(),equipmentIds:z.array(id).max(12).default([])}).strict();
 export const startSchema=planSchema.extend(commandSchema.shape).strict();
 export const decisionSchema=commandSchema.extend({choice:z.enum(['proceed','safer','withdraw'])}).strict();
 const clean=(rows:any[])=>rows.map(({game_id,...r})=>r);
@@ -41,26 +43,27 @@ export async function ensureOperations(db:Database,id:string,owner:string,digest
  }throw new ApiError(409,'BUSY','Tente novamente.');
 }
 const assert=(condition:unknown,code:string,message:string)=>{if(!condition)throw new ApiError(422,code,message)};
-export function contractProjection(c:any){const intel=JSON.parse(c.intel_json);const country=countries.find(x=>c.region_id.startsWith(x.id+'-'));const regionName=country?.regions[Number(c.region_id.split('-').at(-1))]??c.region_id;return {countryName:country?.name??'',regionName,clientName:organizations.find(x=>x.id===c.client_id)?.name??c.client_id,id:c.id,type:c.type,title:c.title,regionId:c.region_id,clientId:c.client_id,source:c.source,originEventId:c.origin_event_id,status:c.status,expiresTurn:c.expires_turn,rewardCents:c.reward_cents,advanceCents:Math.round(c.reward_cents*config.advanceRate),minimumOperators:c.minimum_operators,mobilizationPerOperatorCents:config.mobilizationPerOperatorCents,requiredEquipment:[],stages:config.stages,estimatedDifficulty:intel.estimatedDifficulty,estimatedRisk:intel.estimatedRisk,confidence:intel.confidence,intelSource:intel.source,collectedTurn:intel.collectedTurn};}
+export function contractProjection(c:any,logisticsEnabled=false){const intel=JSON.parse(c.intel_json);const country=countries.find(x=>c.region_id.startsWith(x.id+'-'));const regionName=country?.regions[Number(c.region_id.split('-').at(-1))]??c.region_id;return {countryName:country?.name??'',regionName,clientName:organizations.find(x=>x.id===c.client_id)?.name??c.client_id,id:c.id,type:c.type,title:c.title,regionId:c.region_id,clientId:c.client_id,source:c.source,originEventId:c.origin_event_id,status:c.status,expiresTurn:c.expires_turn,rewardCents:c.reward_cents,advanceCents:Math.round(c.reward_cents*config.advanceRate),minimumOperators:c.minimum_operators,mobilizationPerOperatorCents:config.mobilizationPerOperatorCents,requiredEquipment:logisticsEnabled?(logisticsConfig.requirements as any)[c.type]:[],stages:config.stages,estimatedDifficulty:intel.estimatedDifficulty,estimatedRisk:intel.estimatedRisk,confidence:intel.confidence,intelSource:intel.source,collectedTurn:intel.collectedTurn};}
 export function decisionProjection(d:any){return {id:d.id,missionId:d.mission_id,stageIndex:d.stage_index,createdTurn:d.created_turn,expiresTurn:d.expires_turn,fallbackAction:d.fallback_action,chosenAction:d.chosen_action,resolvedTurn:d.resolved_turn,status:d.status,options:[{id:'proceed',label:'Prosseguir',consequence:'Mantém as diretrizes e a exposição atual.'},{id:'safer',label:'Reduzir exposição',consequence:'Abordagem cautelosa, com menor capacidade ofensiva.'},{id:'withdraw',label:'Retirar equipe',consequence:'Retorno em um turno, devolução do adiantamento e perda de reputação.'}]};}
 export function missionProjection(m:any,assignments:any[]=[]){return {id:m.id,contractTitle:m.contract_title??null,contractId:m.contract_id,squadId:m.squad_id,leaderId:m.leader_id,deputyId:m.deputy_id,status:m.status,startedTurn:m.started_turn,endedTurn:m.ended_turn,stageIndex:m.stage_index,stageName:config.stages[m.stage_index]??'Finalizada',stageDueTurn:m.stage_due_turn,totalStages:config.stages.length,completedStages:m.completed_stages,directives:JSON.parse(m.directives_json),advanceCents:m.advance_cents,paidCents:m.paid_cents,crew:assignments.filter(a=>a.mission_id===m.id).map(a=>({operatorId:a.operator_id,name:JSON.parse(a.snapshot_json).name,assignmentType:a.assignment_type,role:a.role}))};}
-export function validatePlan(g:Campaign,p:Personnel,o:Operations,c:any,command:any){
+export function validatePlan(g:Campaign,p:Personnel,o:Operations,c:any,command:any,logistics?:Logistics){
  assert(c?.status==='accepted','CONTRACT_NOT_ACCEPTED','Aceite o contrato antes de iniciar ou planejar.');assert(c.expires_turn>g.state.turn,'CONTRACT_EXPIRED','O contrato expirou.');
  const squad=p.squads.find(s=>s.id===command.squadId);assert(squad,'SQUAD_NOT_FOUND','Equipe não encontrada.');
  const ids=[...command.memberIds,...command.reinforcementIds];assert(new Set(ids).size===ids.length,'DUPLICATE_OPERATOR','Não repita operadores na formação.');assert(ids.length<=config.maxMembers,'FORMATION_TOO_LARGE','Formação acima do limite.');
  assert(command.memberIds.every((id:string)=>p.members.some(m=>m.squad_id===squad.id&&m.operator_id===id)),'INVALID_MEMBER','Membros permanentes devem integrar a equipe selecionada.');
- assert(ids.length>=c.minimum_operators,'FORMATION_TOO_SMALL','Formação insuficiente para o contrato.');assert(o.missions.filter(m=>liveStatuses.includes(m.status)).length<config.capacity,'OPERATIONS_CAPACITY','Não há vaga de operação simultânea.');
+ assert(ids.length>=c.minimum_operators,'FORMATION_TOO_SMALL','Formação insuficiente para o contrato.');assert(o.missions.filter(m=>liveStatuses.includes(m.status)).length<(logistics?moduleCapacity(logistics,'operations'):config.capacity),'OPERATIONS_CAPACITY','Não há vaga de operação simultânea.');
  const crew=ids.map((id:string)=>{const op=p.operators.find(o=>o.id===id);assert(op&&availability(p,op,g.state.turn)==='available','OPERATOR_UNAVAILABLE','Um operador está sem vínculo, inapto ou reservado.');assert(employment(p,id,g.state.turn)?.end_turn>=g.state.turn+config.maxMissionTurns,'CONTRACT_TOO_SHORT','Renove o vínculo para cobrir a duração máxima da missão.');return op;});
  const apt=(id:string)=>ids.includes(id)&&crew.some((op:any)=>op.id===id);
  const leader=command.leaderId??(apt(squad.leader_id)?squad.leader_id:apt(squad.deputy_id)?squad.deputy_id:null);assert(leader&&apt(leader),'INVALID_LEADER','Selecione um líder apto presente na formação.');
  const deputy=command.deputyId===undefined?squad.deputy_id:command.deputyId;assert(!deputy||(apt(deputy)&&deputy!==leader),'INVALID_DEPUTY','Substituto deve estar presente e ser diferente do líder.');
  const cost=ids.length*config.mobilizationPerOperatorCents;assert(g.state.cashCents>=cost,'INSUFFICIENT_CASH','Caixa insuficiente para mobilização.');
- return {squadId:squad.id,leaderId:leader,deputyId:deputy??null,directives:command.directives??JSON.parse(squad.directives_json),operatorIds:ids,mobilizationCents:cost,advanceCents:Math.round(c.reward_cents*config.advanceRate),maxTurns:config.maxMissionTurns,cashBeforeCents:g.state.cashCents,cashAfterCents:g.state.cashCents-cost+Math.round(c.reward_cents*config.advanceRate),requiredEquipment:[]};
+ const equipment=logistics?equipmentPlan(logistics,c.type,command.equipmentIds??[]):null;
+ return {equipmentIds:equipment?.kits.map(k=>k.id)??[],load:equipment?.load??0,loadCapacity:equipment?.loadCapacity??0,squadId:squad.id,leaderId:leader,deputyId:deputy??null,directives:command.directives??JSON.parse(squad.directives_json),operatorIds:ids,mobilizationCents:cost,advanceCents:Math.round(c.reward_cents*config.advanceRate),maxTurns:config.maxMissionTurns,cashBeforeCents:g.state.cashCents,cashAfterCents:g.state.cashCents-cost+Math.round(c.reward_cents*config.advanceRate),requiredEquipment:equipment?.requiredEquipment??[]};
 }
 export async function operationAction(db:Database,id:string,owner:string,kind:string,target:string,command:any,digest:Digest){
  await ensureOperations(db,id,owner,digest);const payload=JSON.stringify({kind,target,command});
  for(let i=0;i<30;i++){
-  const {g,p}=await readPersonnel(db,id,owner),o=await readOperations(db,id);
+  const {g,p}=await readPersonnel(db,id,owner),o=await readOperations(db,id),logistics=g.logisticsInitialized?await readLogistics(db,id):undefined;
   const old=await db.prepare('SELECT * FROM online_actions WHERE game_id=? AND request_id=?').bind(id,command.requestId).first();
   if(old){if(old.payload_json!==payload)throw new ApiError(409,'REQUEST_REUSED','Identificador reutilizado com outros dados.');return JSON.parse(old.result_json);}
   if(await db.prepare('SELECT request_id FROM online_commands WHERE game_id=? AND request_id=?').bind(id,command.requestId).first())throw new ApiError(409,'REQUEST_REUSED','Identificador utilizado em outro comando.');
@@ -71,9 +74,10 @@ export async function operationAction(db:Database,id:string,owner:string,kind:st
    if(kind==='accept'){assert(c.status==='available'&&c.expires_turn>g.state.turn,'CONTRACT_UNAVAILABLE','Oferta indisponível.');c.status='accepted';}
    if(kind==='cancel'){assert(c.status==='accepted','NOT_CANCELLABLE','Somente contratos aceitos e não iniciados podem ser cancelados.');c.status='cancelled';}
    if(kind==='start'){
-    const plan=validatePlan(g,p,o,c,command);missionId='mission-'+command.requestId;
+    const plan=validatePlan(g,p,o,c,command,logistics);missionId='mission-'+command.requestId;
     o.missions.push({id:missionId,contract_id:c.id,squad_id:plan.squadId,leader_id:plan.leaderId,deputy_id:plan.deputyId,directives_json:JSON.stringify(plan.directives),status:'active',started_turn:g.state.turn,ended_turn:null,stage_index:0,stage_due_turn:g.state.turn+1,delays:0,success_points:0,completed_stages:0,advance_cents:plan.advanceCents,paid_cents:plan.advanceCents});
     for(const operatorId of plan.operatorIds){const op=p.operators.find(o=>o.id===operatorId);o.assignments.push({mission_id:missionId,operator_id:operatorId,assignment_type:command.reinforcementIds.includes(operatorId)?'reinforcement':'permanent',role:operatorId===plan.leaderId?'leader':operatorId===plan.deputyId?'deputy':'member',snapshot_json:JSON.stringify({...JSON.parse(op.profile_json),health:op.health,fatigue:op.fatigue,morale:op.morale,loyalty:op.loyalty})});p.reservations.push({operator_id:operatorId,kind:'mission',source_id:missionId,start_turn:g.state.turn,end_turn:g.state.turn+config.maxMissionTurns});}
+    if(logistics)for(const kitId of plan.equipmentIds){const k=logistics.equipment.find(k=>k.id===kitId)!;logistics.assignments.push({mission_id:missionId,equipment_id:k.id,snapshot_json:JSON.stringify({catalogId:k.catalog_id,condition:k.condition,supplies:k.supplies}),status:'assigned',returned_turn:null});k.status='reserved';k.mission_id=missionId;}
     c.status='active';next.state.cashCents+=plan.advanceCents-plan.mobilizationCents;
     ledger.push({sourceId:'mission:'+missionId+':mobilization',entryType:'mission_mobilization',turn:g.state.turn,amountCents:-plan.mobilizationCents},{sourceId:'mission:'+missionId+':advance',entryType:'mission_advance',turn:g.state.turn,amountCents:plan.advanceCents});
    }
@@ -86,7 +90,7 @@ export async function operationAction(db:Database,id:string,owner:string,kind:st
   }
   const response={...projection(next),action:kind,contractId:['accept','cancel','start'].includes(kind)?target:undefined,missionId,decisionId:kind==='decision'?target:undefined};
   history.push({id:'action:'+command.requestId,turn:g.state.turn,event_type:'operation_'+kind,title:'Comando de operação confirmado',data_json:JSON.stringify({kind,target,missionId})});
-  if(await mutate(db,g,next,(guard,args)=>[...personnelWrites(db,g,p,guard,args,ledger,history),...operationsWrites(db,g,o,guard,args),db.prepare(`INSERT INTO online_actions SELECT ?,?,?,? WHERE ${guard}`).bind(id,command.requestId,payload,JSON.stringify(response),...args)]))return response;
+  if(await mutate(db,g,next,(guard,args)=>[...personnelWrites(db,g,p,guard,args,ledger,history),...operationsWrites(db,g,o,guard,args),...(logistics?logisticsWrites(db,g,logistics,guard,args):[]),db.prepare(`INSERT INTO online_actions SELECT ?,?,?,? WHERE ${guard}`).bind(id,command.requestId,payload,JSON.stringify(response),...args)]))return response;
  }throw new ApiError(409,'BUSY','Tente novamente com o mesmo comando.');
 }
 export async function operationsView(db:Database,g:Campaign){
@@ -96,5 +100,6 @@ export async function operationsView(db:Database,g:Campaign){
   db.prepare("SELECT * FROM online_decisions WHERE game_id=? AND status='pending' ORDER BY expires_turn,id LIMIT 30").bind(g.id),
   db.prepare('SELECT a.* FROM online_mission_assignments a WHERE a.game_id=? AND a.mission_id IN(SELECT id FROM online_missions WHERE game_id=? ORDER BY started_turn DESC,rowid DESC LIMIT 30) ORDER BY operator_id').bind(g.id,g.id),
  ]);
- return {stateVersion:g.stateVersion,currentTurn:g.state.turn,capacity:config.capacity,contracts:rows[0].results.map(contractProjection),missions:rows[1].results.map(m=>missionProjection(m,rows[3].results)),decisions:rows[2].results.map(decisionProjection),logisticsNote:'Estas ofertas não exigem kits. Estoque e módulos da sede serão adicionados depois.'};
+ const logistics=g.logisticsInitialized?await readLogistics(db,g.id):undefined;const logisticsData=logistics?logisticsView(g,logistics):null;
+ return {logistics:logisticsData,stateVersion:g.stateVersion,currentTurn:g.state.turn,capacity:logistics?moduleCapacity(logistics,'operations'):config.capacity,contracts:rows[0].results.map(c=>contractProjection(c,!!logistics)),missions:rows[1].results.map(m=>missionProjection(m,rows[3].results)),decisions:rows[2].results.map(decisionProjection),logisticsNote:logistics?'Selecione kits obrigatórios, em condição e suprimentos suficientes. Reserva somente ao iniciar.':'Abra Sede e logística para ativar equipamentos e infraestrutura nesta campanha.'};
 }

@@ -78,3 +78,14 @@ Publicação 0.3.0 confirmada pelo serviço Sites como succeeded; schema remoto 
 Preview no navegador: campanha local QA Fundação ativada em T13 e avançada até T41, com notícias causais, contratos emergentes, conflitos e resultados de rivais; causa de notícia T29 consultou notícia T16; navegar de Varkov abriu contratos filtrados. Layout do dossiê verificado em 390 px com quatro indicadores em duas colunas, sem quebra do conteúdo. Nenhum avanço de QA realizado no banco hospedado. O bloqueio de navegação da revisão anterior tinha prazo 16:11; a validação atual após 16:45 foi permitida.
 
 Limites: parâmetros de balanceamento provisórios; PMCs rivais agregadas, sem operadores individuais; inteligência avançada, kits e sede ficam para fases posteriores.
+
+Smoke hospedado concluído: dossiê de Varkov carregado em Vanguard Security T1, sem avanço de turno; schema remoto com 29 tabelas confirmado pelo conector Sites.
+
+
+## Logística e sede 0.5.0 — 2026-11-08
+
+93 testes em 13 arquivos: 17 funcionais novos e dois de retry da interface; demais 74 preservados. Compra/entrega/prazo/caixa/carga; serviços separados e vagas; requisitos e snapshot de kits; desgaste sem dupla cobrança; retirada/retorno; início concorrente de duas missões pelo mesmo kit; upgrades e capacidade; treino/progresso/interrupção; enfermaria/ferimentos graves; dívida/quitação; rollback em entrega com três turnos confirmados e retomada; equivalência lote/individual por 336 turnos; compatibilidade de missão anterior à ativação. Typecheck e build online.
+
+Navegador local QA Fundação: logística ativada em T41; compra de Combate I (USD 1.800), entrega T45; upgrade de treino (USD 2.500), capacidade 1 até T48 e 2 em T49. Escolta com dois operadores e kit selecionado planejada/iniciada T49; concluída T53, kit devolvido com condição 88 e suprimentos 68, reparo USD 108 e reposição USD 115,20 apresentados separadamente. Interfaces de sede/catálogo verificadas em 390 px. Sem novos backups.
+
+Balanceamento provisório e agregação dos kits por missão; não há combate tático, veículos detalhados, múltiplas bases ou fabricação. Inteligência progressiva permanece Fase 6.

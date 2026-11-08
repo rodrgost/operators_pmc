@@ -41,3 +41,15 @@ Fonte principal local: C:\Users\rodrg\DEV\operators_pmc. A cópia em .sites-runt
 - Validação local: 64 testes em 10 arquivos, build e typecheck aprovados. Ciclo aceitar, planejar, iniciar e concluir missão foi validado no navegador local entre T9 e T13; pagamento proporcional e reputação registrados. Layout de operações/relatórios inspecionado em 390 px.
 - Conferência visual final do site hospedado pendente: aprovação automática de navegação negada porque o limite de uso foi atingido. Não foi tentado contornar esse bloqueio. A publicação foi confirmada como succeeded independentemente dessa conferência.
 - Nenhuma missão de teste criada ou avançada na campanha hospedada nesta revisão. Não foram criados novos backups locais.
+
+
+## Mundo 0.4.0 — 2026-11-08
+
+- Commit publicado: f9f9f4d7375b624e978308420c0d517ca2662370.
+- Implantação: appgdep_6af0d2a4b088819185ca6505ebe345cd, succeeded.
+- Versão salva: appgprj_6af0867c8b0081919a17665415f89c70~appgver_95e9e27340d481919f057f0de4f55edb.
+- Mesma URL e acesso privado owner-only preservados.
+- 74 testes aprovados; typecheck/build online e diff check aprovados. Preview local T13→T41 e dossiê móvel em 390 px verificados.
+- Nove tabelas mundiais adicionadas por migration incremental; nenhum novo backup criado e nenhum avanço de QA no banco hospedado.
+
+- Conferência pós-publicação: conector confirmou 29 tabelas; navegador autenticado carregou o dossiê de Varkov na campanha hospedada Vanguard Security em T1, com indicadores estimados e versão 0.4.0. Nenhuma contratação, missão ou avanço realizado online no smoke.

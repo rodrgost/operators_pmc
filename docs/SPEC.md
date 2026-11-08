@@ -664,3 +664,10 @@ Implementado ciclo comercial aceitar→planejar→iniciar→executar etapas→re
 Implementados indicadores regionais estimados, influência normalizada, controle político, organizações/relações, conflitos com participantes, notícias com origem consultável, demandas emergentes e três PMCs rivais agregadas. Rivais consomem somente ofertas disponíveis após quatro turnos e usam orçamento próprio. Missões do jogador produzem consequências regionais/diplomáticas no mesmo commit do pagamento. Ativação no primeiro acesso aos dados mundiais, a partir do turno atual, sem retroatividade.
 
 Regras provisórias em packages/rules/world.json; ADR 0007; migration incremental 0004_parallel_scream.sql, nove tabelas novas (29 no total). Estado atual carregado separadamente do histórico paginado. Estimativas persistidas atualizam a cada quatro turnos ou notícia; valores internos e RNG não são enviados ao navegador. Não há novos backups. Próximo incremento: Fase 5, logística, equipamentos/kits e sede.
+
+
+## Incremento 0.5.0 — logística e infraestrutura (2026-11-08)
+
+Implementados catálogo de 18 kits, estoque por instância, compra/entrega, carga, requisitos de missão e alocação exclusiva com snapshot imutável. Etapas consomem suprimentos e desgastam condição sem nova cobrança; retorno libera kits; reparo e reposição são serviços separados. Efeitos dependem de categoria, etapa/tipo, qualidade, condição, suprimentos, especialização enviada e duplicatas.
+
+Uma sede, cinco módulos níveis 1–5, melhorias sequenciais com prazo e capacidade antiga preservada; manutenção semanal após salários, dívida e quitação automática. Treino/enfermaria respeitam vagas; treinamento por atributo preserva progresso ao interromper; tratamento grave tem mínimo de oito turnos. Visão geral → Sede e logística; planejamento permite selecionar kits. Ativação sem retroatividade ao abrir logística (a interface inicializa ao selecionar a campanha), mantendo missões já enviadas. Regras provisórias em packages/rules/logistics.json, ADR 0008 e migration 0005_new_proudstar.sql (35 tabelas). Próximo incremento: inteligência progressiva.

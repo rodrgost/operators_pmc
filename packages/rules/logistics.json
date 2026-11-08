@@ -1,0 +1,225 @@
+{
+  "version": "logistics-0.1",
+  "deliveryTurns": 4,
+  "serviceTurns": 4,
+  "minimumCondition": 40,
+  "minimumSupplies": 10,
+  "stageWear": 3,
+  "stageConsumption": 8,
+  "baseMissionLoad": 6,
+  "maximumMissionLoad": 20,
+  "logisticsLoadBonus": 4,
+  "trainingTurns": 4,
+  "seriousRecoveryTurns": 8,
+  "trainingCostCents": 2000,
+  "treatmentCostCents": 3000,
+  "trainingProgressPerTurn": 28,
+  "restFatiguePerTurn": 5,
+  "overflowWeeklyCents": 2000,
+  "trainingEfficiency": [
+    100,
+    110,
+    120,
+    130,
+    145
+  ],
+  "infirmaryHealing": [
+    5,
+    7,
+    9,
+    12,
+    15
+  ],
+  "modules": [
+    {
+      "id": "training",
+      "name": "Centro de treinamento",
+      "capacities": [
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "upgradeBaseCents": 250000,
+      "upgradeTurns": 8,
+      "weeklyBaseCents": 10000
+    },
+    {
+      "id": "infirmary",
+      "name": "Enfermaria",
+      "capacities": [
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "upgradeBaseCents": 300000,
+      "upgradeTurns": 8,
+      "weeklyBaseCents": 12000
+    },
+    {
+      "id": "depot",
+      "name": "Depósito",
+      "capacities": [
+        20,
+        40,
+        70,
+        110,
+        160
+      ],
+      "preparations": [
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "upgradeBaseCents": 200000,
+      "upgradeTurns": 6,
+      "weeklyBaseCents": 8000
+    },
+    {
+      "id": "operations",
+      "name": "Centro de operações",
+      "capacities": [
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "upgradeBaseCents": 500000,
+      "upgradeTurns": 12,
+      "weeklyBaseCents": 20000
+    },
+    {
+      "id": "administration",
+      "name": "Administração",
+      "capacities": [
+        12,
+        20,
+        30,
+        45,
+        65
+      ],
+      "upgradeBaseCents": 350000,
+      "upgradeTurns": 8,
+      "weeklyBaseCents": 10000
+    }
+  ],
+  "categories": [
+    {
+      "id": "combat",
+      "name": "Combate",
+      "priceCents": 180000,
+      "weight": 3,
+      "specialization": "assault",
+      "stages": [
+        2
+      ],
+      "types": [
+        "security",
+        "escort",
+        "extraction",
+        "rescue"
+      ],
+      "capacityBonus": 6
+    },
+    {
+      "id": "recon",
+      "name": "Reconhecimento",
+      "priceCents": 140000,
+      "weight": 2,
+      "specialization": "recon",
+      "stages": [
+        1
+      ],
+      "types": [
+        "reconnaissance",
+        "extraction"
+      ],
+      "capacityBonus": 6
+    },
+    {
+      "id": "medical",
+      "name": "Médico",
+      "priceCents": 100000,
+      "weight": 2,
+      "specialization": "medic",
+      "stages": [
+        2
+      ],
+      "types": [],
+      "capacityBonus": 0
+    },
+    {
+      "id": "technical",
+      "name": "Técnico",
+      "priceCents": 160000,
+      "weight": 2,
+      "specialization": "technical",
+      "stages": [
+        2
+      ],
+      "types": [
+        "recovery"
+      ],
+      "capacityBonus": 7
+    },
+    {
+      "id": "communication",
+      "name": "Comunicação",
+      "priceCents": 90000,
+      "weight": 1,
+      "specialization": "leader",
+      "stages": [
+        0,
+        1
+      ],
+      "types": [
+        "security",
+        "escort",
+        "reconnaissance",
+        "extraction",
+        "recovery",
+        "rescue"
+      ],
+      "capacityBonus": 3
+    },
+    {
+      "id": "logistics",
+      "name": "Logístico",
+      "priceCents": 120000,
+      "weight": 2,
+      "specialization": "technical",
+      "stages": [
+        0,
+        3
+      ],
+      "types": [],
+      "capacityBonus": 0
+    }
+  ],
+  "requirements": {
+    "security": [
+      "combat"
+    ],
+    "escort": [
+      "combat"
+    ],
+    "reconnaissance": [
+      "recon"
+    ],
+    "extraction": [
+      "combat"
+    ],
+    "recovery": [
+      "technical"
+    ],
+    "rescue": [
+      "medical"
+    ]
+  }
+}

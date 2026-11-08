@@ -36,6 +36,13 @@
       "when": 1794166424338,
       "tag": "0004_parallel_scream",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794168413840,
+      "tag": "0005_new_proudstar",
+      "breakpoints": true
     }
   ]
 }

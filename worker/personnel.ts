@@ -1,3 +1,5 @@
+import {readLogistics,logisticsWrites} from './logistics.ts';
+import {moduleCapacity,config as logisticsConfig,type Logistics} from '../packages/engine/logistics.ts';
 import { z } from 'zod';
 import { ApiError, type Database,type Statement,type Campaign,rowGame,mutate,getGame,projection } from './persistence.ts';
 import { balance,market,emptyPersonnel,employment,availability,squadProjection,specializations,type Personnel,type Digest } from '../packages/engine/personnel.ts';
@@ -7,7 +9,7 @@ const weeks=z.union([z.literal(4),z.literal(8),z.literal(12)]);
 const base={requestId,expectedVersion:z.number().int().nonnegative()};
 export const hireSchema=z.object({...base,candidateId:id,weeks}).strict();
 export const renewSchema=z.object({...base,weeks}).strict();
-export const activitySchema=z.object({...base,type:z.enum(['rest','training','recovery'])}).strict();
+export const activitySchema=z.object({...base,type:z.enum(['rest','training','recovery']),attribute:z.enum(['combat','stealth','technical','perception','endurance','leadership']).default('combat')}).strict();
 export const commandSchema=z.object(base).strict();
 export const memberSchema=z.object({...base,operatorId:id}).strict();
 export const directives=z.object({posture:z.enum(['cautious','balanced','aggressive']),priority:z.enum(['objective','team_safety','deadline']),riskTolerance:z.enum(['low','medium','high']),withdrawalPolicy:z.enum(['conservative','normal','persistent'])}).strict();
@@ -60,16 +62,16 @@ export async function ensurePersonnel(db:Database,id:string,owner:string,digest:
   if(await mutate(db,g,{...g,personnelInitialized:true},(guard,args)=>personnelWrites(db,g,p,guard,args)))return;
  }throw new ApiError(409,'BUSY','Tente novamente.');
 }
-export function personnelProjection(g:Campaign,p:Personnel){
+export function personnelProjection(g:Campaign,p:Personnel,l?:Logistics){
  const operators=p.operators.map(op=>({id:op.id,...JSON.parse(op.profile_json),health:op.health,fatigue:op.fatigue,morale:op.morale,loyalty:op.loyalty,hiredTurn:op.hired_turn,availability:availability(p,op,g.state.turn),employment:employment(p,op.id,g.state.turn)??null,lastEmployment:p.contracts.filter(c=>c.operator_id===op.id).sort((a,b)=>b.end_turn-a.end_turn)[0]??null,arrearsCents:p.contracts.filter(c=>c.operator_id===op.id).reduce((n,c)=>n+c.arrears_cents,0),reservation:p.reservations.find(r=>r.operator_id===op.id)??null}));
- return {stateVersion:g.stateVersion,currentTurn:g.state.turn,operators,candidates:p.candidates.filter(c=>!c.hired).map(c=>({id:c.id,...JSON.parse(c.profile_json),salaryCents:c.salary_cents,signingBonusCents:c.bonus_cents,expiresTurn:(c.week+1)*28})),squads:p.squads.map(s=>squadProjection(p,s,g.state.turn)),familiarity:p.familiarity,capacity:balance.operatorCapacity,employed:operators.filter(o=>o.employment).length,weeklySalaryCents:p.contracts.filter(c=>c.status==='active'&&c.start_turn<=g.state.turn&&c.end_turn>g.state.turn).reduce((n,c)=>n+c.salary_cents,0),arrearsCents:p.contracts.reduce((n,c)=>n+c.arrears_cents,0),nextMarketTurn:(Math.floor(g.state.turn/28)+1)*28};
+ return {stateVersion:g.stateVersion,currentTurn:g.state.turn,operators,candidates:p.candidates.filter(c=>!c.hired).map(c=>({id:c.id,...JSON.parse(c.profile_json),salaryCents:c.salary_cents,signingBonusCents:c.bonus_cents,expiresTurn:(c.week+1)*28})),squads:p.squads.map(s=>squadProjection(p,s,g.state.turn)),familiarity:p.familiarity,capacity:l?moduleCapacity(l,'administration'):balance.operatorCapacity,facilityRules:l?{trainingCostCents:logisticsConfig.trainingCostCents,treatmentCostCents:logisticsConfig.treatmentCostCents,activityTurns:logisticsConfig.trainingTurns,seriousRecoveryTurns:logisticsConfig.seriousRecoveryTurns}:null,trainingCapacity:l?moduleCapacity(l,'training'):null,recoveryCapacity:l?moduleCapacity(l,'infirmary'):null,trainingProgress:l?.progress??[],headquartersArrearsCents:l?.headquarters.arrears_cents??0,employed:operators.filter(o=>o.employment).length,weeklySalaryCents:p.contracts.filter(c=>c.status==='active'&&c.start_turn<=g.state.turn&&c.end_turn>g.state.turn).reduce((n,c)=>n+c.salary_cents,0),arrearsCents:p.contracts.reduce((n,c)=>n+c.arrears_cents,0),nextMarketTurn:(Math.floor(g.state.turn/28)+1)*28};
 }
 function assert(condition:unknown,code:string,message:string):asserts condition{if(!condition)throw new ApiError(422,code,message);}
 export async function personnelAction(db:Database,id:string,owner:string,kind:string,target:string|undefined,command:any,digest:Digest){
  await ensurePersonnel(db,id,owner,digest);
  const payload=JSON.stringify({kind,target:target??null,command});
  for(let attempt=0;attempt<30;attempt++){
-  const {g,p}=await readPersonnel(db,id,owner);
+  const {g,p}=await readPersonnel(db,id,owner),l=g.logisticsInitialized?await readLogistics(db,id):undefined;
   const old=await db.prepare('SELECT * FROM online_actions WHERE game_id=? AND request_id=?').bind(id,command.requestId).first();
   if(old){if(old.payload_json!==payload)throw new ApiError(409,'REQUEST_REUSED','Identificador já utilizado com outros dados.');return JSON.parse(old.result_json);}
   if(await db.prepare('SELECT request_id FROM online_commands WHERE game_id=? AND request_id=?').bind(id,command.requestId).first())throw new ApiError(409,'REQUEST_REUSED','Identificador já utilizado em outro comando.');
@@ -80,7 +82,7 @@ export async function personnelAction(db:Database,id:string,owner:string,kind:st
   const active=(operatorId:string)=>{op(operatorId);assert(employment(p,operatorId,g.state.turn),'EMPLOYMENT_REQUIRED','Operador sem vínculo ativo.');};
   if(kind==='hire'){
    const c=p.candidates.find(c=>c.id===command.candidateId&&!c.hired);assert(c,'CANDIDATE_UNAVAILABLE','Candidato indisponível ou oferta expirada.');
-   assert(p.contracts.filter(c=>c.status==='active').length<balance.operatorCapacity,'CAPACITY','Capacidade administrativa atingida.');
+   assert(p.contracts.filter(c=>c.status==='active').length<(l?moduleCapacity(l,'administration'):balance.operatorCapacity),'CAPACITY','Capacidade administrativa atingida.');
    assert(g.state.cashCents>=c.bonus_cents,'INSUFFICIENT_CASH','Caixa insuficiente para o bônus de assinatura.');
    c.hired=1;entityId='operator-'+c.id;
    p.operators.push({id:entityId,profile_json:c.profile_json,health:balance.initialHealth,fatigue:balance.initialFatigue,morale:balance.initialMorale,loyalty:balance.initialLoyalty,hired_turn:g.state.turn});
@@ -91,7 +93,7 @@ export async function personnelAction(db:Database,id:string,owner:string,kind:st
    const existing=employment(p,target!,g.state.turn);
    if(existing)existing.end_turn+=command.weeks*28;
    else {const previous=p.contracts.filter(c=>c.operator_id===target).sort((a,b)=>b.end_turn-a.end_turn)[0];assert(previous,'EMPLOYMENT_REQUIRED','Vínculo anterior não encontrado.');
-    assert(p.contracts.filter(c=>c.status==='active').length<balance.operatorCapacity,'CAPACITY','Capacidade administrativa atingida.');
+    assert(p.contracts.filter(c=>c.status==='active').length<(l?moduleCapacity(l,'administration'):balance.operatorCapacity),'CAPACITY','Capacidade administrativa atingida.');
     p.contracts.push({id:'employment-'+command.requestId,operator_id:target,salary_cents:previous.salary_cents,start_turn:g.state.turn,end_turn:g.state.turn+command.weeks*28,next_pay_turn:g.state.turn+28,arrears_cents:0,status:'active'});
    }
   }else if(['squad_create','squad_update','squad_member_add','squad_member_remove'].includes(kind)){
@@ -112,20 +114,25 @@ export async function personnelAction(db:Database,id:string,owner:string,kind:st
    if(kind==='squad_create')p.squads.push(s);
    p.members=p.members.filter(m=>m.squad_id!==s.id);
    for(const operatorId of ids)p.members.push(previous.find(m=>m.operator_id===operatorId)??{squad_id:s.id,operator_id:operatorId,joined_version:next.stateVersion,joined_turn:g.state.turn,left_turn:null});
+  }else if(kind==='activity_cancel'){
+   const r=p.reservations.find(r=>r.operator_id===target);assert(r&&r.kind!=='mission','ACTIVITY_UNAVAILABLE','Nenhuma atividade cancelável para este operador.');const a=l?.activities.find(a=>a.operator_id===target&&a.status==='active');assert(!a||a.kind!=='recovery'||a.minimum_end_turn<=g.state.turn,'MINIMUM_TREATMENT','Ferimento grave exige o período mínimo de tratamento.');if(a)a.status='cancelled';p.reservations=p.reservations.filter(x=>x!==r);
   }else if(kind==='activity'||kind==='squad_training'){
    let ids=[target!],type=command.type;
    if(kind==='squad_training'){const s=p.squads.find(s=>s.id===target);assert(s,'SQUAD_NOT_FOUND','Equipe não encontrada.');ids=p.members.filter(m=>m.squad_id===target).map(m=>m.operator_id);assert(ids.length>=2,'SQUAD_TOO_SMALL','Treino conjunto requer pelo menos dois membros.');type='training';}
+   if(l){if(type==='training')assert(!l.headquarters.arrears_cents,'HEADQUARTERS_ARREARS','Manutenção da sede em atraso.');if(type!=='rest')assert(p.reservations.filter(r=>r.kind===type).length+ids.length<=moduleCapacity(l,type==='training'?'training':'infirmary'),'FACILITY_CAPACITY','Vagas insuficientes para todos os operadores selecionados.');const cost=ids.length*(type==='training'?logisticsConfig.trainingCostCents:type==='recovery'?logisticsConfig.treatmentCostCents:0);assert(g.state.cashCents>=cost,'INSUFFICIENT_CASH','Caixa insuficiente para iniciar a atividade.');next.state.cashCents-=cost;if(cost)ledger.push({sourceId:'facility:'+command.requestId,entryType:type==='training'?'operator_training':'operator_treatment',turn:g.state.turn,amountCents:-cost});}
    for(const operatorId of ids){active(operatorId);const o=op(operatorId);
     assert(!p.reservations.some(r=>r.operator_id===operatorId),'OPERATOR_BUSY','Operador já possui uma atividade ou missão.');
     assert(type!=='training'||(o.health>=balance.minimumHealth&&o.fatigue<balance.exhaustionFatigue),'OPERATOR_UNFIT','Operador sem condições para treinamento.');
-    const c=employment(p,operatorId,g.state.turn);assert(c.end_turn>=g.state.turn+balance.activityTurns,'CONTRACT_TOO_SHORT','Renove o vínculo antes de iniciar esta atividade.');
-    p.reservations.push({operator_id:operatorId,kind:type,source_id:command.requestId,start_turn:g.state.turn,end_turn:g.state.turn+balance.activityTurns});
+    const duration=l?(type==='recovery'&&o.health<25?logisticsConfig.seriousRecoveryTurns:logisticsConfig.trainingTurns):balance.activityTurns;
+    const c=employment(p,operatorId,g.state.turn);assert(c.end_turn>=g.state.turn+duration,'CONTRACT_TOO_SHORT','Renove o vínculo antes de iniciar esta atividade.');
+    p.reservations.push({operator_id:operatorId,kind:type,source_id:command.requestId,start_turn:g.state.turn,end_turn:g.state.turn+duration});
+    if(l){const previous=l.activities.find(a=>a.operator_id===operatorId);const activity={operator_id:operatorId,request_id:command.requestId,kind:type,attribute:command.attribute??'combat',started_turn:g.state.turn,minimum_end_turn:type==='recovery'&&o.health<25?g.state.turn+duration:g.state.turn,status:'active'};if(previous)Object.assign(previous,activity);else l.activities.push(activity);}
    }
   }else throw new ApiError(404,'NOT_FOUND','Comando não encontrado.');
-  const actionResult={...projection(next),action:kind,operatorId:kind==='hire'||kind==='renew'||kind==='activity'?entityId:undefined,squadId:kind.startsWith('squad_')?entityId:undefined};
+  const actionResult={...projection(next),action:kind,operatorId:['hire','renew','activity','activity_cancel'].includes(kind)?entityId:undefined,squadId:kind.startsWith('squad_')?entityId:undefined};
   history.push({id:'action:'+command.requestId,turn:g.state.turn,event_type:kind,title:kind==='hire'?'Operador contratado':kind==='renew'?'Vínculo renovado':kind.startsWith('squad_')?'Equipe atualizada':'Atividade iniciada',data_json:JSON.stringify({operatorId:actionResult.operatorId,squadId:actionResult.squadId,command})});
   if(await mutate(db,g,next,(guard,args)=>[
-   ...personnelWrites(db,g,p,guard,args,ledger,history),
+   ...personnelWrites(db,g,p,guard,args,ledger,history),...(l?logisticsWrites(db,g,l,guard,args):[]),
    db.prepare(`INSERT INTO online_actions SELECT ?,?,?,? WHERE ${guard}`).bind(id,command.requestId,payload,JSON.stringify(actionResult),...args),
   ]))return actionResult;
  }

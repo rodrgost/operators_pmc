@@ -39,7 +39,7 @@ export function squadProjection(p:Personnel,s:any,turn:number){
  return {id:s.id,name:s.name,specialization:s.specialization,leaderId:s.leader_id,deputyId:s.deputy_id,effectiveLeaderId:leader,memberIds:ids,directives:JSON.parse(s.directives_json),familiarity:scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0,ready:ids.length>=balance.squadMin&&!!leader&&ids.every(apt)};
 }
 export function canonical(p:Personnel){return Object.fromEntries(Object.entries(p).map(([key,rows])=>[key,[...rows].sort((a:any,b:any)=>JSON.stringify(a).localeCompare(JSON.stringify(b),'en'))]));}
-export async function personnelTurn(original:Personnel,turn:number,cash:number,seed:string,reputation:number,digest:Digest){
+export async function personnelTurn(original:Personnel,turn:number,cash:number,seed:string,reputation:number,digest:Digest,managedIds:string[]=[]){
  const p:Personnel=structuredClone(original),ledger:any[]=[],events:any[]=[],history:any[]=[];
  const add=(type:string,title:string,description:string,important=false)=>{events.push({type,title,description,important});};
  const record=(id:string,type:string,title:string,data:any)=>history.push({id,turn,event_type:type,title,data_json:JSON.stringify(data)});
@@ -58,9 +58,9 @@ export async function personnelTurn(original:Personnel,turn:number,cash:number,s
  }
  const ended=p.reservations.filter(r=>r.kind!=='mission'&&r.end_turn<=turn);
  for(const r of ended){const op=p.operators.find(o=>o.id===r.operator_id);if(!op)continue;
-  if(r.kind==='rest')op.fatigue=clamp(op.fatigue-balance.restFatigue);
-  if(r.kind==='recovery')op.health=clamp(op.health+balance.recoveryHealth);
-  if(r.kind==='training')op.fatigue=clamp(op.fatigue+balance.trainingFatigue);
+  if(!managedIds.includes(op.id)&&r.kind==='rest')op.fatigue=clamp(op.fatigue-balance.restFatigue);
+  if(!managedIds.includes(op.id)&&r.kind==='recovery')op.health=clamp(op.health+balance.recoveryHealth);
+  if(!managedIds.includes(op.id)&&r.kind==='training')op.fatigue=clamp(op.fatigue+balance.trainingFatigue);
   record('activity:'+r.source_id+':'+op.id,'activity_completed','Atividade concluída',{operatorId:op.id,kind:r.kind});
  }
  const groups=[...new Set(ended.filter(r=>r.kind==='training').map(r=>r.source_id))];

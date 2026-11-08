@@ -1,3 +1,5 @@
+import {ensureLogistics,readLogistics,logisticsWrites,logisticsView,logisticsAction,purchaseSchema} from './logistics.ts';
+import {logisticsStart,facilityTurn,facilitiesFinance,logisticsCanonical,config as logisticsConfig} from '../packages/engine/logistics.ts';
 import {ensureWorld,readWorld,worldWrites,worldRoute} from './world.ts';
 import {worldTurn,applyMissionResults,publishWorldContracts,refreshIntel,worldCanonical,worldNotifications,config as worldConfig} from '../packages/engine/world.ts';
 import { createGameSchema, advanceSchema, resumeSchema, paginationSchema } from '../packages/contracts/index.ts';
@@ -51,7 +53,8 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
    const nextState={...g.state,turn:g.state.turn+1};
    const [randomHash,hash]=await Promise.all([digest(drawInput(g.seed,nextState.turn,'bulletin','world','country')),digest(stateInput(nextState))]);
    const next=resolveTurn(g.state,g.startDate,drawFromHash(randomHash),hash);
-   let effects:any=null,opEffects:any=null,worldEffects:any=null;
+   let effects:any=null,opEffects:any=null,worldEffects:any=null,logistics:any=null,logisticsEvents:any[]=[],logisticsLedger:any[]=[];
+   if(g.logisticsInitialized){if(g.logisticsVersion!==logisticsConfig.version)throw new ApiError(422,'LOGISTICS_RULES_MISMATCH','Regras de logística indisponíveis.');logistics=await readLogistics(db,id);logisticsEvents=logisticsStart(logistics,next.state.turn);}
    if(g.personnelInitialized){
     if(g.personnelVersion!==balance.version)throw new ApiError(422,'PERSONNEL_RULES_MISMATCH','Regras de pessoal indisponíveis.');
     const {p}=await readPersonnel(db,id,owner);
@@ -60,23 +63,26 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
      if(g.operationsVersion!==opsConfig.version)throw new ApiError(422,'OPERATIONS_RULES_MISMATCH','Regras de operações indisponíveis.');
      let operations=await readOperations(db,id);
      if(g.worldInitialized){if(g.worldVersion!==worldConfig.version)throw new ApiError(422,'WORLD_RULES_MISMATCH','Regras mundiais indisponíveis.');const resolved=await worldTurn(await readWorld(db,id),operations,next.state.turn,g.seed,digest);worldEffects=resolved.world;operations=resolved.operations;}
-     opEffects=await operationsTurn(operations,p,next.state.turn,next.state.cashCents,next.state.reputation,g.seed,digest);
+     opEffects=await operationsTurn(operations,p,next.state.turn,next.state.cashCents,next.state.reputation,g.seed,digest,logistics??undefined);
      if(worldEffects)applyMissionResults(worldEffects,opEffects.operations,next.state.turn);
      turnPersonnel=opEffects.personnel;next.state.cashCents=opEffects.cash;next.state.reputation=opEffects.reputation;
     }
-    effects=await personnelTurn(turnPersonnel,next.state.turn,next.state.cashCents,g.seed,next.state.reputation,digest);
-    next.state.cashCents=effects.cash;next.state.status=effects.cash<0?'financial_crisis':effects.status;
+    const managed=logistics?facilityTurn(logistics,turnPersonnel,next.state.turn):[];
+    effects=await personnelTurn(turnPersonnel,next.state.turn,next.state.cashCents,g.seed,next.state.reputation,digest,managed);
+    next.state.cashCents=effects.cash;
+    if(logistics){const finance=facilitiesFinance(logistics,next.state.turn,next.state.cashCents);next.state.cashCents=finance.cash;logisticsLedger=finance.ledger;logisticsEvents.push(...finance.events);}
+    next.state.status=next.state.cashCents<0||logistics?.headquarters.arrears_cents>0?'financial_crisis':effects.status;
     if(worldEffects){await publishWorldContracts(worldEffects,opEffects.operations,g.seed,next.state.turn,digest);await refreshIntel(worldEffects,g.seed,next.state.turn,digest);next.summary.events=next.summary.events.filter(e=>e.type!=='public_bulletin');}
     const weekly=next.summary.events.find(e=>e.type==='weekly_close');if(weekly)weekly.description='Semana encerrada. Consulte os pagamentos e vínculos no livro-razão.';
-    for(const e of [...(worldEffects?worldNotifications(worldEffects,next.state.turn):[]),...(opEffects?.events??[]),...effects.events])next.summary.events.push({...e,turn:next.state.turn,sequence:next.summary.events.length});
+    for(const e of [...logisticsEvents,...(worldEffects?worldNotifications(worldEffects,next.state.turn):[]),...(opEffects?.events??[]),...effects.events])next.summary.events.push({...e,turn:next.state.turn,sequence:next.summary.events.length});
     next.summary.events.forEach((e,i)=>e.sequence=i);
-    next.summary.stateHash=await digest([stateInput(next.state),balance.version,canonical(effects.personnel),...(opEffects?[opsConfig.version,opsCanonical(opEffects.operations)]:[]),...(worldEffects?[worldConfig.version,worldCanonical(worldEffects)]:[])]);
+    next.summary.stateHash=await digest([stateInput(next.state),balance.version,canonical(effects.personnel),...(opEffects?[opsConfig.version,opsCanonical(opEffects.operations)]:[]),...(worldEffects?[worldConfig.version,worldCanonical(worldEffects)]:[]),...(logistics?[logisticsConfig.version,logisticsCanonical(logistics)]:[])]);
    }
    const processed=entry.processed+1;
    const important=entry.command.stopOnImportant&&next.summary.events.some(e=>e.important)&&processed<entry.command.turns;
    const status=opEffects?.critical?'interrupted':important?'interrupted':processed===entry.command.turns?'completed':'processing';
    const reason=opEffects?.critical?'critical_decision':important?'important_event':null;
-   if(!await commitTurn(db,g,entry,next.summary,next.state,status,reason,effects?(guard,args)=>personnelWrites(db,g,effects.personnel,guard,args,[...(opEffects?.ledger??[]),...effects.ledger],[...(opEffects?.history??[]),...effects.history]).concat(opEffects?operationsWrites(db,g,opEffects.operations,guard,args,opEffects.reports):[]).concat(worldEffects?worldWrites(db,g,worldEffects,guard,args):[]):undefined))continue;
+   if(!await commitTurn(db,g,entry,next.summary,next.state,status,reason,effects?(guard,args)=>personnelWrites(db,g,effects.personnel,guard,args,[...(opEffects?.ledger??[]),...effects.ledger,...logisticsLedger],[...(opEffects?.history??[]),...effects.history]).concat(opEffects?operationsWrites(db,g,opEffects.operations,guard,args,opEffects.reports):[]).concat(worldEffects?worldWrites(db,g,worldEffects,guard,args):[]).concat(logistics?logisticsWrites(db,g,logistics,guard,args):[]):undefined))continue;
    if(status!=='processing')return result({...g,state:next.state,stateVersion:g.stateVersion+1},{...entry,processed},status,reason);
   }catch(error){return failAdvance(db,owner,id,command.requestId,error instanceof ApiError?error.code:'turn_failed');}
  }return busy();
@@ -92,7 +98,7 @@ export async function handleApi(request:Request,env:{DB:Database}){
    if(Number(request.headers.get('content-length')||0)>16384)throw new ApiError(413,'TOO_LARGE','Requisição muito grande.');
   }
   const path=url.pathname.replace(/^\/api\/v1\/?/,'').split('/');
-  if(path[0]==='health')return json({status:'ok',phase:'world-online',rulesVersion:RULES_VERSION});
+  if(path[0]==='health')return json({status:'ok',phase:'logistics-online',rulesVersion:RULES_VERSION});
   if(path[0]!=='games')throw new ApiError(404,'NOT_FOUND','Rota não encontrada.');
   if(!path[1]){
    if(request.method==='GET')return json(await listGames(db,owner));
@@ -103,13 +109,18 @@ export async function handleApi(request:Request,env:{DB:Database}){
   const id=path[1],g=await getGame(db,id,owner);
   if(path.length===2&&request.method==='GET')return json(projection(g));
   if(path[2]==='world'&&request.method==='GET'){await ensureWorld(db,id,owner,digest);const current=await getGame(db,id,owner);const {offset,limit}=paginationSchema.parse(Object.fromEntries(url.searchParams));return json(await worldRoute(db,current,path,url,offset,limit));}
+  if(['logistics','equipment','headquarters'].includes(path[2])){
+   await ensureLogistics(db,id,owner,digest);const current=await getGame(db,id,owner);
+   if(request.method==='GET'){const view=logisticsView(current,await readLogistics(db,id));if(path[2]==='equipment'&&path[3]==='catalog')return json(view.catalog);if(path[2]==='equipment'&&path[3]==='inventory')return json(view.inventory);if(path[2]==='logistics'||path[2]==='headquarters')return json(view);}
+   if(request.method==='POST'){const body=await request.json();if(path[2]==='equipment'&&path[3]==='purchases')return json(await logisticsAction(db,id,owner,'purchase','',purchaseSchema.parse(body),digest),201);if(path[2]==='equipment'&&['maintenance','resupply'].includes(path[4]))return json(await logisticsAction(db,id,owner,path[4],path[3],commandSchema.parse(body),digest));if(path[2]==='headquarters'&&path[3]==='modules'&&path[5]==='upgrade')return json(await logisticsAction(db,id,owner,'upgrade',path[4],commandSchema.parse(body),digest));}
+  }
   if(['contracts','missions','decisions','operations'].includes(path[2])){
    await ensureOperations(db,id,owner,digest);const current=await getGame(db,id,owner);
    if(request.method==='GET'){
     if(path[2]==='operations')return json(await operationsView(db,current));
     if(path[2]==='contracts'){
      if(!path[3]){const view=await operationsView(db,current);const status=url.searchParams.get('status'),type=url.searchParams.get('type'),region=url.searchParams.get('region');return json(view.contracts.filter(c=>(!status||c.status===status)&&(!type||c.type===type)&&(!region||c.regionId===region)));}
-     const c=await db.prepare('SELECT * FROM online_contracts WHERE game_id=? AND id=?').bind(id,path[3]).first();if(!c)throw new ApiError(404,'NOT_FOUND','Contrato não encontrado.');return json(contractProjection(c));
+     const c=await db.prepare('SELECT * FROM online_contracts WHERE game_id=? AND id=?').bind(id,path[3]).first();if(!c)throw new ApiError(404,'NOT_FOUND','Contrato não encontrado.');return json(contractProjection(c,current.logisticsInitialized));
     }
     if(path[2]==='decisions')return json((await operationsView(db,current)).decisions);
     if(path[2]==='missions'){
@@ -122,7 +133,7 @@ export async function handleApi(request:Request,env:{DB:Database}){
    if(request.method==='POST'){
     const body=await request.json();
     if(path[2]==='contracts'&&path[4]==='plan'){
-     const {g:latest,p}=await readPersonnel(db,id,owner),o=await readOperations(db,id),c=o.contracts.find(c=>c.id===path[3]);const plan=validatePlan(latest,p,o,c,planSchema.parse(body));return json({...plan,stateVersion:latest.stateVersion});
+     const {g:latest,p}=await readPersonnel(db,id,owner),o=await readOperations(db,id),c=o.contracts.find(c=>c.id===path[3]);const plan=validatePlan(latest,p,o,c,planSchema.parse(body),latest.logisticsInitialized?await readLogistics(db,id):undefined);return json({...plan,stateVersion:latest.stateVersion});
     }
     if(path[2]==='contracts'&&['accept','cancel'].includes(path[4]))return json(await operationAction(db,id,owner,path[4],path[3],commandSchema.parse(body),digest));
     if(path[2]==='contracts'&&path[4]==='start')return json(await operationAction(db,id,owner,'start',path[3],startSchema.parse(body),digest),201);
@@ -134,7 +145,7 @@ export async function handleApi(request:Request,env:{DB:Database}){
   if(['personnel','operators','recruitment','squads'].includes(path[2])||(path[2]==='finances'&&path[3]==='summary')){
    await ensurePersonnel(db,id,owner,digest);
    if(request.method==='GET'){
-    const {g:current,p}=await readPersonnel(db,id,owner);const view=personnelProjection(current,p);
+    const {g:current,p}=await readPersonnel(db,id,owner);const view=personnelProjection(current,p,current.logisticsInitialized?await readLogistics(db,id):undefined);
     if(path[2]==='personnel'||(path[2]==='finances'&&path[3]==='summary'))return json(view);
     if(path[2]==='recruitment'&&path[3]==='candidates')return json(view.candidates);
     if(path[2]==='squads'){
@@ -158,6 +169,7 @@ export async function handleApi(request:Request,env:{DB:Database}){
     const body=await request.json();
     if(path[2]==='recruitment'&&path[3]==='hire')return json(await personnelAction(db,id,owner,'hire',undefined,hireSchema.parse(body),digest),201);
     if(path[2]==='operators'&&path[4]==='renew-contract')return json(await personnelAction(db,id,owner,'renew',path[3],renewSchema.parse(body),digest));
+    if(path[2]==='operators'&&path[4]==='activities'&&path[5]==='cancel')return json(await personnelAction(db,id,owner,'activity_cancel',path[3],commandSchema.parse(body),digest));
     if(path[2]==='operators'&&path[4]==='activities')return json(await personnelAction(db,id,owner,'activity',path[3],activitySchema.parse(body),digest));
     if(path[2]==='squads'&&path[4]==='members'&&request.method==='POST')return json(await personnelAction(db,id,owner,'squad_member_add',path[3],memberSchema.parse(body),digest));
     if(path[2]==='squads'&&path[4]==='members'&&path[5]&&request.method==='DELETE')return json(await personnelAction(db,id,owner,'squad_member_remove',path[3],{...commandSchema.parse(body),operatorId:path[5]},digest));
