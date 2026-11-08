@@ -5,10 +5,10 @@ import { gameDate } from '../packages/engine/core.ts';
 export interface QueryResult { results:any[];meta:{changes:number} }
 export interface Statement {bind(...args:any[]):Statement;first():Promise<any>;all():Promise<QueryResult>;run():Promise<QueryResult>}
 export interface Database {prepare(sql:string):Statement;batch(statements:Statement[]):Promise<QueryResult[]>;withSession?(constraint:string):Database}
-export interface Campaign {id:string;owner:string;name:string;seed:string;startDate:string;rulesVersion:string;state:State;stateVersion:number;revision:number;activeRequest:string|null;createPayload:string}
+export interface Campaign {id:string;owner:string;name:string;seed:string;startDate:string;rulesVersion:string;state:State;stateVersion:number;revision:number;activeRequest:string|null;createPayload:string;personnelVersion:string;personnelInitialized:boolean}
 export interface Command {command:AdvanceCommand;payload:string;processed:number;result:AdvanceResult}
 export class ApiError extends Error{constructor(public status:number,public code:string,message:string){super(message)}}
-const rowGame=(r:any):Campaign=>({id:r.id,owner:r.owner,name:r.name,seed:r.seed,startDate:r.start_date,rulesVersion:r.rules_version,state:{turn:r.current_turn,cashCents:r.cash_cents,reputation:r.reputation,status:r.status},stateVersion:r.state_version,revision:r.revision,activeRequest:r.active_request,createPayload:r.creation_payload});
+export const rowGame=(r:any):Campaign=>({id:r.id,owner:r.owner,name:r.name,seed:r.seed,startDate:r.start_date,rulesVersion:r.rules_version,state:{turn:r.current_turn,cashCents:r.cash_cents,reputation:r.reputation,status:r.status},stateVersion:r.state_version,revision:r.revision,activeRequest:r.active_request,createPayload:r.creation_payload,personnelVersion:r.personnel_version,personnelInitialized:!!r.personnel_initialized});
 export const projection=(g:Campaign)=>({id:g.id,name:g.name,rulesVersion:g.rulesVersion,currentTurn:g.state.turn,stateVersion:g.stateVersion,cashCents:g.state.cashCents,reputation:g.state.reputation,status:g.state.status,date:gameDate(g.startDate,g.state.turn)});
 const rowCommand=(r:any):Command|undefined=>r?{command:JSON.parse(r.payload_json),payload:r.payload_json,processed:r.processed_turns,result:{requestId:r.request_id,requestedTurns:r.requested_turns,processedTurns:r.processed_turns,currentTurn:r.last_turn,stateVersion:r.result_version,status:r.status,reason:r.reason}}:undefined;
 const rowEvent=(r:any):Event=>({turn:r.turn,sequence:r.sequence,type:r.event_type,title:r.title,description:r.description,important:!!r.important});
@@ -59,10 +59,10 @@ export async function snapshot(db:Database,id:string,owner:string,requestId:stri
 }
 // A fresh token gates all dependent writes when revision CAS loses the race.
 // D1 batch provides transaction atomicity; stale contenders produce no side effects.
-async function mutate(db:Database,g:Campaign,next:Campaign,build:(guard:string,args:any[])=>Statement[]){
+export async function mutate(db:Database,g:Campaign,next:Campaign,build:(guard:string,args:any[])=>Statement[]){
  const token=crypto.randomUUID();const guard='EXISTS(SELECT 1 FROM online_games WHERE id=? AND owner=? AND commit_token=?)';
  const rows=await db.batch([
-  db.prepare('UPDATE online_games SET current_turn=?,cash_cents=?,reputation=?,status=?,state_version=?,active_request=?,revision=revision+1,commit_token=? WHERE id=? AND owner=? AND revision=?').bind(next.state.turn,next.state.cashCents,next.state.reputation,next.state.status,next.stateVersion,next.activeRequest,token,g.id,g.owner,g.revision),
+  db.prepare('UPDATE online_games SET current_turn=?,cash_cents=?,reputation=?,status=?,state_version=?,active_request=?,personnel_initialized=?,revision=revision+1,commit_token=? WHERE id=? AND owner=? AND revision=?').bind(next.state.turn,next.state.cashCents,next.state.reputation,next.state.status,next.stateVersion,next.activeRequest,Number(next.personnelInitialized),token,g.id,g.owner,g.revision),
   ...build(guard,[g.id,g.owner,token]),
  ]);return rows[0].meta.changes===1;
 }
@@ -73,9 +73,10 @@ export async function register(db:Database,g:Campaign,entry:Command,resume:boole
   db.prepare(`INSERT INTO online_commands SELECT ?,?,?,?,0,'processing',NULL,?,? WHERE ${guard}`).bind(g.id,entry.command.requestId,entry.payload,entry.command.turns,g.state.turn,g.stateVersion,...args),
  ]);
 }
-export async function commitTurn(db:Database,g:Campaign,entry:Command,summary:Summary,state:State,status:AdvanceResult['status'],reason:string|null){
+export async function commitTurn(db:Database,g:Campaign,entry:Command,summary:Summary,state:State,status:AdvanceResult['status'],reason:string|null,extra?:(guard:string,args:any[])=>Statement[]){
  const next={...g,state,stateVersion:g.stateVersion+1,activeRequest:status==='processing'?entry.command.requestId:null};
  return mutate(db,g,next,(guard,args)=>[
+  ...(extra?.(guard,args)??[]),
   ...summary.events.map(e=>db.prepare(`INSERT INTO online_events SELECT ?,?,?,?,?,?,? WHERE ${guard}`).bind(g.id,e.turn,e.sequence,e.type,e.title,e.description,Number(e.important),...args)),
   db.prepare(`INSERT INTO online_turn_summaries SELECT ?,?,?,? WHERE ${guard}`).bind(g.id,summary.turn,summary.date,summary.stateHash,...args),
   db.prepare(`UPDATE online_commands SET processed_turns=?,status=?,reason=?,last_turn=?,result_version=? WHERE game_id=? AND request_id=? AND ${guard}`).bind(entry.processed+1,status,reason,state.turn,next.stateVersion,g.id,entry.command.requestId,...args),

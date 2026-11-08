@@ -1,5 +1,5 @@
 import { it,expect,vi } from 'vitest';
-import { readFileSync, mkdtempSync, rmSync, writeFileSync, copyFileSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdtempSync, rmSync, writeFileSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -14,7 +14,7 @@ it('migration: banco legado recebe schema novo sem alterar save, e segunda execu
   const fixture=legacyFixture(db);
   applyMigrations(db);applyMigrations(db);
   expect((db.prepare('SELECT state_json FROM online_campaigns').get() as any).state_json).toBe(fixture.raw);
-  expect((db.prepare('SELECT count(*) AS n FROM preview_migrations').get() as any).n).toBe(2);
+  expect((db.prepare('SELECT count(*) AS n FROM preview_migrations').get() as any).n).toBe(readdirSync('drizzle').filter(f=>f.endsWith('.sql')).length);
   expect((db.prepare('SELECT count(*) AS n FROM online_games').get() as any).n).toBe(0);
  }finally{db.close()}
 });

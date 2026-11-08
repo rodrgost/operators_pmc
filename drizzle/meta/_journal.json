@@ -15,6 +15,13 @@
       "when": 1794156113318,
       "tag": "0001_burly_longshot",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794158603793,
+      "tag": "0002_secret_mach_iv",
+      "breakpoints": true
     }
   ]
 }

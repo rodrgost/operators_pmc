@@ -40,3 +40,18 @@ Detalhes das decisões: ADR 0003. Normalização do agregado online e Fase 2 con
 - Preview de teste encerrado. Nenhuma publicação, migration remota ou mudança de acesso ao site. D1 real não foi executado nesta validação; foi usado o adaptador SQLite transacional. Não houve nova revisão visual, pois a interface não mudou.
 
 Decisões e estratégia de rollback: ADR 0004. O backup legado não inclui turnos novos; backups futuros devem abranger o banco completo normalizado.
+
+## Publicação posterior autorizada — 2026-11-08
+
+As correções e a normalização foram publicadas no site privado existente. O serviço confirmou implantação succeeded; detalhes e commit em docs/DEPLOYMENT.md. As observações anteriores de não publicação descrevem o estado antes desta autorização. Não houve novo smoke funcional no D1 hospedado.
+
+## Pessoal 0.2.0 — 2026-11-08
+
+- Suíte: 47 testes em 8 arquivos, incluindo salários, dívida, último vencimento/expiração, renovação, recrutamento/capacidade, equipes/histórico, reservas exclusivas, familiaridade, concorrência, rollback e retomada salarial, API local e retries da interface após perda de resposta ou reabertura de painel.
+- TypeScript/Nuxt e geração online aprovados. Aviso não bloqueante de cache-driver do Nuxt continua presente.
+- Banco hospedado consultado antes do trabalho: schema normalizado com seis tabelas confirmado.
+- Navegador local: dois candidatos contratados após revisar custo; equipe criada com líder/substituto; treino conjunto iniciado, quatro turnos avançados, disponibilidade restaurada e familiaridade passou de 0 para 2.
+- Layout do quadro e da equipe inspecionado em conteúdo de 390 px via iframe de QA. Ajustadas abas internas para caber em três colunas sem rolagem horizontal.
+- Testes de hash em lote/individual incluem pessoal; os 336 turnos da fundação continuam compatíveis quando o módulo não foi ativado.
+- Reserva de missão testada como fixture para impedir dupla agenda; missões reais e reforços ainda não existem e não foram alegados como validados.
+- Preview usa SQLite; publicação e smoke hospedado serão registrados em DEPLOYMENT.md. Não foram criados novos backups locais nesta fase.

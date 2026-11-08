@@ -1,6 +1,6 @@
 {
   "name": "operators-pmc",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -19,7 +19,8 @@
     "build": "npm run build --workspace @operators/web",
     "db:generate": "drizzle-kit generate",
     "build:online": "npm exec --workspace @operators/web nuxt generate && node scripts/build-online.mjs",
-    "dev:local": "concurrently -k -n API,WEB \"npm run dev:api\" \"npm run dev:web\""
+    "dev:local": "concurrently -k -n API,WEB \"npm run dev:api\" \"npm run dev:web\"",
+    "start:legacy": "node --import tsx apps/api/src/legacy-server.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.1.0",

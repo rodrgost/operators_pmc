@@ -32,3 +32,13 @@
 - Remove limite artificial de 1,5 MB por campanha e regravação integral do histórico.
 - Corrige runner de migrations do preview e compartilha adaptador transacional com os testes.
 - Validação: 31 testes, typecheck, build e smoke HTTP local aprovados. Não publicado.
+
+## 0.2.0 — 2026-11-08
+
+- Operadores, recrutamento semanal determinístico, vínculos 4/8/12 semanas e renovação.
+- Bônus de assinatura, salários, dívidas e quitação com ledger transacional.
+- Equipes permanentes, líderes, substitutos, diretrizes e histórico de composição.
+- Agenda exclusiva, descanso/recuperação e familiaridade por treino conjunto.
+- UI mobile com revisão de custo e retry de comando preservado entre abas.
+- API local e Worker compartilham aplicação; fundação original preservada como legado.
+- Migration incremental, parâmetros de pessoal em JSON e 47 testes aprovados.

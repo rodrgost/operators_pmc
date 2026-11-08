@@ -649,3 +649,7 @@ As correções de recuperação online, retry de criação e motor compartilhado
 ## Persistência online normalizada — 2026-11-08
 
 A edição online implementa agora tabelas para campanha/estado atual, comandos, eventos, resumos e fatos financeiros, com isolamento por dono e transação por turno. A nomenclatura usa prefixo online_ para distinguir a edição D1 da base local. Os agregados legados são importados atomicamente na primeira abertura, preservados como arquivo histórico e deixam de ser autoridade após a importação. Não há novo subsistema de jogo nem alteração das regras. Contratos HTTP, hashes e resultados existentes permanecem compatíveis. ADR 0004 descreve schema, transições, importação e rollback; docs/VALIDATION.md registra os 31 testes e a verificação local. Não houve publicação.
+
+## Incremento 0.2.0 — Pessoal
+
+Implementados recrutamento semanal determinístico, operadores, vínculos e renovação, salários/dívidas, equipes permanentes e histórico, líderes/substitutos, disponibilidade por agenda exclusiva e familiaridade por treino conjunto. Os parâmetros propostos adotados são configuráveis em packages/rules/personnel.json e documentados no ADR 0005. Versionamento de pessoal separado preserva saves e hashes da fundação até ativação do módulo. Atividades básicas foram incluídas para exercitar disponibilidade/familiaridade; progressão avançada e sede permanecem posteriores. Reforços efetivamente enviados e snapshots de missão serão integrados na Fase 3. Não implica aceite do MVP completo.

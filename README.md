@@ -1,92 +1,57 @@
-# Edição online privada — v0.1.1
+# OPERATORS — PMC Command · 0.2.0
 
-Esta edição adapta a fundação do OPERATORS para acesso por link no ChatGPT. A interface Nuxt é incorporada a um Worker ESM; partidas são persistidas em tabelas relacionais D1 e isoladas pela identidade autenticada da plataforma.
+Jogo de gestão single-player em português. A edição atual implementa a fundação temporal e a gestão de pessoal: recrutamento semanal, operadores, vínculos de emprego, salários, equipes permanentes e familiaridade. Contratos comerciais, missões autônomas e simulação mundial causal ainda estão pendentes.
 
-A edição local Fastify/SQLite original continua disponível no ZIP v0.1.0. Os comandos abaixo descrevem essa base; nesta edição, use `npm run dev:local` para executá-la.
+## Executar localmente
 
-Para conferir a edição online localmente: `npm ci`, `npm run build:online`, `npm run dev`. O adaptador local usa SQLite e identidade de preview; não é publicado.
-
-Para verificar: `npm test` e `npm run typecheck` (execute o build online antes do typecheck em uma instalação limpa). O deploy usa `.openai/hosting.json`, migration Drizzle e `dist/server/index.js`. Não alterar a identidade do Site nem a audiência privada.
-
-O preview online escuta somente em `127.0.0.1:3000`. Use `npm run dev -- --port 3002` ou `PORT` para escolher outra porta.
-
-A persistência online separa estado atual, comandos, eventos, resumos e ledger. Saves antigos são importados atomicamente na primeira abertura, preservando o JSON original. O histórico é paginado em SQL e não há mais o teto artificial de 1,5 MB por campanha. Novas campanhas usam diretamente as tabelas normalizadas.
-
-O preview aplica migrations pendentes ao iniciar. Antes de atualizar um banco existente, mantenha backup consistente. Nesta revisão, o backup local anterior à normalização está em `data/online-preview.before-normalization.sqlite`. Depois de avançar nas tabelas novas, o JSON antigo deixa de representar o estado atual; não volte ao Worker antigo sem um procedimento de migração reversa. Detalhes em `docs/ADR/0004-normalized-online-storage.md`.
-
-O visual prioriza celular em todas as telas. O escopo funcional continua sendo a fundação, sem recrutamento ou missões.
-
----
-
-# OPERATORS — PMC Command
-
-Primeiro incremento da especificação: **Fase 0 e base da Fase 1**. Aplicação local single-player em português, com API autoritativa Fastify, Nuxt/Vue 3 e SQLite. Não é ainda o MVP completo: não há operadores, contratos ou missões funcionais.
-
-## Executar
-
-Instale **Node.js 24 LTS** (inclui SQLite nativo) e npm. Extraia o ZIP e abra um terminal nesta pasta:
+Requisitos: Node.js 24 e npm.
 
 ```sh
 npm ci
+npm run build:online
+npm run dev
+```
+
+Abra http://127.0.0.1:3000. O preview usa SQLite local em `data/online-preview.sqlite`, aplica migrations pendentes e injeta a identidade `local-preview`. Escuta somente em loopback; não usar como servidor público. Para outra porta: `npm run dev -- --port 3002`.
+
+Para recarga automática da interface Nuxt e API Fastify com a mesma aplicação normalizada:
+
+```sh
 npm run dev:local
 ```
 
-Abra **http://127.0.0.1:3000**. O backend escuta somente em **127.0.0.1:3001**. Para parar, use Ctrl+C.
+A interface fica na porta 3000 e a API em 3001. `DATABASE_PATH` altera o banco da API local. `API_BASE` altera o proxy Nuxt. Preview e API local compartilham o banco normalizado padrão; os saves publicados ficam no D1 remoto, isolados por identidade ChatGPT.
 
-No Windows, os mesmos comandos funcionam no PowerShell. Não é necessário instalar SQLite, Python, Docker ou compilar um driver de banco. O Node pode imprimir aviso de API experimental do SQLite.
+A API original da fundação permanece em `apps/api/src/app.ts` e pode ser iniciada com `npm run start:legacy`; usa `data/operators.sqlite` e não oferece pessoal. Não misturar esse banco com o normalizado.
 
-Crie uma companhia, escolha uma semente e avance 1, 4 ou 28 turnos. Cada turno representa 6 horas. Feche/reabra o processo para continuar de onde parou. O seletor de companhia permite manter múltiplos saves. O caixa inicial provisório é de USD 100.000 e não sofre despesas nesta fase.
+## Começar uma companhia
+
+Crie uma partida e abra **Operadores → Recrutamento**. Escolha vínculo de 4, 8 ou 12 semanas, revise o bônus de assinatura e o salário, e confirme. A oferta semanal inicial tem seis candidatos; capacidade inicial de 12 vínculos ativos. Valores de balanceamento são configuráveis em `packages/rules/personnel.json`.
+
+Salários vencem a cada 28 turnos do vínculo, inclusive a última semana contratada. Falta de caixa gera dívida salarial e perda de moral/lealdade; a dívida é quitada quando houver caixa suficiente. O ledger registra apenas saídas efetivas. Não há game over financeiro automático.
+
+Em **Equipes**, selecione até seis membros, líder, substituto e diretrizes. Equipes abaixo de dois membros são rascunhos. Treino conjunto dura quatro turnos, aumenta fadiga e familiaridade dos participantes. Descanso reduz fadiga e recuperação melhora saúde. Detalhes e histórico ficam na ficha do operador. Missões e reforços efetivamente enviados serão implementados na próxima fase; as diretrizes ficam salvas, sem efeito de combate nesta versão.
 
 ## Verificar
 
 ```sh
 npm test
+npm run build:online
 npm run typecheck
-npm run build
 ```
 
-O build gera o servidor Nuxt em `apps/web/.output`. Para executá-lo, mantenha `npm run start:api` em outro terminal e execute:
+Em instalação limpa, o build online precisa preceder typecheck para gerar os assets do Worker. A suíte inclui legado, normalização, API local/online e pessoal. `vitest.config.ts` limita a descoberta à pasta tests, excluindo cópias de publicação.
 
-```sh
-node apps/web/.output/server/index.mjs
-```
+## Persistência e publicação
 
-API_BASE pode definir o destino do proxy Nuxt (padrão `http://127.0.0.1:3001`); PORT define a porta da API; DATABASE_PATH define o arquivo SQLite. Essas variáveis são opcionais. A origem da interface é validada para localhost/127.0.0.1:3000.
+Estado, comandos, eventos, resumos, ledger e entidades de pessoal usam tabelas relacionais. Turnos e comandos confirmam por transação com revisão/token, preservando idempotência e isolamento. Saves antigos são importados atomicamente na primeira abertura e preservados como arquivo histórico; após a importação, o agregado antigo deixa de representar os novos turnos.
 
-## O que funciona
+O site existente é privado: https://operators-pmc-command.rodrgost.chatgpt.site/. O usuário autorizou publicar melhorias validadas no mesmo site, sem contratar serviços adicionais. Identidade e binding DB são preservados em `.openai/hosting.json`. Nenhum banco local, backup ou credencial integra o pacote de publicação.
 
-- Criação idempotente, listagem e retomada de partidas independentes.
-- Relógio fixado em 01/01/2030 UTC do jogo; sem dependência do relógio real.
-- Avanço manual de 1–28 turnos, com commit individual por turno.
-- Histórico, resumo de turno, hash determinístico e fechamento semanal.
-- Interrupção por evento importante, retry sem duplicação, versão otimista e retomada explícita após falha parcial.
-- Recuperação de requisição interrompida pelo encerramento do processo.
-- Seed inicial de 5 países, 15 regiões e 13 organizações; visualização dos países/regiões.
-- Livro-razão com capital inicial e interface responsiva.
-- Validação Zod e erros HTTP estruturados, sem exposição do estado interno.
+## Referências
 
-Os boletins públicos são uma demonstração determinística do relógio. Ainda não simulam mudanças regionais, conflitos ou decisões críticas. Os módulos futuros aparecem identificados como indisponíveis.
-
-## Estrutura
-
-- `apps/api`: HTTP Fastify e execução do servidor.
-- `apps/web`: interface Nuxt/Vue e proxy para a API.
-- `packages/domain`: tipos e erros de domínio.
-- `packages/contracts`: schemas de entrada.
-- `packages/engine`: relógio, RNG por chave e resolução pura do turno.
-- `packages/application`: comandos, idempotência, projeções e lotes.
-- `packages/persistence`: SQLite e migration SQL.
-- `packages/rules`: parâmetros provisórios e seed Asterra.
-- `tests`: determinismo, integração, atomicidade e API.
-- `docs/SPEC.md`: especificação completa original, recuperada do documento salvo.
-- `docs/ADR`: decisões e limites deste incremento.
-
-## Persistência e limites
-
-O banco é criado automaticamente em `data/operators.sqlite`, relativo à pasta de execução. Para backup, pare os processos e copie a pasta `data`. Não copie apenas o arquivo principal com a API em execução: SQLite usa WAL.
-
-Execute **um único processo da API por banco**. As requisições são serializadas no processo e protegidas por transações e versão; esta entrega não oferece coordenação entre múltiplos processos. Uma sessão local tem acesso a todos os saves desse banco. Não publique esta versão na internet: autenticação e isolamento por usuário ainda não foram implementados. Não há exportação/importação de save nesta fase.
-
-## Próximo incremento
-
-Fase 2: operadores, recrutamento semanal, vínculo de emprego, salários, equipes e familiaridade. Em seguida, contratos e missões autônomas. O checklist detalhado está em `docs/STATUS.md`.
+- `docs/SPEC.md`: especificação do MVP e adendos.
+- `docs/ADR/0005-personnel.md`: dados, transições e parâmetros da Fase 2.
+- `docs/STATUS.md`: escopo concluído e pendente.
+- `docs/VALIDATION.md`: resultados e limites de validação.
+- `docs/DEPLOYMENT.md`: publicação mais recente.

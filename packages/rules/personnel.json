@@ -1,0 +1,42 @@
+{
+  "version": "personnel-0.1",
+  "candidatesPerWeek": 6,
+  "operatorCapacity": 12,
+  "squadMin": 2,
+  "squadMax": 6,
+  "contractWeeks": [
+    4,
+    8,
+    12
+  ],
+  "signingSalaryFactor": 1,
+  "activityTurns": 4,
+  "restFatigue": 20,
+  "recoveryHealth": 10,
+  "trainingFatigue": 8,
+  "familiarityGain": 2,
+  "missedPayMorale": 10,
+  "missedPayLoyalty": 5,
+  "salaryBands": [
+    [
+      400,
+      900
+    ],
+    [
+      1200,
+      3000
+    ],
+    [
+      3200,
+      6000
+    ]
+  ],
+  "initialHealth": 100,
+  "initialFatigue": 0,
+  "initialMorale": 80,
+  "initialLoyalty": 60,
+  "minimumHealth": 40,
+  "exhaustionFatigue": 80,
+  "paidMorale": 2,
+  "paidLoyalty": 1
+}

@@ -19,7 +19,7 @@
 
 ## Demais fases do MVP
 
-- [ ] Operadores, recrutamento, emprego, salários e equipes.
+- [x] Operadores, recrutamento, emprego, salários e equipes (incremento 0.2.0).
 - [ ] Contratos, planejamento, missões, autonomia e decisões.
 - [ ] Simulação mundial causal, conflitos e rivais.
 - [ ] Kits, logística, sede e atividades.
@@ -51,4 +51,20 @@ A revisão anterior preservou o schema. A normalização subsequente adiciona ta
 - [x] Campanha de QA local importada no turno 4 e avançada uma vez para o turno 5; retry sem duplicação.
 - [ ] Validar futura implantação com D1 real; banco hospedado não foi alterado.
 
-Operadores, recrutamento e demais subsistemas da Fase 2 continuam pendentes.
+Na revisão de normalização, a Fase 2 ainda estava pendente; seu incremento implementado está registrado abaixo.
+
+## Fase 2 — 0.2.0
+
+- [x] Operadores com seis atributos, nível/XP, especialização, traços e condições.
+- [x] Mercado semanal determinístico com reputação e ofertas persistidas.
+- [x] Contratar, renovar, expirar vínculos e respeitar caixa/capacidade.
+- [x] Salários, dívida por inadimplência e ledger reconciliado, com rollback/retry.
+- [x] Equipes, diretrizes, líder/substituto, prontidão e histórico de membros.
+- [x] Reserva exclusiva de agenda e atividades básicas de descanso/recuperação/treino.
+- [x] Familiaridade persistida por pares participantes de treino conjunto.
+- [x] UI mobile e API local compartilhada com Worker.
+- [x] 47 testes e smoke de interface; ver VALIDATION.md.
+- [ ] Integração efetiva de reforços, snapshots e alocação em missões: Fase 3.
+- [ ] Progressão avançada de treinamento, módulos da sede e logística: fases posteriores.
+
+Próximo incremento: contratos comerciais e missões autônomas.

@@ -7,8 +7,8 @@ import type { State } from '../packages/domain/index.ts';
 import { sqliteD1,applyMigrations } from '../scripts/sqlite-d1.mjs';
 export function setup(onRun?:(sql:string,args:any[])=>void,db=new DatabaseSync(':memory:')){
  applyMigrations(db);const DB=sqliteD1(db,onRun);
- async function call(path:string,body?:any,user='owner'){
-  const response=await handleApi(new Request('https://pmc.example/api/v1'+path,{method:body?'POST':'GET',headers:{'oai-authenticated-user-id':user,'content-type':'application/json'},body:body?JSON.stringify(body):undefined}),{DB});
+ async function call(path:string,body?:any,user='owner',method=body?'POST':'GET'){
+  const response=await handleApi(new Request('https://pmc.example/api/v1'+path,{method,headers:{'oai-authenticated-user-id':user,'content-type':'application/json'},body:body?JSON.stringify(body):undefined}),{DB});
   return {status:response.status,data:await response.json() as any};
  }
  return {db,DB,call};

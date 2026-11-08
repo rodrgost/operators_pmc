@@ -1,61 +1,35 @@
 # OPERATORS — continuação no Codex
 
-A base deste projeto contém os arquivos da edição online v0.1.1, recuperados do repositório do site publicado, commit 38383316f34bb36766c5422c3c30a3382d958b07.
+Pasta principal: `C:\Users\rodrg\DEV\operators_pmc`.
 
-## Executar no computador
+## Estado atual — 0.2.0
 
-Requisito: Node.js 24 e npm. Extraia o ZIP, abra a pasta `operators-pmc` no Codex e execute:
+Fundação e persistência normalizada implementadas, agora com operadores, recrutamento semanal, vínculos 4/8/12 semanas, pagamentos e dívidas salariais, renovação, equipes permanentes, líderes/substitutos, histórico de composição, reservas exclusivas de agenda e familiaridade por treino conjunto. Interface mobile preto/cinza; manter esse padrão em todas as telas.
 
-```sh
-npm ci
-npm run build:online
-npm run dev
-```
+Ainda pendentes: contratos comerciais, missões autônomas, decisões críticas, mundo causal, kits, módulos da sede e inteligência progressiva. Não apresentar essas funcionalidades como prontas. Reservas de missão e familiaridade já têm estrutura, mas o envio de reforços e as missões dependem da Fase 3.
 
-Abra http://127.0.0.1:3000. A porta padrão é 3000, com bind somente em 127.0.0.1. Para outra porta, use `npm run dev -- --port 3002`. O banco de desenvolvimento é criado localmente; o pacote não contém as partidas salvas no site.
+## Executar e verificar
 
-O build gera `worker/assets.generated.ts` e `dist/server/index.js`. Após mudanças na interface ou na API Worker, repita `npm run build:online` e reinicie o preview. Para trabalhar com recarga automática na interface e API Fastify/SQLite, use `npm run dev:local`.
+Node 24 e npm. Para preview: `npm ci`, `npm run build:online`, `npm run dev`; abrir http://127.0.0.1:3000. Porta opcional `npm run dev -- --port 3002`. Para recarga automática: `npm run dev:local`, usando a mesma aplicação normalizada através de Fastify. Banco local padrão em data/online-preview.sqlite; produção usa D1 e identidade ChatGPT. A API fundacional original fica disponível em `npm run start:legacy` com banco separado.
 
-```sh
-npm test
-npm run typecheck
-```
+Checks: `npm test`, `npm run build:online`, `npm run typecheck`. Build gera worker/assets.generated.ts e dist/server/index.js; repetir após mudanças. Banco e credenciais nunca entram no pacote de publicação. Novos backups locais não são necessários por enquanto, conforme orientação do usuário.
 
-Execute o build online antes do typecheck, pois ele gera o módulo de assets importado pelo Worker.
+## Rotas principais de implementação
 
-## Arquivos de referência
+- packages/engine/personnel.ts: geração determinística e resolução pura de pessoal.
+- packages/rules/personnel.json: parâmetros provisórios, versão personnel-0.1.
+- worker/personnel.ts: comandos, projeções e persistência de pessoal.
+- worker/persistence.ts: CAS de revisão/token e importação legada.
+- worker/api.ts: API e orquestração temporal.
+- db/schema.ts e drizzle/0002_secret_mach_iv.sql: schema e migration da Fase 2.
+- apps/web/components/PersonnelPanel.vue: quadro, recrutamento e equipes.
+- apps/api/src/normalized-app.ts: aplicação compartilhada no servidor local.
+- docs/ADR/0005-personnel.md: decisões e limites desta fase.
 
-- `docs/SPEC.md`: especificação completa do MVP e adendo de interface aprovado.
-- `docs/STATUS.md`: o que foi implementado e o que falta.
-- `docs/ADR/0002-hosted-mobile.md`: adaptação online e visual mobile.
-- `docs/VALIDATION.md`: verificações realizadas na entrega publicada.
-- `apps/web/pages/index.vue` e `apps/web/assets/main.css`: interface.
-- `worker/api.ts`: API da edição hospedada.
-- `worker/persistence.ts`, `db/schema.ts` e `drizzle/0001_burly_longshot.sql`: persistência normalizada, importação dos saves antigos e migration.
-- `docs/ADR/0004-normalized-online-storage.md`: transações, importação e cuidados de rollback.
-- `apps/api` e `packages`: base local Fastify/SQLite e motor.
-- `db` e `drizzle`: schema e migrations D1 da edição online.
+## Próximo incremento
 
-## Estado real do projeto
+Fase 3: contratos comerciais, planejamento e missões autônomas, com snapshots imutáveis de formação, reforços temporários, reservas de operadores, etapas, relatórios, remuneração e decisões críticas. Antes de codificar, apresentar dados, migrations, transições e testes. Resolver explicitamente as regras de cancelamento/retirada e os requisitos logísticos nesta fase, sem inventar efeitos não definidos. Não adicionar combate tático, multiplayer ou LLM.
 
-Implementados: criação e persistência de partidas, turnos, lotes, idempotência, histórico, seed inicial de Asterra e livro-razão do capital inicial. A edição online usa Worker/D1, identidade ChatGPT e acesso privado. Os saves são isolados por usuário.
+## Publicação autorizada
 
-Ainda não implementados: recrutamento, operadores, equipes, contratos, missões, decisões críticas, simulação mundial causal, sede, kits e inteligência progressiva. Não tratar as telas indisponíveis como funcionalidades prontas.
-
-A interface deve priorizar mobile em todas as telas: fundo preto, cartões cinza-escuro arredondados, fontes simples, números em destaque, controles de toque e cores somente para estados. Usar o mesmo padrão no desktop, ampliando o espaço disponível.
-
-## Próximo pedido para o Codex
-
-> Leia CONTINUAR_NO_CODEX.md, docs/SPEC.md, docs/STATUS.md e docs/ADR. Execute o projeto e os testes existentes. Preserve o padrão visual mobile preto/cinza em todas as telas. Continue o MVP implementando operadores, recrutamento semanal, contratos de emprego, salários e equipes permanentes, integrados à persistência e ao motor temporal. Antes de alterar o código, apresente o esquema de dados, as transições e os testes desta fase. Registre padrões propostos em ADR. Não adicione combate tático, multiplayer ou LLM. O usuário autorizou em 2026-11-08 publicar atualizações validadas no site privado existente, enquanto Sites estiver incluído no plano e sem contratar serviços adicionais.
-
-## Hospedagem
-
-A identidade do site existente está em `.openai/hosting.json`. Esse arquivo não contém credenciais. Não criar outro site ou alterar o acesso privado por engano. Publicar fora do ambiente Sites exigirá adaptar autenticação e configurar a infraestrutura; os cabeçalhos de identidade não podem ser considerados confiáveis em um servidor público sem um proxy autenticado.
-
-`preview-online.mjs` injeta uma identidade local apenas para desenvolvimento; não usá-lo como servidor público de produção. A API online usa tabelas relacionais para estado atual, comandos, eventos, resumos e ledger. O antigo agregado JSON é preservado como arquivo legado e importado atomicamente na primeira abertura. O limite artificial de 1,5 MB foi removido. Esta normalização foi validada localmente, sem publicação.
-
-O ZIP exclui dependências, builds, bancos, credenciais e histórico Git. O link do site é https://operators-pmc-command.rodrgost.chatgpt.site/.
-
-## Publicação autorizada — 2026-11-08
-
-Manter o site privado existente e publicar também as melhorias testadas. A pasta principal continua sendo esta; a cópia em .sites-runtime é temporária para sincronização e empacotamento do repositório já associado ao Sites. Não enviar data, backups, credenciais ou node_modules. Novos backups de banco não são necessários por enquanto, conforme orientação do usuário.
+O usuário autorizou manter e atualizar o site privado https://operators-pmc-command.rodrgost.chatgpt.site/ enquanto Sites estiver incluído no plano e sem contratar serviços adicionais. Preservar project_id e audiência de `.openai/hosting.json`. Validar e publicar após cada incremento concluído. A cópia em .sites-runtime/publish-source/.sites-checkout serve somente para sincronização e empacotamento do repositório já vinculado ao site; fonte principal continua na pasta acima.
