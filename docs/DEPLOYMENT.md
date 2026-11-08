@@ -77,3 +77,15 @@ Fonte principal local: C:\Users\rodrg\DEV\operators_pmc. A cópia em .sites-runt
 - 109 testes em 15 arquivos, typecheck, build online e diff check aprovados. Análise T53→T55 e comparação de fontes verificadas no preview, também em 390 px.
 - Smoke hospedado: Vanguard Security T1, Varkov com níveis preliminares, fonte pública, confiança 55% e validade específica por assunto; versão 0.6.0 confirmada no navegador. Nenhuma análise contratada, missão iniciada ou turno avançado no banco hospedado. Inicialização/importação de conhecimento pelo acesso normal à interface.
 - Sem novos backups. Preview encerrado após a validação.
+
+
+## UX e qualidade 0.7.0 — 2026-11-08
+
+- Commit publicado: d94b80335782fb0626feddd8e035f7b45d070f7a.
+- Implantação: appgdep_6af0e69996748191b993d18cb0999b84, succeeded.
+- Versão salva: appgprj_6af0867c8b0081919a17665415f89c70~appgver_0d2d334e100481919146eecd2447b785.
+- Mesma URL e audiência privada preservadas. Sem migrations; D1 permaneceu com 39 tabelas.
+- Suíte completa: 117 testes em 17 arquivos; typecheck/build/diff check aprovados. Após ajuste final de carregamento/atalho, sete testes de UI/criação e typecheck/build repetidos e aprovados.
+- Campanha integrada de 336 turnos em lote/individual, hashes iguais e ledger/FK consistentes; resultados em QUALITY-REPORT.md. Valores das regras preservados.
+- Smoke hospedado no tab existente: painel 0.7.0, último avanço T0→T1, roteiro de preparação, agenda e custo semanal consolidado carregaram na campanha Vanguard Security. Nenhuma compra, contratação, análise, missão ou avanço executado pelo agente na campanha hospedada.
+- Preview local verificado em desktop/390 px; encerrado ao finalizar. Nenhum novo backup local.

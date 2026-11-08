@@ -109,3 +109,10 @@ Smoke pós-publicação 0.6.0: dossiê de Varkov na campanha hospedada Vanguard 
 117 testes em 17 arquivos; typecheck/build online aprovados. Novos testes do centro de comando: leitura sem mutação/isolamento, despesas e agenda/alertas, resumo de lote sem incluir compras posteriores, campanha integrada 336 turnos; UI: retry após refresh perdido, recuperação de comando em processamento, descarte de dossiê atrasado e filtros combinados. Resultado econômico e limites em QUALITY-REPORT.md. Sem novas migrations, 39 tabelas e regras numéricas preservadas.
 
 Preview local QA Fundação T55: último avanço T54→T55 recuperado ao abrir; resumo agrupou cinco ocorrências e movimentação automática zero, sem incluir a análise contratada em T53; Finanças mostrou USD 1.949/semana = salários USD 1.249 + sede USD 700; agenda mostrou fechamento T56 e salários T61. Busca Varkov reduziu ofertas a dois contratos. Painel, resumo e navegação verificados em 390 px. Durante esta revisão visual não houve compra, missão ou avanço de turno. Ajuste final remove atalho duplicado de sede e distingue carregamento inicial de criação de campanha.
+
+Smoke pós-publicação 0.7.0: painel, resumo recuperado, passos de preparação, agenda e custo semanal carregados na campanha hospedada; versão 0.7.0 e 39 tabelas confirmadas. Nenhuma ação de custo ou avanço de teste online.
+
+
+## Página inicial e identidade 0.7.1
+
+Typecheck/build aprovados e sete testes existentes de criação/recuperação de comandos executados com sucesso; adaptado somente o mock do composable useHead. Preview desktop/390 px: lista de companhias com turno/caixa/reputação; formulário de criação só no início; abrir QA Fundação exibiu seu nome no lugar da marca principal e no título do navegador; marca do jogo menor; retorno ao início recarrega a lista. Não há Nova partida nem seletor duplicado nas telas internas. Nenhuma companhia nova criada nem avanço feito na validação visual. Scroll ao topo na entrada/retorno. Sem alterações de backend, schema, regras ou backups.

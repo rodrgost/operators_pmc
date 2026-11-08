@@ -2,7 +2,7 @@
 
 Pasta principal: `C:\Users\rodrg\DEV\operators_pmc`.
 
-## Estado atual — 0.7.0
+## Estado atual — 0.7.1
 
 Fundação e persistência normalizada implementadas, agora com operadores, recrutamento semanal, vínculos 4/8/12 semanas, pagamentos e dívidas salariais, renovação, equipes permanentes, líderes/substitutos, histórico de composição, reservas exclusivas de agenda e familiaridade por treino conjunto. Interface mobile preto/cinza; manter esse padrão em todas as telas.
 
@@ -53,3 +53,8 @@ Centro de comando com alertas/agenda/roteiro inicial, despesas semanais completa
 ## Próximo passo
 
 Validação do jogador no site privado e ajustes guiados pelo uso. Funcionalidades principais das fases 1–6 e a primeira revisão da Fase 7 estão implementadas; não presumir balanceamento definitivo ou cobertura de todas as decisões. Priorizar problemas reproduzíveis, navegação, clareza de custos/prazos, desempenho e acessibilidade. Preservar histórico, fontes, causalidade, kits, snapshots, decisões, salários, reservas e ledger. Não adicionar combate tático, multiplayer ou LLM. Sem backups novos. Ver docs/VALIDATION.md e docs/DEPLOYMENT.md.
+
+
+## Ajuste visual 0.7.1
+
+A página inicial lista companhias e concentra a criação; não abrir campanha automaticamente ao carregar. Seleção entra na companhia e destaca seu nome no lugar da marca lateral/topo, com OPERATORS · PMC COMMAND menor abaixo e título do navegador correspondente. Removido Nova partida de todas as telas internas e seletor de campanha duplicado. Voltar por ← Companhias ou pelo nome da companhia; reposicionar no topo ao trocar entre início e companhia. Regras e persistência preservadas.
