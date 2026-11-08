@@ -65,3 +65,15 @@ Fonte principal local: C:\Users\rodrg\DEV\operators_pmc. A cópia em .sites-runt
 - 93 testes em 13 arquivos, typecheck, build online e diff check aprovados. Ciclo equipado e melhoria validados no preview, com revisão móvel em 390 px.
 - Smoke hospedado: Sede e logística e catálogo de 18 kits carregaram na campanha Vanguard Security, estoque vazio e manutenção inicial USD 600/semana. Nenhuma compra, upgrade, contratação, missão ou avanço realizado no banco hospedado. Inicialização dos módulos ocorreu pelo acesso normal à interface.
 - Nenhum novo backup local criado. Preview encerrado após a validação.
+
+
+## Inteligência 0.6.0 — 2026-11-08
+
+- Commit publicado: 982173be33d4e721b3bd8f81ac547363080e015e.
+- Implantação: appgdep_6af0dfab4a3481919ac428f5237e2006, succeeded.
+- Versão salva: appgprj_6af0867c8b0081919a17665415f89c70~appgver_80e1cb13275c8191bfd49daf883822db.
+- Mesma URL privada preservada: https://operators-pmc-command.rodrgost.chatgpt.site/.
+- Sites confirmou 39 tabelas no D1, incluindo registros, índice corrente, análises e snapshots de conhecimento de missões.
+- 109 testes em 15 arquivos, typecheck, build online e diff check aprovados. Análise T53→T55 e comparação de fontes verificadas no preview, também em 390 px.
+- Smoke hospedado: Vanguard Security T1, Varkov com níveis preliminares, fonte pública, confiança 55% e validade específica por assunto; versão 0.6.0 confirmada no navegador. Nenhuma análise contratada, missão iniciada ou turno avançado no banco hospedado. Inicialização/importação de conhecimento pelo acesso normal à interface.
+- Sem novos backups. Preview encerrado após a validação.

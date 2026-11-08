@@ -1,3 +1,15 @@
+# Estado atual — 0.7.0
+
+- Fases 1–6 implementadas: persistência, pessoal, missões/decisões, mundo/rivais, kits/sede e inteligência.
+- Primeira revisão de UX/qualidade da Fase 7: alertas, agenda, despesas completas, resumo recuperável de lote e filtros.
+- 117 testes, tipos/build e campanha integrada de 336 turnos. Relatório: QUALITY-REPORT.md.
+- Balanceamento numérico preservado e ainda provisório. A simulação de uma semente não substitui validação do jogador nem prova todas as escolhas.
+- Replay integral/exportação de campanha e auditoria ampla de acessibilidade permanecem fora desta entrega.
+
+## Histórico das entregas
+
+Os registros abaixo preservam o estado de cada revisão na época; pendências antigas podem ter sido resolvidas em incrementos posteriores.
+
 # Estado de implementação — fundação 0.1.1, revisão local
 
 ## Concluído neste incremento
@@ -104,3 +116,8 @@ Uma sede, cinco módulos níveis 1–5, melhorias sequenciais com prazo e capaci
 Conhecimento separado da verdade oculta: registros imutáveis com assunto/alvo, nível 0–3, intervalo, confiança, fonte, coleta/validade e histórico encadeado. Índice corrente por fonte e histórico paginado. Fontes públicas e do contratante, análises remuneradas (USD 250, dois turnos, duas vagas), reconhecimento por missão independente e durante missão. Risco e tensão envelhecem mais rapidamente que economia/infraestrutura. Fontes conflitantes permanecem visíveis; leituras não re-sorteiam estimativas.
 
 Mundo e Contratos oferecem dossiês e análises; planejamento registra conhecimento de partida imutável; novas informações orientam a avaliação de risco e decisões autônomas, sem bônus universal de sucesso ou redução do risco real. Migração incremental 0006_mysterious_ironclad.sql, 39 tabelas; regras provisórias em intelligence.json e ADR 0009. Partidas antigas importam estimativas existentes preservando data e missões enviadas. Próximo incremento: Fase 7, UX, balanceamento e qualidade; não representa aceite final de todo o MVP.
+
+
+## Incremento 0.7.0 — UX e qualidade
+
+Centro de comando, alertas de dívida/decisões/vínculos/condições/kits, agenda, preparação inicial, gastos semanais de salários+infraestrutura, autonomia financeira estimada; resumo recuperável com movimentações e ocorrências do avanço; busca/tipo/status de contratos. Respostas tardias de dossiês são descartadas; refresh falho preserva comando para retry. Sem alterações de regras ou migrations. Ver QUALITY-REPORT.md e ADR 0010.

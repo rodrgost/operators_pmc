@@ -656,3 +656,10 @@ Uma sede, cinco módulos níveis 1–5, melhorias sequenciais com prazo e capaci
 Conhecimento separado da verdade oculta: registros imutáveis com assunto/alvo, nível 0–3, intervalo, confiança, fonte, coleta/validade e histórico encadeado. Índice corrente por fonte e histórico paginado. Fontes públicas e do contratante, análises remuneradas (USD 250, dois turnos, duas vagas), reconhecimento por missão independente e durante missão. Risco e tensão envelhecem mais rapidamente que economia/infraestrutura. Fontes conflitantes permanecem visíveis; leituras não re-sorteiam estimativas.
 
 Mundo e Contratos oferecem dossiês e análises; planejamento registra conhecimento de partida imutável; novas informações orientam a avaliação de risco e decisões autônomas, sem bônus universal de sucesso ou redução do risco real. Migração incremental 0006_mysterious_ironclad.sql, 39 tabelas; regras provisórias em intelligence.json e ADR 0009. Partidas antigas importam estimativas existentes preservando data e missões enviadas. Próximo incremento: Fase 7, UX, balanceamento e qualidade; não representa aceite final de todo o MVP.
+
+
+## Incremento 0.7.0 — UX e qualidade (2026-11-08)
+
+Centro de comando com alertas e agenda, preparação inicial e atalho de sede; Finanças soma salários e infraestrutura, mostra dívida total e estimativa de cobertura de despesas. Resumo de avanço recuperável por campanha, intervalo confirmado, ocorrências e movimentações automáticas, sem misturar compras posteriores. Busca e filtros de contratos combinados; navegação protegida durante comando pendente; descarte de respostas de inteligência de alvo anterior; retry preservado após perda do refresh. Sem mudanças numéricas de regras ou schema.
+
+Campanha integrada de 336 turnos com todos os módulos, sete missões concluídas, 36 salários e 12 manutenções; ledger/FK e hashes lote/individual consistentes. Resultado detalhado e limites em docs/QUALITY-REPORT.md. Balanceamento permanece provisório: validar com o jogador e corrigir problemas reproduzíveis, sem presumir aceite completo de todas as escolhas do MVP.

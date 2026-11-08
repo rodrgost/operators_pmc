@@ -2,11 +2,11 @@
 
 Pasta principal: `C:\Users\rodrg\DEV\operators_pmc`.
 
-## Estado atual — 0.6.0
+## Estado atual — 0.7.0
 
 Fundação e persistência normalizada implementadas, agora com operadores, recrutamento semanal, vínculos 4/8/12 semanas, pagamentos e dívidas salariais, renovação, equipes permanentes, líderes/substitutos, histórico de composição, reservas exclusivas de agenda e familiaridade por treino conjunto. Interface mobile preto/cinza; manter esse padrão em todas as telas.
 
-Agora também implementados: contratos comerciais, planejamento, snapshots de formação, reforços, etapas autônomas, decisões críticas com prazo/fallback, retirada, relatórios e pagamentos. Mundo causal, rivais, kits e módulos da sede implementados. Inteligência progressiva implementada; UX e balanceamento permanecem próximos. Reforços de missão preservam vínculo permanente; a formação enviada é imutável.
+Agora também implementados: contratos comerciais, planejamento, snapshots de formação, reforços, etapas autônomas, decisões críticas com prazo/fallback, retirada, relatórios e pagamentos. Mundo causal, rivais, kits e módulos da sede implementados. Inteligência progressiva implementada; Centro de comando e campanha integrada de 336 turnos validados; balanceamento segue provisório. Reforços de missão preservam vínculo permanente; a formação enviada é imutável.
 
 ## Executar e verificar
 
@@ -46,6 +46,10 @@ Fase 5: catálogo 18 kits (seis categorias × três qualidades), compra/entrega,
 
 Fase 6: registros imutáveis por alvo/assunto/fonte, quatro níveis, confiança/validade/idade e fontes conflitantes; análises pagas com prazo; reconhecimento independente regional e durante missão; snapshot de conhecimento de partida; risco percebido na utilidade/autorização, sem bônus universal nem alteração da verdade. Motor packages/engine/intelligence.ts, worker/intelligence.ts, regras intelligence.json, UI IntelligencePanel.vue integrada a Mundo/Contratos/Operações, ADR 0009 e migration 0006_mysterious_ironclad.sql (39 tabelas). Índice corrente separado do histórico paginado. Ativação importa estimativas existentes, preserva data original e missões já enviadas.
 
-## Próximo incremento efetivo
+## Incremento 0.7.0 implementado
 
-Fase 7: UX, balanceamento e qualidade. Rever navegação e resumo de lote, campanhas longas com os seis módulos, sinais de dívida/agenda/inteligência, filtros e mobile. Apresentar ajustes antes de alterar regras; preservar histórico, fontes, causalidade, kits, snapshots, decisões, salários, reservas e ledger. Não adicionar combate tático, multiplayer ou LLM. Ver docs/VALIDATION.md e docs/DEPLOYMENT.md. Sem backups novos.
+Centro de comando com alertas/agenda/roteiro inicial, despesas semanais completas e projeção de caixa; resumo recuperável do último avanço, receitas/despesas automáticas e ocorrências; filtros combinados de contratos; recuperação de resposta perdida e proteção de trocas de alvo. Rotas worker/command-center.ts, ADR 0010, testes quality.test.ts e command-ui.test.ts. Sem mudanças numéricas de regras ou schema. Campanha de 336 turnos com todos os módulos, lote/individual com hashes iguais, ledger/FK consistentes. Resultado e limites em docs/QUALITY-REPORT.md.
+
+## Próximo passo
+
+Validação do jogador no site privado e ajustes guiados pelo uso. Funcionalidades principais das fases 1–6 e a primeira revisão da Fase 7 estão implementadas; não presumir balanceamento definitivo ou cobertura de todas as decisões. Priorizar problemas reproduzíveis, navegação, clareza de custos/prazos, desempenho e acessibilidade. Preservar histórico, fontes, causalidade, kits, snapshots, decisões, salários, reservas e ledger. Não adicionar combate tático, multiplayer ou LLM. Sem backups novos. Ver docs/VALIDATION.md e docs/DEPLOYMENT.md.

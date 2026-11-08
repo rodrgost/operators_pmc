@@ -100,3 +100,12 @@ Smoke pós-publicação 0.5.0: acesso privado preservado, catálogo de 18 kits c
 Navegador local: QA Fundação em T53 contratou análise de segurança de Varkov por USD 250, entrega em T55. Dossiê mostrou fonte pública de T52 (55%→43%) e análise remunerada de T55 (65%), nível verificado, intervalo 32–48 e validade T63. Comparação de fontes conferida em 390 px; sem estouro ou corte de conteúdo. Nenhum backup novo criado.
 
 Limites: confiança e ruído são parâmetros de balanceamento provisórios; análise não garante verdade. Missões antigas sem snapshot preservam política anterior; não se inventa reconhecimento passado. UX/balanceamento final de todos os módulos permanece Fase 7.
+
+Smoke pós-publicação 0.6.0: dossiê de Varkov na campanha hospedada Vanguard Security T1 carregou fonte pública/nível preliminar e validade por assunto; 39 tabelas conferidas pelo conector Sites. Nenhuma análise, compra, missão ou avanço de teste realizado online.
+
+
+## UX e qualidade 0.7.0 — 2026-11-08
+
+117 testes em 17 arquivos; typecheck/build online aprovados. Novos testes do centro de comando: leitura sem mutação/isolamento, despesas e agenda/alertas, resumo de lote sem incluir compras posteriores, campanha integrada 336 turnos; UI: retry após refresh perdido, recuperação de comando em processamento, descarte de dossiê atrasado e filtros combinados. Resultado econômico e limites em QUALITY-REPORT.md. Sem novas migrations, 39 tabelas e regras numéricas preservadas.
+
+Preview local QA Fundação T55: último avanço T54→T55 recuperado ao abrir; resumo agrupou cinco ocorrências e movimentação automática zero, sem incluir a análise contratada em T53; Finanças mostrou USD 1.949/semana = salários USD 1.249 + sede USD 700; agenda mostrou fechamento T56 e salários T61. Busca Varkov reduziu ofertas a dois contratos. Painel, resumo e navegação verificados em 390 px. Durante esta revisão visual não houve compra, missão ou avanço de turno. Ajuste final remove atalho duplicado de sede e distingue carregamento inicial de criação de campanha.

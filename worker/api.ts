@@ -1,3 +1,4 @@
+import {commandCenter,advanceSummary} from './command-center.ts';
 import {ensureIntelligence,readIntelligence,intelligenceWrites,intelligenceView,analysisAction,analysisSchema} from './intelligence.ts';
 import {collectSources,resolveAnalyses,collectReconnaissance,intelligenceCanonical,dossier,config as intelligenceConfig} from '../packages/engine/intelligence.ts';
 import {ensureLogistics,readLogistics,logisticsWrites,logisticsView,logisticsAction,purchaseSchema} from './logistics.ts';
@@ -114,6 +115,7 @@ export async function handleApi(request:Request,env:{DB:Database}){
   }
   const id=path[1],g=await getGame(db,id,owner);
   if(path.length===2&&request.method==='GET')return json(projection(g));
+  if(path[2]==='command-center'&&path.length===3&&request.method==='GET')return json(await commandCenter(db,g));
   if(path[2]==='intelligence'){
    await ensureIntelligence(db,id,owner,digest);const current=await getGame(db,id,owner);
    if(request.method==='POST'&&path[3]==='analyses')return json(await analysisAction(db,id,owner,analysisSchema.parse(await request.json()),digest),201);
@@ -194,6 +196,7 @@ export async function handleApi(request:Request,env:{DB:Database}){
   if(path[2]==='advances'&&path[3]){
    const {entry}=await snapshot(db,id,owner,path[3]);if(!entry)throw new ApiError(404,'NOT_FOUND','Avanço não encontrado.');
    if(path[4]==='resume'&&path.length===5&&request.method==='POST'){const {expectedVersion}=resumeSchema.parse(await request.json());return json(await advance(db,owner,id,{...entry.command,expectedVersion},true));}
+   if(path[4]==='summary'&&path.length===5&&request.method==='GET')return json(await advanceSummary(db,g,path[3]));
    if(path.length===4&&request.method==='GET')return json(entry.result);
   }
   if(request.method==='GET'){
