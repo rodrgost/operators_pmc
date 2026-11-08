@@ -23,3 +23,10 @@ Fonte principal local: C:\Users\rodrg\DEV\operators_pmc. A cópia em .sites-runt
 - Schema hospedado conferido: 15 tabelas, incluindo pessoal. Interface publicada carregou uma campanha existente e as seis ofertas de recrutamento com atributos e custos; nenhum operador foi contratado na campanha hospedada durante o smoke.
 - Testes locais: 47 aprovados; typecheck e build aprovados. Preview local verificou contratação de dois operadores, equipe, treino e familiaridade 0→2 em 390 px.
 - Ajuste visual posterior: saldo sem quebra em larguras intermediárias; não altera regras ou banco.
+
+### Implantação final do ajuste visual
+
+- Commit: 45126d8824d58c348c05461fd385b9f861a618ab.
+- Implantação: appgdep_6af0b65a89cc81918a91af4d24873ff0, succeeded.
+- Versão salva: appgprj_6af0867c8b0081919a17665415f89c70~appgver_54e5f073d948819191c630af83f3bd3c.
+- Mesma URL privada; build aprovado. Saldo US$ 100.000 sem quebra confirmado visualmente no site após recarregar. Campanha existente permaneceu no turno 1, sem contratação nem avanço durante o smoke hospedado.

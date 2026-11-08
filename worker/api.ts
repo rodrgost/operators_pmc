@@ -1,6 +1,8 @@
 import { createGameSchema, advanceSchema, resumeSchema, paginationSchema } from '../packages/contracts/index.ts';
 import { countries, RULES_VERSION } from '../packages/rules/index.ts';
 import { ZodError } from 'zod';
+import {operationsTurn,opsCanonical,config as opsConfig} from '../packages/engine/operations.ts';
+import {ensureOperations,readOperations,operationsWrites,operationsView,operationAction,validatePlan,contractProjection,missionProjection,decisionProjection,planSchema,startSchema,decisionSchema} from './operations.ts';
 import { canonical,personnelTurn,balance } from '../packages/engine/personnel.ts';
 import { ensurePersonnel,readPersonnel,personnelProjection,personnelAction,personnelWrites,hireSchema,renewSchema,squadSchema,activitySchema,commandSchema,memberSchema } from './personnel.ts';
 import { drawInput, stateInput, drawFromHash, resolveTurn } from '../packages/engine/core.ts';
@@ -47,21 +49,27 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
    const nextState={...g.state,turn:g.state.turn+1};
    const [randomHash,hash]=await Promise.all([digest(drawInput(g.seed,nextState.turn,'bulletin','world','country')),digest(stateInput(nextState))]);
    const next=resolveTurn(g.state,g.startDate,drawFromHash(randomHash),hash);
-   let effects:any=null;
+   let effects:any=null,opEffects:any=null;
    if(g.personnelInitialized){
     if(g.personnelVersion!==balance.version)throw new ApiError(422,'PERSONNEL_RULES_MISMATCH','Regras de pessoal indisponíveis.');
     const {p}=await readPersonnel(db,id,owner);
-    effects=await personnelTurn(p,next.state.turn,next.state.cashCents,g.seed,g.state.reputation,digest);
-    next.state.cashCents=effects.cash;next.state.status=effects.status;
+    let turnPersonnel=p;
+    if(g.operationsInitialized){
+     if(g.operationsVersion!==opsConfig.version)throw new ApiError(422,'OPERATIONS_RULES_MISMATCH','Regras de operações indisponíveis.');
+     opEffects=await operationsTurn(await readOperations(db,id),p,next.state.turn,next.state.cashCents,next.state.reputation,g.seed,digest);
+     turnPersonnel=opEffects.personnel;next.state.cashCents=opEffects.cash;next.state.reputation=opEffects.reputation;
+    }
+    effects=await personnelTurn(turnPersonnel,next.state.turn,next.state.cashCents,g.seed,next.state.reputation,digest);
+    next.state.cashCents=effects.cash;next.state.status=effects.cash<0?'financial_crisis':effects.status;
     const weekly=next.summary.events.find(e=>e.type==='weekly_close');if(weekly)weekly.description='Semana encerrada. Consulte os pagamentos e vínculos no livro-razão.';
-    for(const e of effects.events)next.summary.events.push({...e,turn:next.state.turn,sequence:next.summary.events.length});
-    next.summary.stateHash=await digest([stateInput(next.state),balance.version,canonical(effects.personnel)]);
+    for(const e of [...(opEffects?.events??[]),...effects.events])next.summary.events.push({...e,turn:next.state.turn,sequence:next.summary.events.length});
+    next.summary.stateHash=await digest([stateInput(next.state),balance.version,canonical(effects.personnel),...(opEffects?[opsConfig.version,opsCanonical(opEffects.operations)]:[])]);
    }
    const processed=entry.processed+1;
    const important=entry.command.stopOnImportant&&next.summary.events.some(e=>e.important)&&processed<entry.command.turns;
-   const status=important?'interrupted':processed===entry.command.turns?'completed':'processing';
-   const reason=important?'important_event':null;
-   if(!await commitTurn(db,g,entry,next.summary,next.state,status,reason,effects?(guard,args)=>personnelWrites(db,g,effects.personnel,guard,args,effects.ledger,effects.history):undefined))continue;
+   const status=opEffects?.critical?'interrupted':important?'interrupted':processed===entry.command.turns?'completed':'processing';
+   const reason=opEffects?.critical?'critical_decision':important?'important_event':null;
+   if(!await commitTurn(db,g,entry,next.summary,next.state,status,reason,effects?(guard,args)=>personnelWrites(db,g,effects.personnel,guard,args,[...(opEffects?.ledger??[]),...effects.ledger],[...(opEffects?.history??[]),...effects.history]).concat(opEffects?operationsWrites(db,g,opEffects.operations,guard,args,opEffects.reports):[]):undefined))continue;
    if(status!=='processing')return result({...g,state:next.state,stateVersion:g.stateVersion+1},{...entry,processed},status,reason);
   }catch(error){return failAdvance(db,owner,id,command.requestId,error instanceof ApiError?error.code:'turn_failed');}
  }return busy();
@@ -77,7 +85,7 @@ export async function handleApi(request:Request,env:{DB:Database}){
    if(Number(request.headers.get('content-length')||0)>16384)throw new ApiError(413,'TOO_LARGE','Requisição muito grande.');
   }
   const path=url.pathname.replace(/^\/api\/v1\/?/,'').split('/');
-  if(path[0]==='health')return json({status:'ok',phase:'personnel-online',rulesVersion:RULES_VERSION});
+  if(path[0]==='health')return json({status:'ok',phase:'operations-online',rulesVersion:RULES_VERSION});
   if(path[0]!=='games')throw new ApiError(404,'NOT_FOUND','Rota não encontrada.');
   if(!path[1]){
    if(request.method==='GET')return json(await listGames(db,owner));
@@ -87,6 +95,34 @@ export async function handleApi(request:Request,env:{DB:Database}){
   }
   const id=path[1],g=await getGame(db,id,owner);
   if(path.length===2&&request.method==='GET')return json(projection(g));
+  if(['contracts','missions','decisions','operations'].includes(path[2])){
+   await ensureOperations(db,id,owner,digest);const current=await getGame(db,id,owner);
+   if(request.method==='GET'){
+    if(path[2]==='operations')return json(await operationsView(db,current));
+    if(path[2]==='contracts'){
+     if(!path[3]){const view=await operationsView(db,current);const status=url.searchParams.get('status'),type=url.searchParams.get('type'),region=url.searchParams.get('region');return json(view.contracts.filter(c=>(!status||c.status===status)&&(!type||c.type===type)&&(!region||c.regionId===region)));}
+     const c=await db.prepare('SELECT * FROM online_contracts WHERE game_id=? AND id=?').bind(id,path[3]).first();if(!c)throw new ApiError(404,'NOT_FOUND','Contrato não encontrado.');return json(contractProjection(c));
+    }
+    if(path[2]==='decisions')return json((await operationsView(db,current)).decisions);
+    if(path[2]==='missions'){
+     if(!path[3])return json((await operationsView(db,current)).missions);
+     const m=await db.prepare('SELECT * FROM online_missions WHERE game_id=? AND id=?').bind(id,path[3]).first();if(!m)throw new ApiError(404,'NOT_FOUND','Missão não encontrada.');
+     if(path[4]==='reports'){const {offset,limit}=paginationSchema.parse(Object.fromEntries(url.searchParams));const r=await db.prepare('SELECT id,turn,summary_json FROM online_mission_reports WHERE game_id=? AND mission_id=? ORDER BY turn,id LIMIT ? OFFSET ?').bind(id,m.id,limit,offset).all();return json(r.results.map(r=>({id:r.id,turn:r.turn,...JSON.parse(r.summary_json)})));}
+     const a=await db.prepare('SELECT * FROM online_mission_assignments WHERE game_id=? AND mission_id=? ORDER BY operator_id').bind(id,m.id).all();return json(missionProjection(m,a.results));
+    }
+   }
+   if(request.method==='POST'){
+    const body=await request.json();
+    if(path[2]==='contracts'&&path[4]==='plan'){
+     const {g:latest,p}=await readPersonnel(db,id,owner),o=await readOperations(db,id),c=o.contracts.find(c=>c.id===path[3]);const plan=validatePlan(latest,p,o,c,planSchema.parse(body));return json({...plan,stateVersion:latest.stateVersion});
+    }
+    if(path[2]==='contracts'&&['accept','cancel'].includes(path[4]))return json(await operationAction(db,id,owner,path[4],path[3],commandSchema.parse(body),digest));
+    if(path[2]==='contracts'&&path[4]==='start')return json(await operationAction(db,id,owner,'start',path[3],startSchema.parse(body),digest),201);
+    if(path[2]==='missions'&&path[4]==='withdraw')return json(await operationAction(db,id,owner,'withdraw',path[3],commandSchema.parse(body),digest));
+    if(path[2]==='decisions'&&path[4]==='resolve')return json(await operationAction(db,id,owner,'decision',path[3],decisionSchema.parse(body),digest));
+   }
+  }
+
   if(['personnel','operators','recruitment','squads'].includes(path[2])||(path[2]==='finances'&&path[3]==='summary')){
    await ensurePersonnel(db,id,owner,digest);
    if(request.method==='GET'){

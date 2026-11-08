@@ -68,3 +68,18 @@ Na revisão de normalização, a Fase 2 ainda estava pendente; seu incremento im
 - [ ] Progressão avançada de treinamento, módulos da sede e logística: fases posteriores.
 
 Próximo incremento: contratos comerciais e missões autônomas.
+
+## Fase 3 — 0.3.0
+
+- [x] Seis templates comerciais, renovação semanal e estimativas persistidas.
+- [x] Aceite/cancelamento, planejamento sem efeitos e início transacional.
+- [x] Snapshot de formação, reforços, liderança e agenda exclusiva.
+- [x] Etapas com autonomia por utilidade, efeitos, XP e familiaridade.
+- [x] Decisões críticas, interrupção obrigatória, prazo e fallback único.
+- [x] Retirada, retorno seguro, pagamento/reputação e devolução de adiantamento.
+- [x] Relatórios públicos separados da auditoria interna; ledger reconciliado.
+- [x] Interface mobile de contratos, planejamento, operações e decisões.
+- [ ] Geração causal de contratos emergentes: Fase 4; modelo source/originEventId e motor compartilhado já testados com fixture.
+- [ ] Kits e módulos da sede: Fase 5; ofertas atuais não exigem kits.
+
+Próximo incremento efetivo: mundo dinâmico causal e rivais abstratos.

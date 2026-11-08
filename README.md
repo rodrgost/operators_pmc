@@ -1,6 +1,6 @@
-# OPERATORS — PMC Command · 0.2.0
+# OPERATORS — PMC Command · 0.3.0
 
-Jogo de gestão single-player em português. A edição atual implementa a fundação temporal e a gestão de pessoal: recrutamento semanal, operadores, vínculos de emprego, salários, equipes permanentes e familiaridade. Contratos comerciais, missões autônomas e simulação mundial causal ainda estão pendentes.
+Jogo de gestão single-player em português. A edição atual implementa a fundação temporal e a gestão de pessoal: recrutamento semanal, operadores, vínculos de emprego, salários, equipes permanentes e familiaridade. Contratos comerciais e missões autônomas agora estão disponíveis. Simulação mundial causal, kits, sede e inteligência progressiva continuam pendentes.
 
 ## Executar localmente
 
@@ -30,7 +30,7 @@ Crie uma partida e abra **Operadores → Recrutamento**. Escolha vínculo de 4, 
 
 Salários vencem a cada 28 turnos do vínculo, inclusive a última semana contratada. Falta de caixa gera dívida salarial e perda de moral/lealdade; a dívida é quitada quando houver caixa suficiente. O ledger registra apenas saídas efetivas. Não há game over financeiro automático.
 
-Em **Equipes**, selecione até seis membros, líder, substituto e diretrizes. Equipes abaixo de dois membros são rascunhos. Treino conjunto dura quatro turnos, aumenta fadiga e familiaridade dos participantes. Descanso reduz fadiga e recuperação melhora saúde. Detalhes e histórico ficam na ficha do operador. Missões e reforços efetivamente enviados serão implementados na próxima fase; as diretrizes ficam salvas, sem efeito de combate nesta versão.
+Em **Equipes**, selecione até seis membros, líder, substituto e diretrizes. Equipes abaixo de dois membros são rascunhos. Treino conjunto dura quatro turnos, aumenta fadiga e familiaridade dos participantes. Descanso reduz fadiga e recuperação melhora saúde. Detalhes e histórico ficam na ficha do operador. Missões usam uma formação congelada e até dois reforços temporários, preservando equipes permanentes. As diretrizes influenciam a abordagem autônoma e decisões excepcionais.
 
 ## Verificar
 
@@ -55,3 +55,11 @@ O site existente é privado: https://operators-pmc-command.rodrgost.chatgpt.site
 - `docs/STATUS.md`: escopo concluído e pendente.
 - `docs/VALIDATION.md`: resultados e limites de validação.
 - `docs/DEPLOYMENT.md`: publicação mais recente.
+
+## Contratos e operações
+
+Abra **Contratos**, aceite uma oferta e planeje a formação: equipe permanente, membros enviados, até dois reforços, líder/substituto e diretrizes. Valide custos antes de confirmar o início. Aceitar não reserva nem paga. Iniciar reserva operadores, cobra mobilização e recebe adiantamento. As ofertas iniciais não exigem kits; não existe estoque fictício.
+
+Avance o tempo para executar as quatro etapas. Decisões críticas interrompem o lote obrigatoriamente; responda em **Operações** ou avance sabendo que o prazo aplicará a política automática. Relatórios mostram abordagem, resultados, saúde e fadiga. O pagamento final depende da qualidade; falha ou retirada devolve o adiantamento, mantém o custo de mobilização e pode reduzir reputação. Retirada retorna em um turno e libera a formação. Custos e consequências são revisados antes dos comandos.
+
+O catálogo renova a cada 28 turnos e contém seis tipos de contratos. Risco e dificuldade exibidos são estimativas persistidas do contratante, com confiança e fonte. Valores reais e sorteios não são entregues ao frontend. Parâmetros e regras em packages/rules/operations.json e docs/ADR/0006-operations.md.

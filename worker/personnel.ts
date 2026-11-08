@@ -10,7 +10,7 @@ export const renewSchema=z.object({...base,weeks}).strict();
 export const activitySchema=z.object({...base,type:z.enum(['rest','training','recovery'])}).strict();
 export const commandSchema=z.object(base).strict();
 export const memberSchema=z.object({...base,operatorId:id}).strict();
-const directives=z.object({posture:z.enum(['cautious','balanced','aggressive']),priority:z.enum(['objective','team_safety','deadline']),riskTolerance:z.enum(['low','medium','high']),withdrawalPolicy:z.enum(['conservative','normal','persistent'])}).strict();
+export const directives=z.object({posture:z.enum(['cautious','balanced','aggressive']),priority:z.enum(['objective','team_safety','deadline']),riskTolerance:z.enum(['low','medium','high']),withdrawalPolicy:z.enum(['conservative','normal','persistent'])}).strict();
 const squadFields={name:z.string().trim().min(2).max(60),specialization:z.enum(['general',...specializations]).default('general'),leaderId:id.nullable().default(null),deputyId:id.nullable().default(null),memberIds:z.array(id).max(balance.squadMax).default([]),directives:directives.default({posture:'balanced',priority:'team_safety',riskTolerance:'medium',withdrawalPolicy:'normal'})};
 export const squadSchema=z.object({...base,...squadFields}).strict();
 const clean=(rows:any[])=>rows.map(({game_id,...r})=>r);

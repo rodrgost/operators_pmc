@@ -42,3 +42,12 @@
 - UI mobile com revisão de custo e retry de comando preservado entre abas.
 - API local e Worker compartilham aplicação; fundação original preservada como legado.
 - Migration incremental, parâmetros de pessoal em JSON e 47 testes aprovados.
+
+## 0.3.0 — 2026-11-08
+
+- Contratos comerciais semanais em seis tipos, com estimativas de risco/dificuldade.
+- Planejamento e início separados, formação congelada e reforços temporários.
+- Etapas autônomas, condições de operadores, XP, familiaridade e relatórios.
+- Decisões críticas com prazo/fallback e interrupção obrigatória de lote.
+- Retirada, devolução de adiantamento, remuneração proporcional e reputação.
+- Migração incremental, comandos idempotentes, ledger atômico e interface mobile integrada.

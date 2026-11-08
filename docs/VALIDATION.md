@@ -57,3 +57,13 @@ As correções e a normalização foram publicadas no site privado existente. O 
 - Preview usa SQLite; publicação e smoke hospedado serão registrados em DEPLOYMENT.md. Não foram criados novos backups locais nesta fase.
 
 Publicação 0.2.0 concluída: serviço confirmou succeeded; schema remoto com 15 tabelas e carregamento de recrutamento na campanha existente confirmados no navegador. Não houve contratação de operadores ou avanço de turnos na campanha hospedada durante essa conferência.
+
+## Operações 0.3.0 — 2026-11-08
+
+- 64 testes aprovados em 10 arquivos. Cobertura nova: ciclo comercial completo, prévia sem reserva, snapshots/reforços, agenda, decisões obrigatórias, fallback único, resolução idempotente, retirada, fracasso, cancelamento, capacidade, liderança, início concorrente, remuneração/ledger, rollback de término e retomada, autonomia por diretrizes, estimativas sem verdade oculta, renovação semanal e retry de interface.
+- Contrato com source world_event/originEventId testado por fixture no mesmo motor; geração causal não implementada.
+- Typecheck TypeScript/Nuxt e build online aprovados. Mantido aviso não bloqueante de cache-driver do Nuxt.
+- Navegador local: aceito contrato Proteção de instalação; prévia validou formação de duas operadoras, mobilização e adiantamento; início T9, quatro etapas e conclusão T13. Relatórios mostraram resultado parcial, ferimento, fadiga, pagamento proporcional e reputação +2. Formação liberada.
+- Conteúdo de operações/relatórios inspecionado em 390 px via iframe de QA. Acertos e ledger usam centavos; resumo de caixa continua compacto.
+- Migration 0003_workable_leo.sql é incremental/schema-only, com tabelas de contratos, missões, assignments, decisões e relatórios e flags/versionamento por campanha.
+- Sem novos backups locais; sem estoque, combate tático ou mundo causal fictício. Publicação e conferência remota registradas em DEPLOYMENT.md.

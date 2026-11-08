@@ -2,11 +2,11 @@
 
 Pasta principal: `C:\Users\rodrg\DEV\operators_pmc`.
 
-## Estado atual — 0.2.0
+## Estado atual — 0.3.0
 
 Fundação e persistência normalizada implementadas, agora com operadores, recrutamento semanal, vínculos 4/8/12 semanas, pagamentos e dívidas salariais, renovação, equipes permanentes, líderes/substitutos, histórico de composição, reservas exclusivas de agenda e familiaridade por treino conjunto. Interface mobile preto/cinza; manter esse padrão em todas as telas.
 
-Ainda pendentes: contratos comerciais, missões autônomas, decisões críticas, mundo causal, kits, módulos da sede e inteligência progressiva. Não apresentar essas funcionalidades como prontas. Reservas de missão e familiaridade já têm estrutura, mas o envio de reforços e as missões dependem da Fase 3.
+Agora também implementados: contratos comerciais, planejamento, snapshots de formação, reforços, etapas autônomas, decisões críticas com prazo/fallback, retirada, relatórios e pagamentos. Pendentes: mundo causal, kits, módulos da sede e inteligência progressiva. Não apresentar essas funcionalidades como prontas. Reforços de missão preservam vínculo permanente; a formação enviada é imutável.
 
 ## Executar e verificar
 
@@ -26,10 +26,14 @@ Checks: `npm test`, `npm run build:online`, `npm run typecheck`. Build gera work
 - apps/api/src/normalized-app.ts: aplicação compartilhada no servidor local.
 - docs/ADR/0005-personnel.md: decisões e limites desta fase.
 
-## Próximo incremento
+## Incremento implementado
 
 Fase 3: contratos comerciais, planejamento e missões autônomas, com snapshots imutáveis de formação, reforços temporários, reservas de operadores, etapas, relatórios, remuneração e decisões críticas. Antes de codificar, apresentar dados, migrations, transições e testes. Resolver explicitamente as regras de cancelamento/retirada e os requisitos logísticos nesta fase, sem inventar efeitos não definidos. Não adicionar combate tático, multiplayer ou LLM.
 
 ## Publicação autorizada
 
 O usuário autorizou manter e atualizar o site privado https://operators-pmc-command.rodrgost.chatgpt.site/ enquanto Sites estiver incluído no plano e sem contratar serviços adicionais. Preservar project_id e audiência de `.openai/hosting.json`. Validar e publicar após cada incremento concluído. A cópia em .sites-runtime/publish-source/.sites-checkout serve somente para sincronização e empacotamento do repositório já vinculado ao site; fonte principal continua na pasta acima.
+
+## Próximo incremento efetivo
+
+Fase 4: simulação mundial causal, indicadores regionais, conflitos e rivais abstratos, integrando contratos emergentes via source/originEventId ao mesmo motor já existente. Antes de codificar, apresentar dados, transições e testes; preservar decisões, salários, reservas e ledger. Ainda não existem eventos causais no mundo; os boletins continuam demonstrativos. Referências atuais: worker/operations.ts, packages/engine/operations.ts, packages/rules/operations.json, docs/ADR/0006-operations.md e drizzle/0003_workable_leo.sql. A interface usa apps/web/components/OperationsPanel.vue.

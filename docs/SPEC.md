@@ -653,3 +653,7 @@ A edição online implementa agora tabelas para campanha/estado atual, comandos,
 ## Incremento 0.2.0 — Pessoal
 
 Implementados recrutamento semanal determinístico, operadores, vínculos e renovação, salários/dívidas, equipes permanentes e histórico, líderes/substitutos, disponibilidade por agenda exclusiva e familiaridade por treino conjunto. Os parâmetros propostos adotados são configuráveis em packages/rules/personnel.json e documentados no ADR 0005. Versionamento de pessoal separado preserva saves e hashes da fundação até ativação do módulo. Atividades básicas foram incluídas para exercitar disponibilidade/familiaridade; progressão avançada e sede permanecem posteriores. Reforços efetivamente enviados e snapshots de missão serão integrados na Fase 3. Não implica aceite do MVP completo.
+
+## Incremento 0.3.0 — Contratos e missões
+
+Implementado ciclo comercial aceitar→planejar→iniciar→executar etapas→relatório/ledger, com formação imutável, reforços temporários, diretrizes/autonomia, decisões críticas e retirada. Valores propostos de adiantamento, mobilização, duração, capacidade, remuneração parcial e devolução constam em packages/rules/operations.json e ADR 0006. Ofertas desta fase não exigem equipamento; kits e sede permanecem posteriores. O motor suporta source/originEventId comuns a ofertas comerciais e emergentes, mas geração causal depende da Fase 4. Não representa aceite do mundo dinâmico ou do MVP completo.
