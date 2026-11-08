@@ -1,0 +1,39 @@
+{
+  "name": "operators-pmc",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "node scripts/preview-online.mjs",
+    "dev:api": "node --watch --import tsx apps/api/src/server.ts",
+    "dev:web": "npm run dev --workspace @operators/web",
+    "start:api": "node --import tsx apps/api/src/server.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && npm run typecheck --workspace @operators/web",
+    "build": "npm run build --workspace @operators/web",
+    "db:generate": "drizzle-kit generate",
+    "build:online": "npm exec --workspace @operators/web nuxt generate && node scripts/build-online.mjs",
+    "dev:local": "concurrently -k -n API,WEB \"npm run dev:api\" \"npm run dev:web\""
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.1.0",
+    "fastify": "^5.6.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "concurrently": "^9.2.0",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.4",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

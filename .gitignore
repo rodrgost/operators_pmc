@@ -1,0 +1,10 @@
+node_modules/
+.nuxt/
+.output/
+data/
+*.sqlite*
+coverage/
+.env
+dist/
+worker/assets.generated.ts
+.sites-runtime/
