@@ -1,6 +1,6 @@
 import {it,expect} from 'vitest';
 import {createHash} from 'node:crypto';
-import {setup} from './online-helpers.ts';
+import {setupImmediate as setup} from './online-helpers.ts';
 import {seedWorld,worldTurn,publishWorldContracts,refreshIntel,validateWorld,applyMissionResults,worldCanonical} from '../packages/engine/world.ts';
 import {offers,emptyOperations} from '../packages/engine/operations.ts';
 const digest=async(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');

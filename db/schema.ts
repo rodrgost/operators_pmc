@@ -128,3 +128,8 @@ export const intelAnalyses=sqliteTable('online_intel_analyses',{
 export const missionIntelligence=sqliteTable('online_mission_intelligence',{
  gameId:text('game_id').notNull(),missionId:text('mission_id').notNull(),snapshot:text('snapshot_json').notNull(),
 },t=>[primaryKey({columns:[t.gameId,t.missionId]}),foreignKey({columns:[t.gameId,t.missionId],foreignColumns:[missions.gameId,missions.id]})]);
+
+// Player plans are durable; no domain effects before the first confirmed turn.
+export const pendingOrders=sqliteTable('online_pending_orders',{
+ gameId:text('game_id').notNull().references(()=>games.id),id:text('id').notNull(),scope:text('scope').notNull(),kind:text('kind').notNull(),target:text('target'),command:text('command_json').notNull(),payload:text('payload_json').notNull(),title:text('title').notNull(),cost:integer('cost_cents').notNull(),created:integer('created_turn').notNull(),status:text('status').notNull(),committed:integer('committed_turn'),result:text('result_json').notNull(),
+},t=>[primaryKey({columns:[t.gameId,t.id]}),index('pending_orders_status').on(t.gameId,t.status)]);

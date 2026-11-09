@@ -6,7 +6,7 @@ import {config,emptyIntelligence,collectSources,dossier,topicsFor,recordProjecti
 import type {Digest} from '../packages/engine/personnel.ts';
 export const analysisSchema=z.object({requestId:z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/),expectedVersion:z.number().int().nonnegative(),targetType:z.enum(['region','contract']),targetId:z.string().min(1).max(180),topic:z.enum(['stability','security','economy','tension','difficulty','risk'])}).strict();
 const currentFilter="(target_type='region' OR target_id IN (SELECT id FROM online_contracts WHERE game_id=? AND (expires_turn>? OR status IN ('accepted','active','rival_active'))) OR target_id IN (SELECT target_id FROM online_intel_analyses WHERE game_id=? AND status='pending'))";
-export async function readIntelligence(db:Database,g:Campaign):Promise<Intelligence>{const args=[g.id,g.state.turn,g.id],rows=await db.batch([
+export async function readIntelligence(db:Database,g:Campaign):Promise<Intelligence>{if(db.planning)return db.planning.i;const args=[g.id,g.state.turn,g.id],rows=await db.batch([
  db.prepare('SELECT * FROM online_intel_current WHERE game_id=? AND '+currentFilter+' ORDER BY record_id').bind(g.id,...args),
  db.prepare('SELECT r.* FROM online_intel_records r WHERE r.game_id=? AND r.id IN (SELECT record_id FROM online_intel_current WHERE game_id=? AND '+currentFilter+') ORDER BY r.id').bind(g.id,g.id,...args),
  db.prepare("SELECT * FROM online_intel_analyses WHERE game_id=? AND status='pending' ORDER BY id").bind(g.id),

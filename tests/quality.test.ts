@@ -1,5 +1,5 @@
 import {it,expect} from 'vitest';
-import {setup} from './online-helpers.ts';
+import {setupImmediate as setup} from './online-helpers.ts';
 async function fixture(seed='quality-336'){
  const s=setup(),g=(await s.call('/games',{requestId:'create',name:'Quality PMC',seed})).data,path='/games/'+g.id;
  async function state(){return (await s.call(path)).data}async function action(url:string,id:string,extra:any={}){return s.call(path+url,{requestId:id,expectedVersion:(await state()).stateVersion,...extra})}return {...s,g,path,state,action};

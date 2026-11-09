@@ -4,7 +4,7 @@ import { rules, RULES_VERSION } from '../packages/rules/index.ts';
 import { gameDate } from '../packages/engine/core.ts';
 export interface QueryResult { results:any[];meta:{changes:number} }
 export interface Statement {bind(...args:any[]):Statement;first():Promise<any>;all():Promise<QueryResult>;run():Promise<QueryResult>}
-export interface Database {prepare(sql:string):Statement;batch(statements:Statement[]):Promise<QueryResult[]>;withSession?(constraint:string):Database}
+export interface Database { planning?:any;prepare(sql:string):Statement;batch(statements:Statement[]):Promise<QueryResult[]>;withSession?(constraint:string):Database}
 export interface Campaign {id:string;owner:string;name:string;seed:string;startDate:string;rulesVersion:string;state:State;stateVersion:number;revision:number;activeRequest:string|null;createPayload:string;personnelVersion:string;personnelInitialized:boolean;operationsInitialized:boolean;operationsVersion:string;worldInitialized:boolean;worldVersion:string;logisticsInitialized:boolean;logisticsVersion:string;intelligenceInitialized:boolean;intelligenceVersion:string}
 export interface Command {command:AdvanceCommand;payload:string;processed:number;result:AdvanceResult}
 export class ApiError extends Error{constructor(public status:number,public code:string,message:string){super(message)}}
@@ -30,6 +30,7 @@ export async function importLegacy(db:Database,id:string,owner:string){
  ]);
 }
 export async function getGame(db:Database,id:string,owner:string):Promise<Campaign>{
+ if(db.planning?.g.id===id&&db.planning.g.owner===owner)return db.planning.g;
  let row=await db.prepare('SELECT * FROM online_games WHERE id=? AND owner=?').bind(id,owner).first();
  if(!row){await importLegacy(db,id,owner);row=await db.prepare('SELECT * FROM online_games WHERE id=? AND owner=?').bind(id,owner).first();}
  if(!row)throw new ApiError(404,'NOT_FOUND','Partida não encontrada.');return rowGame(row);
@@ -60,6 +61,7 @@ export async function snapshot(db:Database,id:string,owner:string,requestId:stri
 // A fresh token gates all dependent writes when revision CAS loses the race.
 // D1 batch provides transaction atomicity; stale contenders produce no side effects.
 export async function mutate(db:Database,g:Campaign,next:Campaign,build:(guard:string,args:any[])=>Statement[]){
+ if(db.planning){db.planning.builders.push(build);db.planning.g=next;return true;}
  const token=crypto.randomUUID();const guard='EXISTS(SELECT 1 FROM online_games WHERE id=? AND owner=? AND commit_token=?)';
  const rows=await db.batch([
   db.prepare('UPDATE online_games SET current_turn=?,cash_cents=?,reputation=?,status=?,state_version=?,active_request=?,personnel_initialized=?,operations_initialized=?,world_initialized=?,logistics_initialized=?,intelligence_initialized=?,revision=revision+1,commit_token=? WHERE id=? AND owner=? AND revision=?').bind(next.state.turn,next.state.cashCents,next.state.reputation,next.state.status,next.stateVersion,next.activeRequest,Number(next.personnelInitialized),Number(next.operationsInitialized),Number(next.worldInitialized),Number(next.logisticsInitialized),Number(next.intelligenceInitialized),token,g.id,g.owner,g.revision),

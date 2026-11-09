@@ -51,3 +51,12 @@
 - Decisões críticas com prazo/fallback e interrupção obrigatória de lote.
 - Retirada, devolução de adiantamento, remuneração proporcional e reputação.
 - Migração incremental, comandos idempotentes, ledger atômico e interface mobile integrada.
+
+## 0.8.0 — 2026-11-09
+
+- Saldo e previsão de gastos fixos no topo em todas as telas da campanha.
+- Controle de turno fixo no rodapé, com agenda expansível e turnos restantes.
+- Fila persistente de ordens, removíveis sem custo antes da passagem.
+- Cobranças e efeitos das ordens confirmados atomicamente com o primeiro turno.
+- Validação conjunta, proteção concorrente, idempotência e rollback.
+- Novos testes da API pública deferida; regras e saves anteriores preservados.

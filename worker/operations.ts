@@ -14,6 +14,7 @@ export const startSchema=planSchema.extend(commandSchema.shape).strict();
 export const decisionSchema=commandSchema.extend({choice:z.enum(['proceed','safer','withdraw'])}).strict();
 const clean=(rows:any[])=>rows.map(({game_id,...r})=>r);
 export async function readOperations(db:Database,gameId:string):Promise<Operations>{
+ if(db.planning)return db.planning.o;
  const rows=await db.batch([
   db.prepare("SELECT * FROM online_contracts WHERE game_id=? AND (expires_turn>(SELECT current_turn FROM online_games WHERE id=?) OR status IN ('accepted','active','rival_active') OR id IN (SELECT target_id FROM online_intel_analyses WHERE game_id=? AND target_type='contract' AND status='pending')) ORDER BY id").bind(gameId,gameId,gameId),
   db.prepare("SELECT * FROM online_missions WHERE game_id=? AND status IN ('active','awaiting_decision','returning') ORDER BY id").bind(gameId),

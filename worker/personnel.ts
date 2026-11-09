@@ -16,7 +16,8 @@ export const directives=z.object({posture:z.enum(['cautious','balanced','aggress
 const squadFields={name:z.string().trim().min(2).max(60),specialization:z.enum(['general',...specializations]).default('general'),leaderId:id.nullable().default(null),deputyId:id.nullable().default(null),memberIds:z.array(id).max(balance.squadMax).default([]),directives:directives.default({posture:'balanced',priority:'team_safety',riskTolerance:'medium',withdrawalPolicy:'normal'})};
 export const squadSchema=z.object({...base,...squadFields}).strict();
 const clean=(rows:any[])=>rows.map(({game_id,...r})=>r);
-export async function readPersonnel(db:Database,id:string,owner:string){
+export async function readPersonnel(db:Database,id:string,owner:string):Promise<{g:Campaign;p:Personnel}>{
+ if(db.planning)return {g:db.planning.g,p:db.planning.p};
  const rows=await db.batch([
   db.prepare('SELECT * FROM online_games WHERE id=? AND owner=?').bind(id,owner),
   db.prepare('SELECT * FROM online_operators WHERE game_id=? ORDER BY id').bind(id),

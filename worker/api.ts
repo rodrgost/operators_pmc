@@ -1,3 +1,4 @@
+import {orderRoute,enqueue,orders,cancelOrder,prepareOrders,plannedFacts,orderCommitWrites} from './planning.ts';
 import {commandCenter,advanceSummary} from './command-center.ts';
 import {ensureIntelligence,readIntelligence,intelligenceWrites,intelligenceView,analysisAction,analysisSchema} from './intelligence.ts';
 import {collectSources,resolveAnalyses,collectReconnaissance,intelligenceCanonical,dossier,config as intelligenceConfig} from '../packages/engine/intelligence.ts';
@@ -37,7 +38,7 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
    if(entry.result.status!=='processing')return entry.result;
    registered=true;break;
   }
-  if(await db.prepare('SELECT request_id FROM online_actions WHERE game_id=? AND request_id=?').bind(id,command.requestId).first())throw new ApiError(409,'REQUEST_REUSED','Identificador já utilizado em outro comando.');
+  if(await db.prepare('SELECT request_id FROM online_actions WHERE game_id=? AND request_id=? UNION ALL SELECT id FROM online_pending_orders WHERE game_id=? AND id=?').bind(id,command.requestId,id,command.requestId).first())throw new ApiError(409,'REQUEST_REUSED','Identificador já utilizado em outro comando.');
   if(g.stateVersion!==command.expectedVersion)conflict();
   if(g.activeRequest&&g.activeRequest!==command.requestId)throw new ApiError(409,'LOCKED','Existe um lote em andamento.');
   if(resume){
@@ -45,6 +46,7 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
    if(entry.result.currentTurn!==g.state.turn)conflict();
   }
   const pending:Command=entry??{command,payload,processed:0,result:null as any};
+  if((await orders(db,id)).length)await prepareOrders(db,g,digest);
   if(await register(db,g,pending,resume)){registered=true;break;}
  }
  if(!registered)return busy();
@@ -53,19 +55,21 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
   if(!entry)throw new ApiError(404,'NOT_FOUND','Avanço não encontrado.');
   if(entry.result.status!=='processing')return entry.result;
   try{
-   const nextState={...g.state,turn:g.state.turn+1};
+   const planned=(await orders(db,id)).length?await prepareOrders(db,g,digest):null;
+   const turnState=planned?.context.g.state??g.state;
+   const nextState={...turnState,turn:g.state.turn+1};
    const [randomHash,hash]=await Promise.all([digest(drawInput(g.seed,nextState.turn,'bulletin','world','country')),digest(stateInput(nextState))]);
-   const next=resolveTurn(g.state,g.startDate,drawFromHash(randomHash),hash);
+   const next=resolveTurn(turnState,g.startDate,drawFromHash(randomHash),hash);
    let effects:any=null,opEffects:any=null,worldEffects:any=null,logistics:any=null,logisticsEvents:any[]=[],logisticsLedger:any[]=[],intelligence:any=null,intelligenceEvents:any[]=[];
-   if(g.intelligenceInitialized){if(g.intelligenceVersion!==intelligenceConfig.version)throw new ApiError(422,'INTELLIGENCE_RULES_MISMATCH','Regras de inteligência indisponíveis.');intelligence=await readIntelligence(db,g);}
-   if(g.logisticsInitialized){if(g.logisticsVersion!==logisticsConfig.version)throw new ApiError(422,'LOGISTICS_RULES_MISMATCH','Regras de logística indisponíveis.');logistics=await readLogistics(db,id);logisticsEvents=logisticsStart(logistics,next.state.turn);}
+   if(g.intelligenceInitialized){if(g.intelligenceVersion!==intelligenceConfig.version)throw new ApiError(422,'INTELLIGENCE_RULES_MISMATCH','Regras de inteligência indisponíveis.');intelligence=planned?.context.i??await readIntelligence(db,g);}
+   if(g.logisticsInitialized){if(g.logisticsVersion!==logisticsConfig.version)throw new ApiError(422,'LOGISTICS_RULES_MISMATCH','Regras de logística indisponíveis.');logistics=planned?.context.l??await readLogistics(db,id);logisticsEvents=logisticsStart(logistics,next.state.turn);}
    if(g.personnelInitialized){
     if(g.personnelVersion!==balance.version)throw new ApiError(422,'PERSONNEL_RULES_MISMATCH','Regras de pessoal indisponíveis.');
-    const {p}=await readPersonnel(db,id,owner);
+    const p=planned?.context.p??(await readPersonnel(db,id,owner)).p;
     let turnPersonnel=p;
     if(g.operationsInitialized){
      if(g.operationsVersion!==opsConfig.version)throw new ApiError(422,'OPERATIONS_RULES_MISMATCH','Regras de operações indisponíveis.');
-     let operations=await readOperations(db,id);
+     let operations=planned?.context.o??await readOperations(db,id);
      if(g.worldInitialized){if(g.worldVersion!==worldConfig.version)throw new ApiError(422,'WORLD_RULES_MISMATCH','Regras mundiais indisponíveis.');const resolved=await worldTurn(await readWorld(db,id),operations,next.state.turn,g.seed,digest);worldEffects=resolved.world;operations=resolved.operations;}
      if(intelligence)intelligenceEvents.push(...await resolveAnalyses(intelligence,worldEffects,operations,next.state.turn,g.seed,digest));
      opEffects=await operationsTurn(operations,p,next.state.turn,next.state.cashCents,next.state.reputation,g.seed,digest,logistics??undefined,intelligence??undefined);
@@ -82,6 +86,7 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
     if(intelligence){await collectSources(intelligence,worldEffects,opEffects.operations,next.state.turn,digest);intelligence.snapshots=intelligence.snapshots.filter((s:any)=>opEffects.operations.missions.some((m:any)=>m.id===s.mission_id&&['active','awaiting_decision','returning'].includes(m.status)));}
     const weekly=next.summary.events.find(e=>e.type==='weekly_close');if(weekly)weekly.description='Semana encerrada. Consulte os pagamentos e vínculos no livro-razão.';
     for(const e of [...intelligenceEvents,...logisticsEvents,...(worldEffects?worldNotifications(worldEffects,next.state.turn):[]),...(opEffects?.events??[]),...effects.events])next.summary.events.push({...e,turn:next.state.turn,sequence:next.summary.events.length});
+    if(planned?.list.length)next.summary.events.push({turn:next.state.turn,sequence:next.summary.events.length,type:'orders_committed',title:'Ordens confirmadas',description:planned.list.length+' ordem(ns) aplicadas no início do turno.',important:false});
     next.summary.events.forEach((e,i)=>e.sequence=i);
     next.summary.stateHash=await digest([stateInput(next.state),balance.version,canonical(effects.personnel),...(opEffects?[opsConfig.version,opsCanonical(opEffects.operations)]:[]),...(worldEffects?[worldConfig.version,worldCanonical(worldEffects)]:[]),...(logistics?[logisticsConfig.version,logisticsCanonical(logistics)]:[]),...(intelligence?[intelligenceConfig.version,intelligenceCanonical(intelligence)]:[])]);
    }
@@ -89,12 +94,14 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
    const important=entry.command.stopOnImportant&&next.summary.events.some(e=>e.important)&&processed<entry.command.turns;
    const status=opEffects?.critical?'interrupted':important?'interrupted':processed===entry.command.turns?'completed':'processing';
    const reason=opEffects?.critical?'critical_decision':important?'important_event':null;
-   if(!await commitTurn(db,g,entry,next.summary,next.state,status,reason,effects?(guard,args)=>personnelWrites(db,g,effects.personnel,guard,args,[...(opEffects?.ledger??[]),...effects.ledger,...logisticsLedger],[...(opEffects?.history??[]),...effects.history]).concat(opEffects?operationsWrites(db,g,opEffects.operations,guard,args,opEffects.reports):[]).concat(worldEffects?worldWrites(db,g,worldEffects,guard,args):[]).concat(logistics?logisticsWrites(db,g,logistics,guard,args):[]).concat(intelligence?intelligenceWrites(db,g,intelligence,guard,args):[]):undefined))continue;
+   if(!await commitTurn(db,g,entry,next.summary,next.state,status,reason,effects?(guard,args)=>personnelWrites(db,g,effects.personnel,guard,args,[...(opEffects?.ledger??[]),...effects.ledger,...logisticsLedger],[...(opEffects?.history??[]),...effects.history]).concat(opEffects?operationsWrites(db,g,opEffects.operations,guard,args,opEffects.reports):[]).concat(worldEffects?worldWrites(db,g,worldEffects,guard,args):[]).concat(logistics?logisticsWrites(db,g,logistics,guard,args):[]).concat(intelligence?intelligenceWrites(db,g,intelligence,guard,args):[]).concat(planned?plannedFacts(planned.context,guard,args,next.state.turn):[]).concat(planned?orderCommitWrites(db,g,planned.list,guard,args,next.state.turn):[]):undefined))continue;
    if(status!=='processing')return result({...g,state:next.state,stateVersion:g.stateVersion+1},{...entry,processed},status,reason);
   }catch(error){return failAdvance(db,owner,id,command.requestId,error instanceof ApiError?error.code:'turn_failed');}
  }return busy();
 }
-export async function handleApi(request:Request,env:{DB:Database}){
+export async function handleApi(request:Request,env:{DB:Database},execution:'queued'|'immediate'='queued'){
+ // The immediate dispatcher is retained only for legacy domain regression fixtures.
+ // Production callers do not pass this argument; no HTTP flag can enable it.
  try{
   const url=new URL(request.url),owner=request.headers.get('oai-authenticated-user-id');
   if(!owner)return json({code:'UNAUTHORIZED',message:'Entre com sua conta ChatGPT para continuar.'},401);
@@ -115,6 +122,12 @@ export async function handleApi(request:Request,env:{DB:Database}){
   }
   const id=path[1],g=await getGame(db,id,owner);
   if(path.length===2&&request.method==='GET')return json(projection(g));
+  if(path[2]==='orders'){
+   if(path.length===3&&request.method==='GET')return json({stateVersion:g.stateVersion,orders:await orders(db,id)});
+   if(path[3]&&path[4]==='cancel'&&request.method==='POST')return json(await cancelOrder(db,id,owner,path[3],await request.json()));
+  }
+  const route=execution==='queued'?orderRoute(path,request.method):null;
+  if(route)return json(await enqueue(db,id,owner,route,route.schema.parse(await request.json()),digest),201);
   if(path[2]==='command-center'&&path.length===3&&request.method==='GET')return json(await commandCenter(db,g));
   if(path[2]==='intelligence'){
    await ensureIntelligence(db,id,owner,digest);const current=await getGame(db,id,owner);

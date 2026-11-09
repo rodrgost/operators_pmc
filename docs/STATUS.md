@@ -121,3 +121,7 @@ Mundo e Contratos oferecem dossiês e análises; planejamento registra conhecime
 ## Incremento 0.7.0 — UX e qualidade
 
 Centro de comando, alertas de dívida/decisões/vínculos/condições/kits, agenda, preparação inicial, gastos semanais de salários+infraestrutura, autonomia financeira estimada; resumo recuperável com movimentações e ocorrências do avanço; busca/tipo/status de contratos. Respostas tardias de dossiês são descartadas; refresh falho preserva comando para retry. Sem alterações de regras ou migrations. Ver QUALITY-REPORT.md e ADR 0010.
+
+## Atualização 0.8.0
+
+Planejamento de ordens e confirmação atômica na passagem implementados. Saldo fixo no topo e agenda/controle de turno no rodapé aplicados globalmente na campanha. Migração aditiva; saves anteriores preservados. Valores e custos continuam provisórios. Ver ADR 0008 e planning.test.ts.

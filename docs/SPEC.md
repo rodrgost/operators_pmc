@@ -685,3 +685,15 @@ Mundo e Contratos oferecem dossiês e análises; planejamento registra conhecime
 Centro de comando com alertas e agenda, preparação inicial e atalho de sede; Finanças soma salários e infraestrutura, mostra dívida total e estimativa de cobertura de despesas. Resumo de avanço recuperável por campanha, intervalo confirmado, ocorrências e movimentações automáticas, sem misturar compras posteriores. Busca e filtros de contratos combinados; navegação protegida durante comando pendente; descarte de respostas de inteligência de alvo anterior; retry preservado após perda do refresh. Sem mudanças numéricas de regras ou schema.
 
 Campanha integrada de 336 turnos com todos os módulos, sete missões concluídas, 36 salários e 12 manutenções; ledger/FK e hashes lote/individual consistentes. Resultado detalhado e limites em docs/QUALITY-REPORT.md. Balanceamento permanece provisório: validar com o jogador e corrigir problemas reproduzíveis, sem presumir aceite completo de todas as escolhas do MVP.
+
+# Adendo aprovado — planejamento e confirmação por turno (2026-11-09)
+
+- Saldo atual fixo no topo de todas as telas da campanha; mostrar despesas planejadas e saldo após confirmação quando houver ordens.
+- Botão fixo «Passar turno» no rodapé, com seleção de lote. Acima dele, painel expansível com «Para confirmar», «Em andamento» e alertas «Requer ação».
+- Compras, serviços, melhorias, contratação/renovação, equipes, atividades, contratos, envio/retirada e respostas a decisões são ordens persistidas de planejamento. Não mudam caixa nem estado efetivo ao agendar.
+- Remover uma ordem antes do turno é gratuito. Para alterar, remover e agendar novamente. Remover dependência não apaga silenciosamente outras ordens: validar novamente o conjunto antes de confirmar.
+- Validar integralmente todas as ordens em ordem de criação. Se alguma for inválida, nenhuma é aplicada e o turno não avança; mostrar a ordem e a causa.
+- Na passagem, aplicar a fila no início do primeiro intervalo processado e resolver o turno. Persistir ordens, efeitos, custos/receitas, ledger, eventos, progresso e estado em uma única transação por turno. O intervalo inicial conta para os prazos: uma entrega de quatro turnos mostra três restantes após a primeira passagem.
+- Em lote, a fila é aplicada uma única vez. Retomada confirma eventuais ordens pendentes somente no primeiro intervalo restante, respeitando idempotência. Turnos anteriores já confirmados não são revertidos.
+- Ordens confirmadas deixam de ser reversíveis gratuitamente. A partir daí, aplica-se a regra própria da atividade/retirada.
+- A fila não reserva ativos efetivos; a validação conjunta considera capacidade e recursos das ordens anteriores para impedir dupla alocação ou gasto excessivo.

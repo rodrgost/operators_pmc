@@ -1,6 +1,6 @@
 import {it,expect} from 'vitest';
 import {createHash} from 'node:crypto';
-import {setup} from './online-helpers.ts';
+import {setupImmediate as setup} from './online-helpers.ts';
 import {appendRecord,emptyIntelligence,topicView,dossier,perceivedRisk,recordProjection} from '../packages/engine/intelligence.ts';
 const digest=async(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 async function fixture(hook?:(sql:string,args:any[])=>void,activate=true){const s=setup(hook),g=(await s.call('/games',{requestId:'create',name:'Intelligence PMC',seed:'intelligence-qa'})).data,path='/games/'+g.id;if(activate)expect((await s.call(path+'/intelligence')).status).toBe(200);async function action(url:string,id:string,extra:any={}){const g=(await s.call(path)).data;return s.call(path+url,{requestId:id,expectedVersion:g.stateVersion,...extra})}const advance=(turns:number,id='advance')=>action('/advance',id,{turns,stopOnImportant:false});const view=async(type='region',id='karsen-0')=>(await s.call(path+'/intelligence?targetType='+type+'&targetId='+id)).data;return {...s,g,path,action,advance,view};}

@@ -1,5 +1,5 @@
 import {it,expect,vi} from 'vitest';
-import {setup} from './online-helpers.ts';
+import {setupImmediate as setup} from './online-helpers.ts';
 async function fixture(hook?:(sql:string,args:any[])=>void){
  const s=setup(hook),g=(await s.call('/games',{requestId:'create',name:'Mission PMC',seed:'missions'})).data,path='/games/'+g.id;
  async function data(){return (await s.call(path+'/personnel')).data}

@@ -116,3 +116,12 @@ Smoke pós-publicação 0.7.0: painel, resumo recuperado, passos de preparação
 ## Página inicial e identidade 0.7.1
 
 Typecheck/build aprovados e sete testes existentes de criação/recuperação de comandos executados com sucesso; adaptado somente o mock do composable useHead. Preview desktop/390 px: lista de companhias com turno/caixa/reputação; formulário de criação só no início; abrir QA Fundação exibiu seu nome no lugar da marca principal e no título do navegador; marca do jogo menor; retorno ao início recarrega a lista. Não há Nova partida nem seletor duplicado nas telas internas. Nenhuma companhia nova criada nem avanço feito na validação visual. Scroll ao topo na entrada/retorno. Sem alterações de backend, schema, regras ou backups.
+
+## 0.8.0 — planejamento por turno
+
+- 126 testes passaram, incluindo 9 novos testes da API pública deferida (fila/cancelamento, cobrança única, validação integral, rollback SQL, dependências de contratação/equipe/treino, inteligência, início de missão e avanço concorrente).
+- Testes anteriores das regras dos subsistemas usam explicitamente o dispatcher interno imediato; os testes da fila usam o padrão de produção. Sem opção HTTP de bypass.
+- Typecheck TypeScript/Nuxt e build online passaram.
+- Browser QA no preview: agendar melhoria preservou saldo; remover preservou saldo e turno; reagendar e passar turno debitou exatamente uma vez e ativou a melhoria.
+- Inspeção em conteúdo de 390 px: saldo no topo, botão no rodapé, painel expansível e «5 turnos» para melhoria de seis turnos após a primeira passagem. Controles persistem ao trocar de página.
+- A migração apenas adiciona a tabela de ordens; não reescreve histórico nem desfaz compras anteriores.

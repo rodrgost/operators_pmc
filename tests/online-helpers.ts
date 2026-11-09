@@ -5,10 +5,10 @@ import { advanceTurn } from '../packages/engine/index.ts';
 import type { State } from '../packages/domain/index.ts';
 // @ts-expect-error Local JavaScript adapter intentionally has no declaration file.
 import { sqliteD1,applyMigrations } from '../scripts/sqlite-d1.mjs';
-export function setup(onRun?:(sql:string,args:any[])=>void,db=new DatabaseSync(':memory:')){
+export function setupImmediate(onRun?:(sql:string,args:any[])=>void,db=new DatabaseSync(':memory:'),execution:'queued'|'immediate'='immediate'){
  applyMigrations(db);const DB=sqliteD1(db,onRun);
  async function call(path:string,body?:any,user='owner',method=body?'POST':'GET'){
-  const response=await handleApi(new Request('https://pmc.example/api/v1'+path,{method,headers:{'oai-authenticated-user-id':user,'content-type':'application/json'},body:body?JSON.stringify(body):undefined}),{DB});
+  const response=await handleApi(new Request('https://pmc.example/api/v1'+path,{method,headers:{'oai-authenticated-user-id':user,'content-type':'application/json'},body:body?JSON.stringify(body):undefined}),{DB},execution);
   return {status:response.status,data:await response.json() as any};
  }
  return {db,DB,call};
@@ -26,3 +26,6 @@ export function legacyFixture(db:DatabaseSync,options:{owner?:string;turns?:numb
  db.prepare('INSERT INTO online_campaigns VALUES(?,?,?,?,?,?,?)').run(id,owner,create.requestId,JSON.stringify(create),create.name,turns,raw);
  return {id,create,command,result,campaign,raw};
 }
+
+// Public API fixtures use deferred orders; legacy subsystem fixtures explicitly opt into immediate domain actions.
+export function setup(onRun?:(sql:string,args:any[])=>void,db?:DatabaseSync){return setupImmediate(onRun,db,'queued')}

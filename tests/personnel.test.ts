@@ -1,5 +1,5 @@
 import { it,expect } from 'vitest';
-import { setup } from './online-helpers.ts';
+import { setupImmediate as setup } from './online-helpers.ts';
 async function campaign(onRun?:(sql:string,args:any[])=>void){const s=setup(onRun);const g=(await s.call('/games',{requestId:'create',name:'Personnel PMC',seed:'personnel'})).data;const path='/games/'+g.id;return {...s,g,path};}
 async function view(s:any){return (await s.call(s.path+'/personnel')).data;}
 async function hire(s:any,index=0,weeks=4,requestId='hire-'+index){const p=await view(s);return s.call(s.path+'/recruitment/hire',{requestId,expectedVersion:p.stateVersion,candidateId:p.candidates[index].id,weeks});}

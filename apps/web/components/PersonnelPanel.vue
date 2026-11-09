@@ -23,7 +23,7 @@ async function run(path:string,body:any,method='POST'){
  pending.value=command;busy.value=true;emit('processing',true);error.value='';let done=false
  try{
   await $fetch(base()+command.path,{method:command.method as any,body:command.body})
-  if(!await refresh())return;pending.value=null;confirmation.value=null;editing.value=false;selected.value=null;notice.value='Comando confirmado e salvo.';done=true
+  if(!await refresh())return;pending.value=null;confirmation.value=null;editing.value=false;selected.value=null;notice.value='Ordem agendada. Confirme ao passar o turno ou remova no painel inferior.';done=true
  }catch(e:any){
   if(e.status>=400&&e.status<500){pending.value=null;await refresh()}
   error.value=e.data?.message||'Falha de conexão. Repetir usará o mesmo comando, sem duplicar efeitos.'
@@ -32,7 +32,7 @@ async function run(path:string,body:any,method='POST'){
 }
 function edit(s?:any){editorId.value=s?.id||'';squadName.value=s?.name||'';squadSpec.value=s?.specialization||'general';members.value=[...(s?.memberIds||[])];leader.value=s?.leaderId||'';deputy.value=s?.deputyId||'';posture.value=s?.directives.posture||'balanced';priority.value=s?.directives.priority||'team_safety';risk.value=s?.directives.riskTolerance||'medium';withdrawal.value=s?.directives.withdrawalPolicy||'normal';editing.value=true}
 function save(){return run('/squads'+(editorId.value?'/'+editorId.value:''),{name:squadName.value,specialization:squadSpec.value,memberIds:members.value,leaderId:members.value.includes(leader.value)?leader.value:null,deputyId:members.value.includes(deputy.value)?deputy.value:null,directives:{posture:posture.value,priority:priority.value,riskTolerance:risk.value,withdrawalPolicy:withdrawal.value}},editorId.value?'PATCH':'POST')}
-watch(()=>[props.game.id,props.game.stateVersion],async()=>{confirmation.value=null;selected.value=null;await refresh()})
+watch(()=>[props.game.id,props.game.stateVersion],async()=>{notice.value='';confirmation.value=null;selected.value=null;await refresh()})
 onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
 </script>
 <template>
@@ -44,7 +44,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
  <template v-if="section==='recruitment'">
   <div class="section-intro"><h2>Mercado de operadores</h2><p>Ofertas válidas até o turno {{data.nextMarketTurn}}. Bônus de assinatura pago agora; salários a cada 28 turnos do vínculo.</p></div>
   <label class="personnel-label">Duração do vínculo<select v-model.number="weeks" :disabled="locked"><option :value="4">4 semanas</option><option :value="8">8 semanas</option><option :value="12">12 semanas</option></select></label>
-  <section v-if="confirmation" class="panel hire-confirm"><h3>Contratar {{confirmation.candidate.name}}?</h3><p>Agora: {{money(confirmation.candidate.signingBonusCents)}} de bônus. Salário: {{money(confirmation.candidate.salaryCents)}} por semana durante {{confirmation.weeks}} semanas. Compromisso total: {{money(confirmation.candidate.signingBonusCents+confirmation.candidate.salaryCents*confirmation.weeks)}}.</p><p>Saldo após assinatura: {{money(game.cashCents-confirmation.candidate.signingBonusCents)}}.</p><div class="personnel-actions"><button class="primary" :disabled="locked" @click="run('/recruitment/hire',{candidateId:confirmation.candidate.id,weeks:confirmation.weeks})">Confirmar contratação</button><button class="secondary" :disabled="locked" @click="confirmation=null">Cancelar</button></div></section>
+  <section v-if="confirmation" class="panel hire-confirm"><h3>Contratar {{confirmation.candidate.name}}?</h3><p>Agora: {{money(confirmation.candidate.signingBonusCents)}} de bônus. Salário: {{money(confirmation.candidate.salaryCents)}} por semana durante {{confirmation.weeks}} semanas. Compromisso total: {{money(confirmation.candidate.signingBonusCents+confirmation.candidate.salaryCents*confirmation.weeks)}}.</p><p>Saldo após assinatura: {{money(game.cashCents-confirmation.candidate.signingBonusCents)}}.</p><div class="personnel-actions"><button class="primary" :disabled="locked" @click="run('/recruitment/hire',{candidateId:confirmation.candidate.id,weeks:confirmation.weeks})">Agendar contratação</button><button class="secondary" :disabled="locked" @click="confirmation=null">Cancelar</button></div></section>
   <p v-if="!data.candidates.length" class="empty">Nenhuma oferta disponível. O mercado renova no próximo fechamento semanal.</p>
   <div class="personnel-grid"><article v-for="c in data.candidates" :key="c.id" class="panel operator-card"><span class="eyebrow">{{specs[c.specialization]}} · NÍVEL {{c.level}}</span><h3>{{c.name}}</h3><dl class="personnel-attributes"><div v-for="(label,key) in labels" :key="key"><dt>{{label}}</dt><dd>{{c.attributes[key]}}</dd></div></dl><p>Salário {{money(c.salaryCents)}} / semana<br>Bônus de assinatura {{money(c.signingBonusCents)}}</p><button class="primary" :disabled="locked||game.cashCents<c.signingBonusCents||data.employed>=data.capacity" @click="confirmation={candidate:c,weeks}">Revisar contratação</button><small v-if="game.cashCents<c.signingBonusCents">Caixa insuficiente para assinatura.</small><small v-else-if="data.employed>=data.capacity">Capacidade administrativa atingida.</small></article></div>
  </template>
