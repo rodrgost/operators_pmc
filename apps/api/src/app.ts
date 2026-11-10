@@ -1,3 +1,4 @@
+import {countries} from '../../../packages/rules/index.ts';
 import Fastify from 'fastify';
 import { ZodError } from 'zod';
 import { GameService } from '../../../packages/application/index.ts';
@@ -7,6 +8,7 @@ import { createGameSchema, advanceSchema, resumeSchema, paginationSchema } from 
 export function buildApp(options:{databasePath?:string;logger?:boolean}={}){
  const db=openDatabase(options.databasePath??process.env.DATABASE_PATH??'data/operators.sqlite');
  const service=new GameService(db);const app=Fastify({logger:options.logger??false,bodyLimit:16384});
+ app.get('/api/v1/registration-countries',async()=>countries.map(({id,name})=>({id,name})));
  // The foundation supports one trusted local user. Refuse browser requests from arbitrary sites.
  app.addHook('onRequest',async(req)=>{
   const origin=req.headers.origin;

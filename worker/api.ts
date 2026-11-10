@@ -115,6 +115,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
   }
   const path=url.pathname.replace(/^\/api\/v1\/?/,'').split('/');
   if(path[0]==='health')return json({status:'ok',phase:'intelligence-online',rulesVersion:RULES_VERSION});
+  if(path[0]==='registration-countries'&&path.length===1&&request.method==='GET')return json(countries.map(({id,name})=>({id,name})));
   if(path[0]==='difficulties'&&path.length===1&&request.method==='GET')return json(difficultyChoices());
   if(path[0]!=='games')throw new ApiError(404,'NOT_FOUND','Rota não encontrada.');
   if(!path[1]){

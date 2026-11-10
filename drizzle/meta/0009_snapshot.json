@@ -1,0 +1,4175 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "0aa47696-7cb9-4e55-bc71-7a2c07ffb4a4",
+  "prevId": "10a14ad3-5242-46d0-853e-c8dfc796ed7f",
+  "tables": {
+    "online_actions": {
+      "name": "online_actions",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "payload_json": {
+          "name": "payload_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "result_json": {
+          "name": "result_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_actions_game_id_online_games_id_fk": {
+          "name": "online_actions_game_id_online_games_id_fk",
+          "tableFrom": "online_actions",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_actions_game_id_request_id_pk": {
+          "columns": [
+            "game_id",
+            "request_id"
+          ],
+          "name": "online_actions_game_id_request_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_mission_assignments": {
+      "name": "online_mission_assignments",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mission_id": {
+          "name": "mission_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operator_id": {
+          "name": "operator_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "assignment_type": {
+          "name": "assignment_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "snapshot_json": {
+          "name": "snapshot_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_mission_assignments_game_id_mission_id_online_missions_game_id_id_fk": {
+          "name": "online_mission_assignments_game_id_mission_id_online_missions_game_id_id_fk",
+          "tableFrom": "online_mission_assignments",
+          "tableTo": "online_missions",
+          "columnsFrom": [
+            "game_id",
+            "mission_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_mission_assignments_game_id_operator_id_online_operators_game_id_id_fk": {
+          "name": "online_mission_assignments_game_id_operator_id_online_operators_game_id_id_fk",
+          "tableFrom": "online_mission_assignments",
+          "tableTo": "online_operators",
+          "columnsFrom": [
+            "game_id",
+            "operator_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_mission_assignments_game_id_mission_id_operator_id_pk": {
+          "columns": [
+            "game_id",
+            "mission_id",
+            "operator_id"
+          ],
+          "name": "online_mission_assignments_game_id_mission_id_operator_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_campaigns": {
+      "name": "online_campaigns",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner": {
+          "name": "owner",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "create_payload": {
+          "name": "create_payload",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "state_json": {
+          "name": "state_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "campaign_creation": {
+          "name": "campaign_creation",
+          "columns": [
+            "owner",
+            "request_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_commands": {
+      "name": "online_commands",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "payload_json": {
+          "name": "payload_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "requested_turns": {
+          "name": "requested_turns",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "processed_turns": {
+          "name": "processed_turns",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_turn": {
+          "name": "last_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "result_version": {
+          "name": "result_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_commands_game_id_online_games_id_fk": {
+          "name": "online_commands_game_id_online_games_id_fk",
+          "tableFrom": "online_commands",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_commands_game_id_request_id_pk": {
+          "columns": [
+            "game_id",
+            "request_id"
+          ],
+          "name": "online_commands_game_id_request_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "online_command_progress": {
+          "name": "online_command_progress",
+          "value": "\"online_commands\".\"processed_turns\" BETWEEN 0 AND \"online_commands\".\"requested_turns\" AND \"online_commands\".\"requested_turns\" BETWEEN 1 AND 28"
+        },
+        "online_command_status": {
+          "name": "online_command_status",
+          "value": "\"online_commands\".\"status\" IN ('processing','completed','interrupted','failed')"
+        }
+      }
+    },
+    "online_contracts": {
+      "name": "online_contracts",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "region_id": {
+          "name": "region_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "client_id": {
+          "name": "client_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "origin_event_id": {
+          "name": "origin_event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "offered_turn": {
+          "name": "offered_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_turn": {
+          "name": "expires_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "difficulty": {
+          "name": "difficulty",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "risk": {
+          "name": "risk",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "intel_json": {
+          "name": "intel_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reward_cents": {
+          "name": "reward_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "minimum_operators": {
+          "name": "minimum_operators",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "contracts_status_expiry": {
+          "name": "contracts_status_expiry",
+          "columns": [
+            "game_id",
+            "status",
+            "expires_turn"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "online_contracts_game_id_online_games_id_fk": {
+          "name": "online_contracts_game_id_online_games_id_fk",
+          "tableFrom": "online_contracts",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_contracts_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_contracts_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "contract_metrics": {
+          "name": "contract_metrics",
+          "value": "\"online_contracts\".\"difficulty\" BETWEEN 1 AND 100 AND \"online_contracts\".\"risk\" BETWEEN 1 AND 100 AND \"online_contracts\".\"reward_cents\">0"
+        }
+      }
+    },
+    "online_decisions": {
+      "name": "online_decisions",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mission_id": {
+          "name": "mission_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stage_index": {
+          "name": "stage_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_turn": {
+          "name": "created_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_turn": {
+          "name": "expires_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fallback_action": {
+          "name": "fallback_action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chosen_action": {
+          "name": "chosen_action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "resolved_turn": {
+          "name": "resolved_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "one_decision_per_stage": {
+          "name": "one_decision_per_stage",
+          "columns": [
+            "game_id",
+            "mission_id",
+            "stage_index"
+          ],
+          "isUnique": true
+        },
+        "decisions_deadline": {
+          "name": "decisions_deadline",
+          "columns": [
+            "game_id",
+            "status",
+            "expires_turn"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "online_decisions_game_id_mission_id_online_missions_game_id_id_fk": {
+          "name": "online_decisions_game_id_mission_id_online_missions_game_id_id_fk",
+          "tableFrom": "online_decisions",
+          "tableTo": "online_missions",
+          "columnsFrom": [
+            "game_id",
+            "mission_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_decisions_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_decisions_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_employment": {
+      "name": "online_employment",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operator_id": {
+          "name": "operator_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "salary_cents": {
+          "name": "salary_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "start_turn": {
+          "name": "start_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "end_turn": {
+          "name": "end_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "next_pay_turn": {
+          "name": "next_pay_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "arrears_cents": {
+          "name": "arrears_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "one_active_employment": {
+          "name": "one_active_employment",
+          "columns": [
+            "game_id",
+            "operator_id"
+          ],
+          "isUnique": true,
+          "where": "\"online_employment\".\"status\"='active'"
+        }
+      },
+      "foreignKeys": {
+        "online_employment_game_id_operator_id_online_operators_game_id_id_fk": {
+          "name": "online_employment_game_id_operator_id_online_operators_game_id_id_fk",
+          "tableFrom": "online_employment",
+          "tableTo": "online_operators",
+          "columnsFrom": [
+            "game_id",
+            "operator_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_employment_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_employment_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "employment_bounds": {
+          "name": "employment_bounds",
+          "value": "\"online_employment\".\"end_turn\">\"online_employment\".\"start_turn\" AND \"online_employment\".\"salary_cents\">0 AND \"online_employment\".\"arrears_cents\">=0"
+        }
+      }
+    },
+    "online_equipment": {
+      "name": "online_equipment",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "catalog_id": {
+          "name": "catalog_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "condition": {
+          "name": "condition",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "supplies": {
+          "name": "supplies",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mission_id": {
+          "name": "mission_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "due_turn": {
+          "name": "due_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "task": {
+          "name": "task",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "equipment_status_due": {
+          "name": "equipment_status_due",
+          "columns": [
+            "game_id",
+            "status",
+            "due_turn"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "online_equipment_game_id_online_games_id_fk": {
+          "name": "online_equipment_game_id_online_games_id_fk",
+          "tableFrom": "online_equipment",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_equipment_game_id_mission_id_online_missions_game_id_id_fk": {
+          "name": "online_equipment_game_id_mission_id_online_missions_game_id_id_fk",
+          "tableFrom": "online_equipment",
+          "tableTo": "online_missions",
+          "columnsFrom": [
+            "game_id",
+            "mission_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_equipment_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_equipment_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "equipment_bounds": {
+          "name": "equipment_bounds",
+          "value": "\"online_equipment\".\"condition\" BETWEEN 0 AND 100 AND \"online_equipment\".\"supplies\" BETWEEN 0 AND 100"
+        },
+        "equipment_status": {
+          "name": "equipment_status",
+          "value": "\"online_equipment\".\"status\" IN ('in_delivery','available','reserved','in_use','maintenance','destroyed')"
+        }
+      }
+    },
+    "online_events": {
+      "name": "online_events",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "turn": {
+          "name": "turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "important": {
+          "name": "important",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_events_game_id_online_games_id_fk": {
+          "name": "online_events_game_id_online_games_id_fk",
+          "tableFrom": "online_events",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_events_game_id_turn_sequence_pk": {
+          "columns": [
+            "game_id",
+            "turn",
+            "sequence"
+          ],
+          "name": "online_events_game_id_turn_sequence_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "online_event_order": {
+          "name": "online_event_order",
+          "value": "\"online_events\".\"turn\" >= 1 AND \"online_events\".\"sequence\" >= 0"
+        },
+        "online_event_important": {
+          "name": "online_event_important",
+          "value": "\"online_events\".\"important\" IN (0,1)"
+        }
+      }
+    },
+    "online_facility_activities": {
+      "name": "online_facility_activities",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operator_id": {
+          "name": "operator_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "attribute": {
+          "name": "attribute",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "started_turn": {
+          "name": "started_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "minimum_end_turn": {
+          "name": "minimum_end_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_facility_activities_game_id_operator_id_online_operators_game_id_id_fk": {
+          "name": "online_facility_activities_game_id_operator_id_online_operators_game_id_id_fk",
+          "tableFrom": "online_facility_activities",
+          "tableTo": "online_operators",
+          "columnsFrom": [
+            "game_id",
+            "operator_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_facility_activities_game_id_operator_id_pk": {
+          "columns": [
+            "game_id",
+            "operator_id"
+          ],
+          "name": "online_facility_activities_game_id_operator_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_familiarity": {
+      "name": "online_familiarity",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operator_low": {
+          "name": "operator_low",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operator_high": {
+          "name": "operator_high",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "score": {
+          "name": "score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_familiarity_game_id_operator_low_online_operators_game_id_id_fk": {
+          "name": "online_familiarity_game_id_operator_low_online_operators_game_id_id_fk",
+          "tableFrom": "online_familiarity",
+          "tableTo": "online_operators",
+          "columnsFrom": [
+            "game_id",
+            "operator_low"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_familiarity_game_id_operator_high_online_operators_game_id_id_fk": {
+          "name": "online_familiarity_game_id_operator_high_online_operators_game_id_id_fk",
+          "tableFrom": "online_familiarity",
+          "tableTo": "online_operators",
+          "columnsFrom": [
+            "game_id",
+            "operator_high"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_familiarity_game_id_operator_low_operator_high_pk": {
+          "columns": [
+            "game_id",
+            "operator_low",
+            "operator_high"
+          ],
+          "name": "online_familiarity_game_id_operator_low_operator_high_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "familiarity_bounds": {
+          "name": "familiarity_bounds",
+          "value": "\"online_familiarity\".\"operator_low\"<\"online_familiarity\".\"operator_high\" AND \"online_familiarity\".\"score\" BETWEEN 0 AND 100"
+        }
+      }
+    },
+    "online_games": {
+      "name": "online_games",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner": {
+          "name": "owner",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "creation_request_id": {
+          "name": "creation_request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "creation_payload": {
+          "name": "creation_payload",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "registration_country_id": {
+          "name": "registration_country_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "seed": {
+          "name": "seed",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "difficulty": {
+          "name": "difficulty",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'normal'"
+        },
+        "difficulty_version": {
+          "name": "difficulty_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'difficulty-1'"
+        },
+        "difficulty_json": {
+          "name": "difficulty_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'{\"id\":\"normal\",\"version\":\"difficulty-1\",\"label\":\"Normal\",\"description\":\"Equilíbrio original do jogo. Todos os multiplicadores permanecem em 1.\",\"negativeEvents\":1,\"positiveEvents\":1,\"missionComplications\":1,\"rivalInterest\":1,\"contractReward\":1}'"
+        },
+        "rules_version": {
+          "name": "rules_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "current_turn": {
+          "name": "current_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "cash_cents": {
+          "name": "cash_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reputation": {
+          "name": "reputation",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "state_version": {
+          "name": "state_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "active_request": {
+          "name": "active_request",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "commit_token": {
+          "name": "commit_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_order": {
+          "name": "created_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "personnel_version": {
+          "name": "personnel_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'personnel-0.1'"
+        },
+        "personnel_initialized": {
+          "name": "personnel_initialized",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "operations_initialized": {
+          "name": "operations_initialized",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "operations_version": {
+          "name": "operations_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'operations-0.1'"
+        },
+        "world_initialized": {
+          "name": "world_initialized",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "world_version": {
+          "name": "world_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'world-0.1'"
+        },
+        "logistics_initialized": {
+          "name": "logistics_initialized",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "logistics_version": {
+          "name": "logistics_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'logistics-0.1'"
+        },
+        "intelligence_initialized": {
+          "name": "intelligence_initialized",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "intelligence_version": {
+          "name": "intelligence_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'intelligence-0.1'"
+        }
+      },
+      "indexes": {
+        "online_game_creation": {
+          "name": "online_game_creation",
+          "columns": [
+            "owner",
+            "creation_request_id"
+          ],
+          "isUnique": true
+        },
+        "online_game_owner": {
+          "name": "online_game_owner",
+          "columns": [
+            "owner",
+            "created_order"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "online_game_turn": {
+          "name": "online_game_turn",
+          "value": "\"online_games\".\"current_turn\" >= 0"
+        },
+        "online_game_reputation": {
+          "name": "online_game_reputation",
+          "value": "\"online_games\".\"reputation\" BETWEEN 0 AND 100"
+        },
+        "online_game_revision": {
+          "name": "online_game_revision",
+          "value": "\"online_games\".\"revision\" >= 0 AND \"online_games\".\"state_version\" >= 0"
+        }
+      }
+    },
+    "online_headquarters": {
+      "name": "online_headquarters",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "activated_turn": {
+          "name": "activated_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "arrears_cents": {
+          "name": "arrears_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "last_bill_turn": {
+          "name": "last_bill_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_headquarters_game_id_online_games_id_fk": {
+          "name": "online_headquarters_game_id_online_games_id_fk",
+          "tableFrom": "online_headquarters",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "hq_arrears": {
+          "name": "hq_arrears",
+          "value": "\"online_headquarters\".\"arrears_cents\">=0"
+        }
+      }
+    },
+    "online_hq_modules": {
+      "name": "online_hq_modules",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "level": {
+          "name": "level",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target_level": {
+          "name": "target_level",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "due_turn": {
+          "name": "due_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_hq_modules_game_id_online_games_id_fk": {
+          "name": "online_hq_modules_game_id_online_games_id_fk",
+          "tableFrom": "online_hq_modules",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_hq_modules_game_id_type_pk": {
+          "columns": [
+            "game_id",
+            "type"
+          ],
+          "name": "online_hq_modules_game_id_type_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "hq_levels": {
+          "name": "hq_levels",
+          "value": "\"online_hq_modules\".\"level\" BETWEEN 1 AND 5 AND (\"online_hq_modules\".\"target_level\" IS NULL OR \"online_hq_modules\".\"target_level\"=\"online_hq_modules\".\"level\"+1 AND \"online_hq_modules\".\"target_level\"<=5)"
+        }
+      }
+    },
+    "online_intel_analyses": {
+      "name": "online_intel_analyses",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target_type": {
+          "name": "target_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "topic": {
+          "name": "topic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "requested_turn": {
+          "name": "requested_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "due_turn": {
+          "name": "due_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cost_cents": {
+          "name": "cost_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completed_turn": {
+          "name": "completed_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "intel_analysis_due": {
+          "name": "intel_analysis_due",
+          "columns": [
+            "game_id",
+            "status",
+            "due_turn"
+          ],
+          "isUnique": false
+        },
+        "one_pending_analysis": {
+          "name": "one_pending_analysis",
+          "columns": [
+            "game_id",
+            "target_type",
+            "target_id",
+            "topic"
+          ],
+          "isUnique": true,
+          "where": "\"online_intel_analyses\".\"status\"='pending'"
+        }
+      },
+      "foreignKeys": {
+        "online_intel_analyses_game_id_online_games_id_fk": {
+          "name": "online_intel_analyses_game_id_online_games_id_fk",
+          "tableFrom": "online_intel_analyses",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_intel_analyses_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_intel_analyses_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_intel_current": {
+      "name": "online_intel_current",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target_type": {
+          "name": "target_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "topic": {
+          "name": "topic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "record_id": {
+          "name": "record_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_intel_current_game_id_record_id_online_intel_records_game_id_id_fk": {
+          "name": "online_intel_current_game_id_record_id_online_intel_records_game_id_id_fk",
+          "tableFrom": "online_intel_current",
+          "tableTo": "online_intel_records",
+          "columnsFrom": [
+            "game_id",
+            "record_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_intel_current_game_id_target_type_target_id_topic_source_pk": {
+          "columns": [
+            "game_id",
+            "target_type",
+            "target_id",
+            "topic",
+            "source"
+          ],
+          "name": "online_intel_current_game_id_target_type_target_id_topic_source_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_intel_records": {
+      "name": "online_intel_records",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target_type": {
+          "name": "target_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "topic": {
+          "name": "topic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "level": {
+          "name": "level",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "estimate_json": {
+          "name": "estimate_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "collected_turn": {
+          "name": "collected_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "valid_until_turn": {
+          "name": "valid_until_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "supersedes_id": {
+          "name": "supersedes_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "origin_id": {
+          "name": "origin_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "intel_target_history": {
+          "name": "intel_target_history",
+          "columns": [
+            "game_id",
+            "target_type",
+            "target_id",
+            "topic",
+            "collected_turn"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "online_intel_records_game_id_online_games_id_fk": {
+          "name": "online_intel_records_game_id_online_games_id_fk",
+          "tableFrom": "online_intel_records",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_intel_records_game_id_supersedes_id_online_intel_records_game_id_id_fk": {
+          "name": "online_intel_records_game_id_supersedes_id_online_intel_records_game_id_id_fk",
+          "tableFrom": "online_intel_records",
+          "tableTo": "online_intel_records",
+          "columnsFrom": [
+            "game_id",
+            "supersedes_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_intel_records_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_intel_records_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "intel_record_bounds": {
+          "name": "intel_record_bounds",
+          "value": "\"online_intel_records\".\"level\" BETWEEN 0 AND 3 AND \"online_intel_records\".\"confidence\" BETWEEN 0 AND 100 AND \"online_intel_records\".\"valid_until_turn\">=\"online_intel_records\".\"collected_turn\""
+        }
+      }
+    },
+    "online_ledger": {
+      "name": "online_ledger",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entry_type": {
+          "name": "entry_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "turn": {
+          "name": "turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "amount_cents": {
+          "name": "amount_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "online_ledger_turn": {
+          "name": "online_ledger_turn",
+          "columns": [
+            "game_id",
+            "turn"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "online_ledger_game_id_online_games_id_fk": {
+          "name": "online_ledger_game_id_online_games_id_fk",
+          "tableFrom": "online_ledger",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_ledger_game_id_source_id_entry_type_pk": {
+          "columns": [
+            "game_id",
+            "source_id",
+            "entry_type"
+          ],
+          "name": "online_ledger_game_id_source_id_entry_type_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_squad_members": {
+      "name": "online_squad_members",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "squad_id": {
+          "name": "squad_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operator_id": {
+          "name": "operator_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "joined_version": {
+          "name": "joined_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "joined_turn": {
+          "name": "joined_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "left_turn": {
+          "name": "left_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "one_active_squad": {
+          "name": "one_active_squad",
+          "columns": [
+            "game_id",
+            "operator_id"
+          ],
+          "isUnique": true,
+          "where": "\"online_squad_members\".\"left_turn\" IS NULL"
+        }
+      },
+      "foreignKeys": {
+        "online_squad_members_game_id_operator_id_online_operators_game_id_id_fk": {
+          "name": "online_squad_members_game_id_operator_id_online_operators_game_id_id_fk",
+          "tableFrom": "online_squad_members",
+          "tableTo": "online_operators",
+          "columnsFrom": [
+            "game_id",
+            "operator_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_squad_members_game_id_squad_id_online_squads_game_id_id_fk": {
+          "name": "online_squad_members_game_id_squad_id_online_squads_game_id_id_fk",
+          "tableFrom": "online_squad_members",
+          "tableTo": "online_squads",
+          "columnsFrom": [
+            "game_id",
+            "squad_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_squad_members_game_id_squad_id_operator_id_joined_version_pk": {
+          "columns": [
+            "game_id",
+            "squad_id",
+            "operator_id",
+            "joined_version"
+          ],
+          "name": "online_squad_members_game_id_squad_id_operator_id_joined_version_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_mission_equipment": {
+      "name": "online_mission_equipment",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mission_id": {
+          "name": "mission_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "equipment_id": {
+          "name": "equipment_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "snapshot_json": {
+          "name": "snapshot_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "returned_turn": {
+          "name": "returned_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "one_kit_mission": {
+          "name": "one_kit_mission",
+          "columns": [
+            "game_id",
+            "equipment_id"
+          ],
+          "isUnique": true,
+          "where": "\"online_mission_equipment\".\"status\"='assigned'"
+        }
+      },
+      "foreignKeys": {
+        "online_mission_equipment_game_id_mission_id_online_missions_game_id_id_fk": {
+          "name": "online_mission_equipment_game_id_mission_id_online_missions_game_id_id_fk",
+          "tableFrom": "online_mission_equipment",
+          "tableTo": "online_missions",
+          "columnsFrom": [
+            "game_id",
+            "mission_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_mission_equipment_game_id_equipment_id_online_equipment_game_id_id_fk": {
+          "name": "online_mission_equipment_game_id_equipment_id_online_equipment_game_id_id_fk",
+          "tableFrom": "online_mission_equipment",
+          "tableTo": "online_equipment",
+          "columnsFrom": [
+            "game_id",
+            "equipment_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_mission_equipment_game_id_mission_id_equipment_id_pk": {
+          "columns": [
+            "game_id",
+            "mission_id",
+            "equipment_id"
+          ],
+          "name": "online_mission_equipment_game_id_mission_id_equipment_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_mission_intelligence": {
+      "name": "online_mission_intelligence",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mission_id": {
+          "name": "mission_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "snapshot_json": {
+          "name": "snapshot_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_mission_intelligence_game_id_mission_id_online_missions_game_id_id_fk": {
+          "name": "online_mission_intelligence_game_id_mission_id_online_missions_game_id_id_fk",
+          "tableFrom": "online_mission_intelligence",
+          "tableTo": "online_missions",
+          "columnsFrom": [
+            "game_id",
+            "mission_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_mission_intelligence_game_id_mission_id_pk": {
+          "columns": [
+            "game_id",
+            "mission_id"
+          ],
+          "name": "online_mission_intelligence_game_id_mission_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_missions": {
+      "name": "online_missions",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contract_id": {
+          "name": "contract_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "squad_id": {
+          "name": "squad_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "leader_id": {
+          "name": "leader_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deputy_id": {
+          "name": "deputy_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "directives_json": {
+          "name": "directives_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "started_turn": {
+          "name": "started_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ended_turn": {
+          "name": "ended_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "stage_index": {
+          "name": "stage_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stage_due_turn": {
+          "name": "stage_due_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "delays": {
+          "name": "delays",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "success_points": {
+          "name": "success_points",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completed_stages": {
+          "name": "completed_stages",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "advance_cents": {
+          "name": "advance_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "paid_cents": {
+          "name": "paid_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "one_mission_per_contract": {
+          "name": "one_mission_per_contract",
+          "columns": [
+            "game_id",
+            "contract_id"
+          ],
+          "isUnique": true
+        },
+        "missions_status": {
+          "name": "missions_status",
+          "columns": [
+            "game_id",
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "online_missions_game_id_contract_id_online_contracts_game_id_id_fk": {
+          "name": "online_missions_game_id_contract_id_online_contracts_game_id_id_fk",
+          "tableFrom": "online_missions",
+          "tableTo": "online_contracts",
+          "columnsFrom": [
+            "game_id",
+            "contract_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_missions_game_id_squad_id_online_squads_game_id_id_fk": {
+          "name": "online_missions_game_id_squad_id_online_squads_game_id_id_fk",
+          "tableFrom": "online_missions",
+          "tableTo": "online_squads",
+          "columnsFrom": [
+            "game_id",
+            "squad_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_missions_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_missions_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_operators": {
+      "name": "online_operators",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "profile_json": {
+          "name": "profile_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "health": {
+          "name": "health",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 100
+        },
+        "fatigue": {
+          "name": "fatigue",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "morale": {
+          "name": "morale",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 80
+        },
+        "loyalty": {
+          "name": "loyalty",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 60
+        },
+        "hired_turn": {
+          "name": "hired_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_operators_game_id_online_games_id_fk": {
+          "name": "online_operators_game_id_online_games_id_fk",
+          "tableFrom": "online_operators",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_operators_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_operators_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "operator_conditions": {
+          "name": "operator_conditions",
+          "value": "\"online_operators\".\"health\" BETWEEN 0 AND 100 AND \"online_operators\".\"fatigue\" BETWEEN 0 AND 100 AND \"online_operators\".\"morale\" BETWEEN 0 AND 100 AND \"online_operators\".\"loyalty\" BETWEEN 0 AND 100"
+        }
+      }
+    },
+    "online_pending_orders": {
+      "name": "online_pending_orders",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target": {
+          "name": "target",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "command_json": {
+          "name": "command_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "payload_json": {
+          "name": "payload_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cost_cents": {
+          "name": "cost_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_turn": {
+          "name": "created_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "committed_turn": {
+          "name": "committed_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "result_json": {
+          "name": "result_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "pending_orders_status": {
+          "name": "pending_orders_status",
+          "columns": [
+            "game_id",
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "online_pending_orders_game_id_online_games_id_fk": {
+          "name": "online_pending_orders_game_id_online_games_id_fk",
+          "tableFrom": "online_pending_orders",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_pending_orders_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_pending_orders_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_personnel_history": {
+      "name": "online_personnel_history",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "turn": {
+          "name": "turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data_json": {
+          "name": "data_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "personnel_history_turn": {
+          "name": "personnel_history_turn",
+          "columns": [
+            "game_id",
+            "turn"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "online_personnel_history_game_id_online_games_id_fk": {
+          "name": "online_personnel_history_game_id_online_games_id_fk",
+          "tableFrom": "online_personnel_history",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_personnel_history_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_personnel_history_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_recruitment": {
+      "name": "online_recruitment",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "week": {
+          "name": "week",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "profile_json": {
+          "name": "profile_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "salary_cents": {
+          "name": "salary_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "bonus_cents": {
+          "name": "bonus_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "hired": {
+          "name": "hired",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "recruitment_week": {
+          "name": "recruitment_week",
+          "columns": [
+            "game_id",
+            "week"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "online_recruitment_game_id_online_games_id_fk": {
+          "name": "online_recruitment_game_id_online_games_id_fk",
+          "tableFrom": "online_recruitment",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_recruitment_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_recruitment_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "recruitment_money": {
+          "name": "recruitment_money",
+          "value": "\"online_recruitment\".\"salary_cents\">0 AND \"online_recruitment\".\"bonus_cents\">=0"
+        }
+      }
+    },
+    "online_mission_reports": {
+      "name": "online_mission_reports",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mission_id": {
+          "name": "mission_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "turn": {
+          "name": "turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "summary_json": {
+          "name": "summary_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "audit_json": {
+          "name": "audit_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "reports_mission_turn": {
+          "name": "reports_mission_turn",
+          "columns": [
+            "game_id",
+            "mission_id",
+            "turn"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "online_mission_reports_game_id_mission_id_online_missions_game_id_id_fk": {
+          "name": "online_mission_reports_game_id_mission_id_online_missions_game_id_id_fk",
+          "tableFrom": "online_mission_reports",
+          "tableTo": "online_missions",
+          "columnsFrom": [
+            "game_id",
+            "mission_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_mission_reports_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_mission_reports_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_reservations": {
+      "name": "online_reservations",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operator_id": {
+          "name": "operator_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "start_turn": {
+          "name": "start_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "end_turn": {
+          "name": "end_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_reservations_game_id_operator_id_online_operators_game_id_id_fk": {
+          "name": "online_reservations_game_id_operator_id_online_operators_game_id_id_fk",
+          "tableFrom": "online_reservations",
+          "tableTo": "online_operators",
+          "columnsFrom": [
+            "game_id",
+            "operator_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_reservations_game_id_operator_id_pk": {
+          "columns": [
+            "game_id",
+            "operator_id"
+          ],
+          "name": "online_reservations_game_id_operator_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "reservation_bounds": {
+          "name": "reservation_bounds",
+          "value": "\"online_reservations\".\"end_turn\">\"online_reservations\".\"start_turn\" AND \"online_reservations\".\"kind\" IN ('mission','rest','training','recovery')"
+        }
+      }
+    },
+    "online_squads": {
+      "name": "online_squads",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "specialization": {
+          "name": "specialization",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "leader_id": {
+          "name": "leader_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "deputy_id": {
+          "name": "deputy_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "directives_json": {
+          "name": "directives_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_squads_game_id_online_games_id_fk": {
+          "name": "online_squads_game_id_online_games_id_fk",
+          "tableFrom": "online_squads",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_squads_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_squads_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_turn_summaries": {
+      "name": "online_turn_summaries",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "turn": {
+          "name": "turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "state_hash": {
+          "name": "state_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_turn_summaries_game_id_online_games_id_fk": {
+          "name": "online_turn_summaries_game_id_online_games_id_fk",
+          "tableFrom": "online_turn_summaries",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_turn_summaries_game_id_turn_pk": {
+          "columns": [
+            "game_id",
+            "turn"
+          ],
+          "name": "online_turn_summaries_game_id_turn_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_training_progress": {
+      "name": "online_training_progress",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operator_id": {
+          "name": "operator_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "attribute": {
+          "name": "attribute",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "progress": {
+          "name": "progress",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_training_progress_game_id_operator_id_online_operators_game_id_id_fk": {
+          "name": "online_training_progress_game_id_operator_id_online_operators_game_id_id_fk",
+          "tableFrom": "online_training_progress",
+          "tableTo": "online_operators",
+          "columnsFrom": [
+            "game_id",
+            "operator_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_training_progress_game_id_operator_id_attribute_pk": {
+          "columns": [
+            "game_id",
+            "operator_id",
+            "attribute"
+          ],
+          "name": "online_training_progress_game_id_operator_id_attribute_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "training_progress_bounds": {
+          "name": "training_progress_bounds",
+          "value": "\"online_training_progress\".\"progress\" BETWEEN 0 AND 99"
+        }
+      }
+    },
+    "online_world_conflicts": {
+      "name": "online_world_conflicts",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "region_id": {
+          "name": "region_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "intensity": {
+          "name": "intensity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "started_turn": {
+          "name": "started_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ended_turn": {
+          "name": "ended_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cause_id": {
+          "name": "cause_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "one_world_conflict": {
+          "name": "one_world_conflict",
+          "columns": [
+            "game_id",
+            "region_id"
+          ],
+          "isUnique": true,
+          "where": "\"online_world_conflicts\".\"status\"='active'"
+        }
+      },
+      "foreignKeys": {
+        "online_world_conflicts_game_id_region_id_online_world_regions_game_id_id_fk": {
+          "name": "online_world_conflicts_game_id_region_id_online_world_regions_game_id_id_fk",
+          "tableFrom": "online_world_conflicts",
+          "tableTo": "online_world_regions",
+          "columnsFrom": [
+            "game_id",
+            "region_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_world_conflicts_game_id_cause_id_online_world_events_game_id_id_fk": {
+          "name": "online_world_conflicts_game_id_cause_id_online_world_events_game_id_id_fk",
+          "tableFrom": "online_world_conflicts",
+          "tableTo": "online_world_events",
+          "columnsFrom": [
+            "game_id",
+            "cause_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_world_conflicts_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_world_conflicts_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "world_conflict_intensity": {
+          "name": "world_conflict_intensity",
+          "value": "\"online_world_conflicts\".\"intensity\" BETWEEN 0 AND 100"
+        }
+      }
+    },
+    "online_world_events": {
+      "name": "online_world_events",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "region_id": {
+          "name": "region_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_turn": {
+          "name": "created_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "end_turn": {
+          "name": "end_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "origin_id": {
+          "name": "origin_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contract_id": {
+          "name": "contract_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "effects_json": {
+          "name": "effects_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "world_event_region_turn": {
+          "name": "world_event_region_turn",
+          "columns": [
+            "game_id",
+            "region_id",
+            "created_turn"
+          ],
+          "isUnique": false
+        },
+        "world_event_status": {
+          "name": "world_event_status",
+          "columns": [
+            "game_id",
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "online_world_events_game_id_region_id_online_world_regions_game_id_id_fk": {
+          "name": "online_world_events_game_id_region_id_online_world_regions_game_id_id_fk",
+          "tableFrom": "online_world_events",
+          "tableTo": "online_world_regions",
+          "columnsFrom": [
+            "game_id",
+            "region_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_world_events_game_id_contract_id_online_contracts_game_id_id_fk": {
+          "name": "online_world_events_game_id_contract_id_online_contracts_game_id_id_fk",
+          "tableFrom": "online_world_events",
+          "tableTo": "online_contracts",
+          "columnsFrom": [
+            "game_id",
+            "contract_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_world_events_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_world_events_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_world_influences": {
+      "name": "online_world_influences",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "region_id": {
+          "name": "region_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "score": {
+          "name": "score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_world_influences_game_id_region_id_online_world_regions_game_id_id_fk": {
+          "name": "online_world_influences_game_id_region_id_online_world_regions_game_id_id_fk",
+          "tableFrom": "online_world_influences",
+          "tableTo": "online_world_regions",
+          "columnsFrom": [
+            "game_id",
+            "region_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_world_influences_game_id_organization_id_online_world_organizations_game_id_id_fk": {
+          "name": "online_world_influences_game_id_organization_id_online_world_organizations_game_id_id_fk",
+          "tableFrom": "online_world_influences",
+          "tableTo": "online_world_organizations",
+          "columnsFrom": [
+            "game_id",
+            "organization_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_world_influences_game_id_region_id_organization_id_pk": {
+          "columns": [
+            "game_id",
+            "region_id",
+            "organization_id"
+          ],
+          "name": "online_world_influences_game_id_region_id_organization_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "world_influence_bounds": {
+          "name": "world_influence_bounds",
+          "value": "\"online_world_influences\".\"score\" BETWEEN 0 AND 100"
+        }
+      }
+    },
+    "online_world_rival_jobs": {
+      "name": "online_world_rival_jobs",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rival_id": {
+          "name": "rival_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contract_id": {
+          "name": "contract_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "region_id": {
+          "name": "region_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "started_turn": {
+          "name": "started_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completes_turn": {
+          "name": "completes_turn",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "origin_id": {
+          "name": "origin_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "one_rival_contract": {
+          "name": "one_rival_contract",
+          "columns": [
+            "game_id",
+            "contract_id"
+          ],
+          "isUnique": true
+        },
+        "world_jobs_status": {
+          "name": "world_jobs_status",
+          "columns": [
+            "game_id",
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "online_world_rival_jobs_game_id_rival_id_online_world_rivals_game_id_id_fk": {
+          "name": "online_world_rival_jobs_game_id_rival_id_online_world_rivals_game_id_id_fk",
+          "tableFrom": "online_world_rival_jobs",
+          "tableTo": "online_world_rivals",
+          "columnsFrom": [
+            "game_id",
+            "rival_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_world_rival_jobs_game_id_contract_id_online_contracts_game_id_id_fk": {
+          "name": "online_world_rival_jobs_game_id_contract_id_online_contracts_game_id_id_fk",
+          "tableFrom": "online_world_rival_jobs",
+          "tableTo": "online_contracts",
+          "columnsFrom": [
+            "game_id",
+            "contract_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_world_rival_jobs_game_id_origin_id_online_world_events_game_id_id_fk": {
+          "name": "online_world_rival_jobs_game_id_origin_id_online_world_events_game_id_id_fk",
+          "tableFrom": "online_world_rival_jobs",
+          "tableTo": "online_world_events",
+          "columnsFrom": [
+            "game_id",
+            "origin_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_world_rival_jobs_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_world_rival_jobs_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_world_organizations": {
+      "name": "online_world_organizations",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "goal": {
+          "name": "goal",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "resources": {
+          "name": "resources",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "company_relation": {
+          "name": "company_relation",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_world_organizations_game_id_online_games_id_fk": {
+          "name": "online_world_organizations_game_id_online_games_id_fk",
+          "tableFrom": "online_world_organizations",
+          "tableTo": "online_games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_world_organizations_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_world_organizations_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "world_org_bounds": {
+          "name": "world_org_bounds",
+          "value": "\"online_world_organizations\".\"resources\" BETWEEN 0 AND 100 AND \"online_world_organizations\".\"company_relation\" BETWEEN -100 AND 100"
+        }
+      }
+    },
+    "online_world_conflict_participants": {
+      "name": "online_world_conflict_participants",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "conflict_id": {
+          "name": "conflict_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "side": {
+          "name": "side",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_world_conflict_participants_game_id_conflict_id_online_world_conflicts_game_id_id_fk": {
+          "name": "online_world_conflict_participants_game_id_conflict_id_online_world_conflicts_game_id_id_fk",
+          "tableFrom": "online_world_conflict_participants",
+          "tableTo": "online_world_conflicts",
+          "columnsFrom": [
+            "game_id",
+            "conflict_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_world_conflict_participants_game_id_organization_id_online_world_organizations_game_id_id_fk": {
+          "name": "online_world_conflict_participants_game_id_organization_id_online_world_organizations_game_id_id_fk",
+          "tableFrom": "online_world_conflict_participants",
+          "tableTo": "online_world_organizations",
+          "columnsFrom": [
+            "game_id",
+            "organization_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_world_conflict_participants_game_id_conflict_id_organization_id_pk": {
+          "columns": [
+            "game_id",
+            "conflict_id",
+            "organization_id"
+          ],
+          "name": "online_world_conflict_participants_game_id_conflict_id_organization_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "online_world_regions": {
+      "name": "online_world_regions",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "country_id": {
+          "name": "country_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stability": {
+          "name": "stability",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "security": {
+          "name": "security",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "economy": {
+          "name": "economy",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tension": {
+          "name": "tension",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "controller_id": {
+          "name": "controller_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cooldown_until": {
+          "name": "cooldown_until",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "last_event_id": {
+          "name": "last_event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_event_type": {
+          "name": "last_event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "intel_json": {
+          "name": "intel_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_world_regions_game_id_controller_id_online_world_organizations_game_id_id_fk": {
+          "name": "online_world_regions_game_id_controller_id_online_world_organizations_game_id_id_fk",
+          "tableFrom": "online_world_regions",
+          "tableTo": "online_world_organizations",
+          "columnsFrom": [
+            "game_id",
+            "controller_id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_world_regions_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_world_regions_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "world_region_bounds": {
+          "name": "world_region_bounds",
+          "value": "\"online_world_regions\".\"stability\" BETWEEN 0 AND 100 AND \"online_world_regions\".\"security\" BETWEEN 0 AND 100 AND \"online_world_regions\".\"economy\" BETWEEN 0 AND 100 AND \"online_world_regions\".\"tension\" BETWEEN 0 AND 100"
+        }
+      }
+    },
+    "online_world_relations": {
+      "name": "online_world_relations",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "org_low": {
+          "name": "org_low",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "org_high": {
+          "name": "org_high",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_world_relations_game_id_org_low_online_world_organizations_game_id_id_fk": {
+          "name": "online_world_relations_game_id_org_low_online_world_organizations_game_id_id_fk",
+          "tableFrom": "online_world_relations",
+          "tableTo": "online_world_organizations",
+          "columnsFrom": [
+            "game_id",
+            "org_low"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "online_world_relations_game_id_org_high_online_world_organizations_game_id_id_fk": {
+          "name": "online_world_relations_game_id_org_high_online_world_organizations_game_id_id_fk",
+          "tableFrom": "online_world_relations",
+          "tableTo": "online_world_organizations",
+          "columnsFrom": [
+            "game_id",
+            "org_high"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_world_relations_game_id_org_low_org_high_pk": {
+          "columns": [
+            "game_id",
+            "org_low",
+            "org_high"
+          ],
+          "name": "online_world_relations_game_id_org_low_org_high_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "world_relation_bounds": {
+          "name": "world_relation_bounds",
+          "value": "\"online_world_relations\".\"org_low\"<\"online_world_relations\".\"org_high\" AND \"online_world_relations\".\"value\" BETWEEN -100 AND 100"
+        }
+      }
+    },
+    "online_world_rivals": {
+      "name": "online_world_rivals",
+      "columns": {
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "capacity": {
+          "name": "capacity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "budget_cents": {
+          "name": "budget_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reputation": {
+          "name": "reputation",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "specialization": {
+          "name": "specialization",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completed": {
+          "name": "completed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "failed": {
+          "name": "failed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "online_world_rivals_game_id_id_online_world_organizations_game_id_id_fk": {
+          "name": "online_world_rivals_game_id_id_online_world_organizations_game_id_id_fk",
+          "tableFrom": "online_world_rivals",
+          "tableTo": "online_world_organizations",
+          "columnsFrom": [
+            "game_id",
+            "id"
+          ],
+          "columnsTo": [
+            "game_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "online_world_rivals_game_id_id_pk": {
+          "columns": [
+            "game_id",
+            "id"
+          ],
+          "name": "online_world_rivals_game_id_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "world_rival_bounds": {
+          "name": "world_rival_bounds",
+          "value": "\"online_world_rivals\".\"budget_cents\">=0 AND \"online_world_rivals\".\"reputation\" BETWEEN 0 AND 100"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
