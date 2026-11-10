@@ -99,3 +99,18 @@ export async function turnSummary(db:Database,id:string,turn:number){
  const s=rows[0].results[0];if(!s)throw new ApiError(404,'NOT_FOUND','Resumo não encontrado.');return {turn:s.turn,date:s.date,stateHash:s.state_hash,events:rows[1].results.map(rowEvent)};
 }
 export async function financialLedger(db:Database,id:string){const rows=await db.prepare('SELECT turn,source_id AS sourceId,amount_cents AS amountCents,entry_type AS entryType FROM online_ledger WHERE game_id=? ORDER BY turn,source_id').bind(id).all();return rows.results;}
+
+export async function deleteGame(db:Database,g:Campaign,confirmationName:string,expectedVersion:number){
+ if(confirmationName!==g.name)throw new ApiError(422,'NAME_MISMATCH','Digite o nome exato da companhia para confirmar.');
+ if(g.stateVersion!==expectedVersion)throw new ApiError(409,'STALE_VERSION','A companhia mudou. Atualize a lista antes de excluir.');
+ if(g.activeRequest)throw new ApiError(409,'ADVANCE_IN_PROGRESS','Conclua a passagem de turno antes de excluir a companhia.');
+ const dependentTables=['online_commands','online_events','online_ledger','online_turn_summaries','online_actions','online_employment','online_familiarity','online_squad_members','online_personnel_history','online_recruitment','online_reservations','online_mission_assignments','online_decisions','online_mission_reports','online_world_influences','online_world_rival_jobs','online_world_conflict_participants','online_world_relations','online_facility_activities','online_headquarters','online_hq_modules','online_mission_equipment','online_training_progress','online_intel_analyses','online_intel_current','online_mission_intelligence','online_pending_orders','online_operators','online_world_conflicts','online_world_rivals','online_equipment','online_intel_records','online_missions','online_world_events','online_squads','online_contracts','online_world_regions','online_world_organizations'];
+ // Child-first deletes share the revision guard and one atomic transaction.
+ const rows=await db.batch([
+  ...dependentTables.map(table=>db.prepare(`DELETE FROM ${table} WHERE game_id=? AND EXISTS(SELECT 1 FROM online_games WHERE id=? AND owner=? AND revision=? AND active_request IS NULL)`).bind(g.id,g.id,g.owner,g.revision)),
+  db.prepare('DELETE FROM online_campaigns WHERE id=? AND owner=? AND EXISTS(SELECT 1 FROM online_games WHERE id=? AND owner=? AND revision=? AND active_request IS NULL)').bind(g.id,g.owner,g.id,g.owner,g.revision),
+  db.prepare('DELETE FROM online_games WHERE id=? AND owner=? AND revision=? AND active_request IS NULL').bind(g.id,g.owner,g.revision),
+ ]);
+ if(rows[rows.length-1].meta.changes!==1)throw new ApiError(409,'STALE_VERSION','A companhia mudou. Atualize a lista antes de excluir.');
+ return {deleted:true,id:g.id};
+}

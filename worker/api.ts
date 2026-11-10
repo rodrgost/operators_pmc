@@ -15,7 +15,7 @@ import {ensureOperations,readOperations,operationsWrites,operationsView,operatio
 import { canonical,personnelTurn,balance } from '../packages/engine/personnel.ts';
 import { ensurePersonnel,readPersonnel,personnelProjection,personnelAction,personnelWrites,hireSchema,renewSchema,squadSchema,activitySchema,commandSchema,memberSchema } from './personnel.ts';
 import { drawInput, stateInput, drawFromHash, resolveTurn } from '../packages/engine/core.ts';
-import { ApiError, type Database, type Command, getGame,listGames,createGame,snapshot,projection,result,register,commitTurn,failCommand,timeline,turnSummary,financialLedger } from './persistence.ts';
+import { ApiError, type Database, type Command, getGame,listGames,createGame,deleteGame,snapshot,projection,result,register,commitTurn,failCommand,timeline,turnSummary,financialLedger } from './persistence.ts';
 export type { Database } from './persistence.ts';
 const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 async function digest(value:unknown){const data=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(value)));return Array.from(new Uint8Array(data),b=>b.toString(16).padStart(2,'0')).join('')}
@@ -124,6 +124,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
    }
   }
   const id=path[1],g=await getGame(db,id,owner);
+  if(path.length===2&&request.method==='DELETE'){const body=await request.json();if(typeof body.confirmationName!=='string'||!Number.isInteger(body.expectedVersion))throw new ApiError(422,'INVALID_CONFIRMATION','Confirmação inválida.');return json(await deleteGame(db,g,body.confirmationName,body.expectedVersion));}
   if(path.length===2&&request.method==='GET')return json(projection(g));
   if(path[2]==='orders'){
    if(path.length===3&&request.method==='GET')return json({stateVersion:g.stateVersion,orders:await orders(db,id)});

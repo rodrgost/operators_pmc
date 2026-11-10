@@ -76,3 +76,7 @@
 - 72 temas de contratos com objetivos e briefings contextualizados; 36 notícias, 54 textos de resultados e 12 introduções de etapas.
 - Seleção textual determinística independente dos sorteios da simulação; registros existentes preservados.
 - Briefings recolhíveis e codinomes na interface mobile; sugestões ao nomear equipes.
+
+## Exclusão de companhias
+
+Botão na lista inicial com confirmação pelo nome exato. Exclusão imediata, atômica, restrita ao proprietário, incluindo dados dependentes e origem legada. Proteção contra versão desatualizada e avanço em andamento.
