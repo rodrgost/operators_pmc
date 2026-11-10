@@ -1,0 +1,728 @@
+{
+  "version": "content-1",
+  "firstNames": [
+    "Ana",
+    "Bruno",
+    "Camila",
+    "Diego",
+    "Elisa",
+    "Felipe",
+    "Helena",
+    "Igor",
+    "Joana",
+    "Lucas",
+    "Maya",
+    "Nicolas",
+    "Adriana",
+    "Afonso",
+    "Alice",
+    "André",
+    "Beatriz",
+    "Caio",
+    "Cecília",
+    "Clara",
+    "Daniel",
+    "Diana",
+    "Eduardo",
+    "Ester",
+    "Fernanda",
+    "Gabriel",
+    "Gustavo",
+    "Henrique",
+    "Inês",
+    "Isabel",
+    "Ivan",
+    "Júlia",
+    "Lara",
+    "Leonardo",
+    "Letícia",
+    "Lídia",
+    "Lívia",
+    "Lorena",
+    "Luana",
+    "Luís",
+    "Manuela",
+    "Marcelo",
+    "Marina",
+    "Mateus",
+    "Miguel",
+    "Natália",
+    "Otávio",
+    "Patrícia",
+    "Pedro",
+    "Rafael",
+    "Raquel",
+    "Renata",
+    "Ricardo",
+    "Rita",
+    "Samuel",
+    "Sara",
+    "Sofia",
+    "Teresa",
+    "Thiago",
+    "Valentina",
+    "Victor",
+    "Yasmin",
+    "Alex",
+    "Amir",
+    "Anton",
+    "Astrid",
+    "Elena",
+    "Erik",
+    "Eva",
+    "Hassan",
+    "Irina",
+    "James",
+    "Jonas",
+    "Leah",
+    "Marcus",
+    "Nadia",
+    "Nora",
+    "Omar",
+    "Pavel"
+  ],
+  "lastNames": [
+    "Vale",
+    "Torres",
+    "Costa",
+    "Moraes",
+    "Vidal",
+    "Andrade",
+    "Lima",
+    "Reis",
+    "Nunes",
+    "Matos",
+    "Pires",
+    "Duarte",
+    "Almeida",
+    "Amaral",
+    "Azevedo",
+    "Barros",
+    "Batista",
+    "Braga",
+    "Campos",
+    "Cardoso",
+    "Carvalho",
+    "Castro",
+    "Coelho",
+    "Correia",
+    "Cunha",
+    "Dias",
+    "Farias",
+    "Fernandes",
+    "Figueira",
+    "Fonseca",
+    "Freitas",
+    "Gomes",
+    "Guerra",
+    "Leal",
+    "Lemos",
+    "Lobo",
+    "Lopes",
+    "Machado",
+    "Martins",
+    "Medeiros",
+    "Meireles",
+    "Melo",
+    "Mendes",
+    "Miranda",
+    "Monteiro",
+    "Moreira",
+    "Moura",
+    "Navarro",
+    "Neves",
+    "Oliveira",
+    "Paiva",
+    "Peixoto",
+    "Pereira",
+    "Prado",
+    "Queiroz",
+    "Ramos",
+    "Ribeiro",
+    "Rocha",
+    "Rodrigues",
+    "Rosa",
+    "Sá",
+    "Sampaio",
+    "Santos",
+    "Serra",
+    "Silva",
+    "Soares",
+    "Sousa",
+    "Tavares",
+    "Teixeira",
+    "Vasconcelos",
+    "Vieira",
+    "Volkova",
+    "Sokolov",
+    "Kovacs",
+    "Novak",
+    "Adler",
+    "Berg",
+    "Carter",
+    "Reed",
+    "Miller"
+  ],
+  "callsigns": [
+    "Âncora",
+    "Águia",
+    "Aurora",
+    "Atlas",
+    "Bastião",
+    "Bravo",
+    "Brisa",
+    "Corvo",
+    "Cobalto",
+    "Cometa",
+    "Condor",
+    "Delta",
+    "Eclipse",
+    "Eco",
+    "Espectro",
+    "Estrela",
+    "Falcão",
+    "Farol",
+    "Fênix",
+    "Flecha",
+    "Fox",
+    "Gama",
+    "Gavião",
+    "Ghost",
+    "Grifo",
+    "Guardião",
+    "Hawk",
+    "Horizonte",
+    "Ícaro",
+    "Jaguar",
+    "Juno",
+    "Lince",
+    "Lobo",
+    "Lotus",
+    "Marco",
+    "Merlin",
+    "Mirage",
+    "Mosaico",
+    "Nébula",
+    "Nexo",
+    "Nômade",
+    "Norte",
+    "Ônix",
+    "Orion",
+    "Pantera",
+    "Pedra",
+    "Pioneiro",
+    "Prisma",
+    "Pulso",
+    "Radar",
+    "Raio",
+    "Raven",
+    "Rocha",
+    "Rook",
+    "Sable",
+    "Seta",
+    "Sombra",
+    "Solstice",
+    "Spectre",
+    "Tango",
+    "Taurus",
+    "Tempestade",
+    "Titan",
+    "Vela",
+    "Vento",
+    "Vetor",
+    "Víbora",
+    "Vigia",
+    "Vórtice",
+    "Zero"
+  ],
+  "squadNames": [
+    "Alpha",
+    "Bravo",
+    "Delta",
+    "Vanguarda",
+    "Sentinela",
+    "Órion",
+    "Bastião",
+    "Horizonte",
+    "Aurora",
+    "Corvo",
+    "Falcão",
+    "Lince",
+    "Vetor",
+    "Prisma",
+    "Âncora",
+    "Farol",
+    "Norte",
+    "Eclipse",
+    "Espectro",
+    "Guardiões",
+    "Nômades",
+    "Pioneiros",
+    "Atalaia",
+    "Cobalto",
+    "Ícaro",
+    "Juno",
+    "Ônix",
+    "Tempestade",
+    "Grifo",
+    "Taurus",
+    "Rastro",
+    "Vigília",
+    "Fronteira",
+    "Escudo",
+    "Tridente",
+    "Arco",
+    "Lótus",
+    "Maré",
+    "Cume",
+    "Travessia"
+  ],
+  "contracts": {
+    "security": [
+      {
+        "title": "Guarda do terminal logístico",
+        "objective": "Manter a segurança de um terminal durante o período contratado"
+      },
+      {
+        "title": "Proteção do centro de distribuição",
+        "objective": "Proteger as instalações e a rotina de um centro de distribuição"
+      },
+      {
+        "title": "Vigilância do posto regional",
+        "objective": "Reforçar a segurança de um posto de apoio regional"
+      },
+      {
+        "title": "Segurança do complexo energético",
+        "objective": "Proteger o perímetro de uma instalação de energia"
+      },
+      {
+        "title": "Proteção de instalações civis",
+        "objective": "Manter a segurança de instalações civis designadas pelo contratante"
+      },
+      {
+        "title": "Guarda do armazém de suprimentos",
+        "objective": "Proteger um ponto de armazenamento de suprimentos"
+      },
+      {
+        "title": "Segurança da estação de comunicações",
+        "objective": "Reforçar a proteção de uma estação de comunicações"
+      },
+      {
+        "title": "Proteção do centro administrativo",
+        "objective": "Manter a segurança de uma instalação administrativa"
+      },
+      {
+        "title": "Guarda do ponto de apoio",
+        "objective": "Proteger o ponto de apoio indicado pelo contratante"
+      },
+      {
+        "title": "Proteção da equipe de manutenção",
+        "objective": "Garantir cobertura de segurança para uma equipe de manutenção"
+      },
+      {
+        "title": "Segurança do pátio de transporte",
+        "objective": "Proteger um pátio de veículos e sua operação"
+      },
+      {
+        "title": "Vigilância da instalação de pesquisa",
+        "objective": "Reforçar a segurança de uma instalação de pesquisa"
+      }
+    ],
+    "escort": [
+      {
+        "title": "Escolta do comboio de suprimentos",
+        "objective": "Acompanhar o deslocamento de um comboio de suprimentos"
+      },
+      {
+        "title": "Travessia da equipe técnica",
+        "objective": "Proteger o deslocamento de uma equipe técnica"
+      },
+      {
+        "title": "Escolta do transporte médico",
+        "objective": "Acompanhar um transporte de recursos médicos"
+      },
+      {
+        "title": "Proteção da rota de abastecimento",
+        "objective": "Proteger uma operação de transporte na rota designada"
+      },
+      {
+        "title": "Escolta da comitiva regional",
+        "objective": "Acompanhar a movimentação de uma comitiva regional"
+      },
+      {
+        "title": "Transferência de equipamentos",
+        "objective": "Proteger o transporte de equipamentos do contratante"
+      },
+      {
+        "title": "Escolta da missão civil",
+        "objective": "Garantir cobertura durante o deslocamento de uma equipe civil"
+      },
+      {
+        "title": "Passagem do comboio de manutenção",
+        "objective": "Acompanhar um comboio de manutenção"
+      },
+      {
+        "title": "Escolta do transporte administrativo",
+        "objective": "Proteger a movimentação de pessoal administrativo"
+      },
+      {
+        "title": "Corredor de suprimentos",
+        "objective": "Acompanhar a entrega de suprimentos no corredor indicado"
+      },
+      {
+        "title": "Escolta do grupo de inspeção",
+        "objective": "Proteger o deslocamento de um grupo de inspeção"
+      },
+      {
+        "title": "Proteção do transporte de comunicações",
+        "objective": "Acompanhar a transferência de recursos de comunicação"
+      }
+    ],
+    "reconnaissance": [
+      {
+        "title": "Levantamento da rota regional",
+        "objective": "Coletar observações sobre a rota indicada pelo contratante"
+      },
+      {
+        "title": "Reconhecimento do corredor logístico",
+        "objective": "Observar as condições de um corredor de transporte"
+      },
+      {
+        "title": "Inspeção do entorno industrial",
+        "objective": "Reunir informações sobre o entorno de instalações industriais"
+      },
+      {
+        "title": "Observação do setor de fronteira",
+        "objective": "Reconhecer o setor de fronteira designado"
+      },
+      {
+        "title": "Levantamento do acesso secundário",
+        "objective": "Observar as condições do acesso indicado"
+      },
+      {
+        "title": "Reconhecimento do perímetro externo",
+        "objective": "Coletar observações sobre um perímetro operacional"
+      },
+      {
+        "title": "Inspeção da área de interesse",
+        "objective": "Reunir informações da área solicitada pelo contratante"
+      },
+      {
+        "title": "Observação da zona de passagem",
+        "objective": "Reconhecer uma zona de passagem regional"
+      },
+      {
+        "title": "Levantamento do setor de comunicações",
+        "objective": "Observar a área de interesse relacionada às comunicações"
+      },
+      {
+        "title": "Reconhecimento do entorno urbano",
+        "objective": "Registrar observações sobre o entorno urbano indicado"
+      },
+      {
+        "title": "Inspeção do ponto de ligação",
+        "objective": "Reconhecer um ponto de conexão logística"
+      },
+      {
+        "title": "Observação da área de apoio",
+        "objective": "Reunir informações sobre uma possível área de apoio"
+      }
+    ],
+    "extraction": [
+      {
+        "title": "Extração da equipe técnica",
+        "objective": "Retirar uma equipe técnica da área designada"
+      },
+      {
+        "title": "Retirada do pessoal de campo",
+        "objective": "Realizar a extração de pessoal de campo"
+      },
+      {
+        "title": "Extração do grupo de inspeção",
+        "objective": "Retirar um grupo de inspeção da área de interesse"
+      },
+      {
+        "title": "Evacuação da equipe administrativa",
+        "objective": "Conduzir a retirada do pessoal administrativo indicado"
+      },
+      {
+        "title": "Extração dos especialistas",
+        "objective": "Retirar os especialistas designados pelo contratante"
+      },
+      {
+        "title": "Retirada da equipe de manutenção",
+        "objective": "Conduzir a extração de uma equipe de manutenção"
+      },
+      {
+        "title": "Extração do pessoal de pesquisa",
+        "objective": "Retirar pessoal de uma operação de pesquisa"
+      },
+      {
+        "title": "Retirada da equipe de comunicações",
+        "objective": "Conduzir a extração do grupo de comunicações"
+      },
+      {
+        "title": "Extração do grupo de apoio",
+        "objective": "Retirar o grupo de apoio identificado na ordem de missão"
+      },
+      {
+        "title": "Retirada do pessoal logístico",
+        "objective": "Conduzir a extração de trabalhadores logísticos"
+      },
+      {
+        "title": "Extração da comitiva de campo",
+        "objective": "Retirar a comitiva da área indicada"
+      },
+      {
+        "title": "Retirada da equipe de avaliação",
+        "objective": "Conduzir a extração de uma equipe de avaliação"
+      }
+    ],
+    "recovery": [
+      {
+        "title": "Recuperação do equipamento de campo",
+        "objective": "Recuperar o equipamento identificado pelo contratante"
+      },
+      {
+        "title": "Retomada do módulo de comunicações",
+        "objective": "Recuperar um módulo de comunicações"
+      },
+      {
+        "title": "Recuperação do material técnico",
+        "objective": "Localizar e recuperar o material técnico designado"
+      },
+      {
+        "title": "Resgate do arquivo operacional",
+        "objective": "Recuperar o arquivo operacional indicado"
+      },
+      {
+        "title": "Recuperação dos instrumentos de pesquisa",
+        "objective": "Recuperar instrumentos pertencentes a uma operação de pesquisa"
+      },
+      {
+        "title": "Retomada do equipamento de inspeção",
+        "objective": "Recuperar o equipamento de inspeção indicado"
+      },
+      {
+        "title": "Recuperação do pacote de dados",
+        "objective": "Recuperar o dispositivo que contém o pacote de dados solicitado"
+      },
+      {
+        "title": "Retomada do material logístico",
+        "objective": "Recuperar material logístico na área designada"
+      },
+      {
+        "title": "Recuperação da unidade de controle",
+        "objective": "Recuperar uma unidade de controle identificada pelo contratante"
+      },
+      {
+        "title": "Retomada dos sensores de campo",
+        "objective": "Recuperar sensores instalados na área de interesse"
+      },
+      {
+        "title": "Recuperação do equipamento médico",
+        "objective": "Recuperar o equipamento médico indicado"
+      },
+      {
+        "title": "Retomada dos registros técnicos",
+        "objective": "Recuperar os registros técnicos designados"
+      }
+    ],
+    "rescue": [
+      {
+        "title": "Resgate da equipe isolada",
+        "objective": "Localizar e retirar uma equipe isolada"
+      },
+      {
+        "title": "Busca do grupo de assistência",
+        "objective": "Localizar e retirar o grupo de assistência indicado"
+      },
+      {
+        "title": "Resgate do pessoal de transporte",
+        "objective": "Conduzir o resgate do pessoal de uma operação de transporte"
+      },
+      {
+        "title": "Busca da equipe de campo",
+        "objective": "Localizar e retirar o grupo de campo designado"
+      },
+      {
+        "title": "Resgate dos trabalhadores isolados",
+        "objective": "Conduzir o resgate de trabalhadores na área indicada"
+      },
+      {
+        "title": "Busca do grupo civil",
+        "objective": "Localizar e retirar o grupo civil informado pelo contratante"
+      },
+      {
+        "title": "Resgate da equipe de apoio",
+        "objective": "Conduzir o resgate de uma equipe de apoio"
+      },
+      {
+        "title": "Busca do pessoal de inspeção",
+        "objective": "Localizar e retirar o pessoal de inspeção"
+      },
+      {
+        "title": "Resgate dos técnicos isolados",
+        "objective": "Conduzir o resgate dos técnicos designados"
+      },
+      {
+        "title": "Busca da equipe de suprimentos",
+        "objective": "Localizar e retirar uma equipe de suprimentos"
+      },
+      {
+        "title": "Resgate do grupo de pesquisa",
+        "objective": "Conduzir o resgate do grupo de pesquisa informado"
+      },
+      {
+        "title": "Busca do pessoal de assistência médica",
+        "objective": "Localizar e retirar o pessoal de assistência médica designado"
+      }
+    ]
+  },
+  "worldEvents": {
+    "industrial_crisis": [
+      "A atividade industrial em {region} enfrenta uma nova crise.",
+      "A pressão sobre a produção em {region} aumentou.",
+      "Uma crise no setor produtivo afeta a rotina de {region}.",
+      "O cenário industrial de {region} registra deterioração.",
+      "A tensão econômica pressiona as instalações industriais de {region}.",
+      "Novas dificuldades industriais ampliam a instabilidade em {region}."
+    ],
+    "armed_conflict": [
+      "Um confronto armado agrava a situação em {region}.",
+      "A escalada das tensões resulta em confronto em {region}.",
+      "O ambiente de segurança em {region} foi afetado por novo confronto.",
+      "Um confronto aumenta a pressão sobre a população de {region}.",
+      "A instabilidade em {region} evolui para um conflito aberto.",
+      "As condições em {region} se deterioram com o início de um confronto."
+    ],
+    "humanitarian_need": [
+      "As condições em {region} ampliaram a necessidade de assistência.",
+      "Uma demanda humanitária mobiliza atenção em {region}.",
+      "A deterioração regional aumenta a procura por apoio em {region}.",
+      "A população de {region} enfrenta novas dificuldades de acesso a recursos.",
+      "A necessidade de assistência cresceu em {region}.",
+      "O quadro regional em {region} gera uma nova demanda humanitária."
+    ],
+    "security_incident": [
+      "Um incidente de segurança eleva a tensão em {region}.",
+      "A segurança em {region} foi afetada por uma nova ocorrência.",
+      "Uma ocorrência de segurança aumenta a pressão em {region}.",
+      "O quadro de segurança em {region} registra nova deterioração.",
+      "Um incidente amplia a instabilidade de {region}.",
+      "A tensão em {region} aumentou após uma ocorrência de segurança."
+    ],
+    "political_reform": [
+      "Uma iniciativa de estabilização foi adotada em {region}.",
+      "Medidas regionais de estabilização entram em vigor em {region}.",
+      "Uma ação política busca recuperar a estabilidade de {region}.",
+      "O governo regional promove uma iniciativa de estabilização em {region}.",
+      "Uma nova medida de estabilização reduz a pressão em {region}.",
+      "Uma iniciativa institucional melhora o ambiente regional de {region}."
+    ],
+    "corporate_investment": [
+      "Um investimento corporativo fortalece a atividade econômica em {region}.",
+      "A economia de {region} recebe um novo investimento.",
+      "Um projeto de investimento melhora as perspectivas de {region}.",
+      "A atividade corporativa em {region} ganha um novo impulso.",
+      "Um investimento contribui para a estabilização econômica de {region}.",
+      "O cenário econômico de {region} melhora com novo investimento."
+    ]
+  },
+  "reports": {
+    "success": [
+      "A etapa atingiu os objetivos previstos.",
+      "O objetivo desta etapa foi alcançado pela formação.",
+      "O trabalho previsto nesta etapa foi concluído com sucesso.",
+      "A equipe cumpriu o objetivo desta etapa.",
+      "A etapa foi resolvida com o resultado esperado.",
+      "A formação alcançou o resultado previsto para esta fase."
+    ],
+    "partial": [
+      "A etapa produziu um resultado parcial.",
+      "Parte do objetivo da etapa foi alcançada.",
+      "O resultado desta fase ficou abaixo do objetivo completo.",
+      "A equipe obteve progresso parcial nesta etapa.",
+      "A execução desta fase não atingiu integralmente o objetivo.",
+      "A formação encerrou esta etapa com resultado limitado."
+    ],
+    "delay": [
+      "O cronograma desta etapa foi estendido.",
+      "A equipe precisa de mais tempo para resolver esta fase.",
+      "A etapa permanece em execução após um atraso.",
+      "O andamento desta fase exigiu um turno adicional.",
+      "A conclusão desta etapa foi adiada.",
+      "O objetivo desta fase não foi resolvido dentro do turno previsto."
+    ],
+    "failure": [
+      "Esta etapa não atingiu o resultado necessário.",
+      "O objetivo desta fase não foi alcançado.",
+      "A tentativa de resolver esta etapa falhou.",
+      "O resultado desta fase ficou abaixo do mínimo necessário.",
+      "A formação não alcançou o objetivo desta etapa.",
+      "A etapa terminou sem o resultado esperado."
+    ],
+    "complication": [
+      "A etapa atingiu o objetivo, mas houve uma complicação com impacto na saúde de um integrante.",
+      "O objetivo foi cumprido, porém uma complicação afetou a condição de um integrante.",
+      "A equipe alcançou o resultado desta fase com uma complicação registrada.",
+      "A fase foi bem-sucedida, mas uma complicação exigirá atenção à condição da equipe.",
+      "O objetivo foi alcançado; a saúde de um integrante foi afetada por uma complicação.",
+      "A formação concluiu esta fase com sucesso e uma complicação operacional."
+    ],
+    "decision": [
+      "A equipe solicita orientação para prosseguir, reduzir exposição ou retirar.",
+      "O comandante precisa escolher a diretriz para a continuidade da operação.",
+      "A situação desta fase exige uma decisão do comandante.",
+      "O líder solicita uma decisão antes de continuar a operação.",
+      "A continuidade da missão aguarda orientação do comandante.",
+      "A equipe aguarda uma escolha entre prosseguir, reduzir exposição e retirar."
+    ],
+    "completed": [
+      "A missão foi concluída. A formação foi liberada e o acerto financeiro registrado.",
+      "O contrato foi encerrado com sucesso. A equipe foi liberada após o acerto previsto.",
+      "A missão alcançou o resultado necessário para conclusão. Consulte o acerto e a condição da formação.",
+      "A operação foi concluída e os lançamentos financeiros foram registrados.",
+      "O objetivo contratual foi atendido. A formação está liberada e o acerto foi registrado.",
+      "A companhia concluiu esta missão; o relatório consolida o resultado e o acerto financeiro."
+    ],
+    "failed": [
+      "A missão foi encerrada sem atingir o resultado mínimo. A formação foi liberada e o acerto registrado.",
+      "O contrato terminou em falha. Consulte os lançamentos financeiros e a condição da equipe.",
+      "A operação não atingiu o resultado necessário para conclusão. A formação foi liberada.",
+      "A missão fracassou e o acerto previsto foi registrado.",
+      "A companhia encerrou esta operação sem cumprir o resultado mínimo contratual.",
+      "O resultado acumulado não permitiu concluir o contrato com sucesso. O acerto foi registrado."
+    ],
+    "withdrawn": [
+      "A retirada foi concluída. A formação foi liberada e o acerto previsto registrado.",
+      "A equipe concluiu o retorno após a retirada. Consulte o acerto financeiro.",
+      "A operação terminou por retirada, com liberação da formação.",
+      "O retorno da formação foi concluído; o acerto contratual foi registrado.",
+      "A companhia encerrou a operação por retirada e registrou os efeitos financeiros previstos.",
+      "A formação retornou após a ordem de retirada. Consulte a condição de cada integrante."
+    ]
+  },
+  "stages": {
+    "Mobilização": [
+      "Relatório da fase de mobilização.",
+      "Avaliação da etapa de mobilização.",
+      "Registro operacional de mobilização."
+    ],
+    "Reconhecimento": [
+      "Relatório da fase de reconhecimento.",
+      "Avaliação da etapa de reconhecimento.",
+      "Registro operacional de reconhecimento."
+    ],
+    "Execução": [
+      "Relatório da fase de execução.",
+      "Avaliação da etapa de execução.",
+      "Registro operacional de execução."
+    ],
+    "Retorno": [
+      "Relatório da fase de retorno.",
+      "Avaliação da etapa de retorno.",
+      "Registro operacional de retorno."
+    ]
+  }
+}

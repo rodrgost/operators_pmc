@@ -134,3 +134,10 @@ Typecheck/build aprovados e sete testes existentes de criação/recuperação de
 - Campanha integrada de 336 turnos no Normal preservou o relatório financeiro e operacional anterior.
 - Browser QA a 390 px: Normal pré-selecionado, seleção de Difícil, aviso permanente e detalhes dos modificadores; criação e passagem de turno preservam o perfil e exibem a dificuldade no cabeçalho. Companhia anterior permanece Normal com mesmo saldo/turno.
 - Detalhes e limites da simulação no ADR 0009. Os valores são balanceamento inicial, não garantia de que toda campanha Difícil será mais desfavorável em cada sorteio.
+
+## 0.10.0 — catálogo ampliado
+
+- 140 testes aprovados; typecheck e build online aprovados.
+- Comparação com 6720f1b093c9bfc84025623787c336c7c69483a7: 100 mercados e 3.024 snapshots de turnos, em três seeds e três dificuldades, com estado numérico equivalente (CONTENT_COMPATIBILITY.json). Escopo: mercados, mundo e contratos; missões do jogador cobertas pela suíte integrada.
+- Interface em largura mobile de 390px: novos títulos, briefing expansível com cliente/região corretos e codinomes de candidatos conferidos.
+- Históricos preservados e projeções sem vazamento de verdade oculta cobertos por testes.

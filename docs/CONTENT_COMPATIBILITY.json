@@ -1,0 +1,18 @@
+{
+  "referenceCommit": "6720f1b093c9bfc84025623787c336c7c69483a7",
+  "marketsCompared": 100,
+  "seeds": 3,
+  "difficulties": 3,
+  "turnsPerCampaign": 336,
+  "turnSnapshotsCompared": 3024,
+  "numericalStateMatches": true,
+  "excludedFromComparison": [
+    "names",
+    "callsigns",
+    "titles",
+    "news summaries",
+    "briefings",
+    "narrative catalog metadata"
+  ],
+  "scope": "Comparação de mercados e evolução mundial/contratos; a suíte integrada cobre separadamente as missões do jogador."
+}

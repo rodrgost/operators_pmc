@@ -129,3 +129,7 @@ Planejamento de ordens e confirmação atômica na passagem implementados. Saldo
 ## Atualização 0.9.0
 
 Dificuldade permanente por companhia, snapshot versionado, migração compatível e seletor mobile implementados. Normal mantém os mesmos resultados da versão anterior. Relatório multi-semente: DIFFICULTY_BALANCE.json. Contratos antigos não são recalculados; perfis futuros não substituem valores de campanhas já abertas.
+
+## Atualização 0.10.0
+
+Catálogo ampliado integrado ao recrutamento, contratos periódicos e emergentes, eventos mundiais e relatórios. Nomes de equipes sugeridos na interface. Novas gerações recebem metadados content-1; registros históricos não são reescritos. Sem alteração dos tipos de missão, percentuais ou valores econômicos.

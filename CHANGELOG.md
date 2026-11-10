@@ -69,3 +69,10 @@
 - Campanhas anteriores identificadas como Normal, preservando a simulação.
 - Detalhes dos modificadores na criação e dificuldade visível na campanha.
 - Testes de migração, API, determinismo e comparação de várias sementes.
+
+## 0.10.0 — 2026-11-10
+
+- Catálogo content-1: 79 nomes, 80 sobrenomes, 70 codinomes e 40 sugestões de equipes.
+- 72 temas de contratos com objetivos e briefings contextualizados; 36 notícias, 54 textos de resultados e 12 introduções de etapas.
+- Seleção textual determinística independente dos sorteios da simulação; registros existentes preservados.
+- Briefings recolhíveis e codinomes na interface mobile; sugestões ao nomear equipes.

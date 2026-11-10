@@ -1,3 +1,4 @@
+import {operatorIdentity} from './content.ts';
 import balance from '../rules/personnel.json' with { type:'json' };
 export { balance };
 export const attributes=['combat','stealth','technical','perception','endurance','leadership'] as const;
@@ -7,8 +8,6 @@ export interface Personnel {operators:any[];contracts:any[];candidates:any[];squ
 export const emptyPersonnel=():Personnel=>({operators:[],contracts:[],candidates:[],squads:[],members:[],familiarity:[],reservations:[]});
 const clamp=(n:number)=>Math.max(0,Math.min(100,n));
 export async function market(seed:string,week:number,reputation:number,digest:Digest){
- const first=['Ana','Bruno','Camila','Diego','Elisa','Felipe','Helena','Igor','Joana','Lucas','Maya','Nicolas'];
- const last=['Vale','Torres','Costa','Moraes','Vidal','Andrade','Lima','Reis','Nunes','Matos','Pires','Duarte'];
  const traits=['disciplined','cautious','impulsive','resilient','loyal','ambitious'];
  return Promise.all(Array.from({length:balance.candidatesPerWeek},async(_,i)=>{
   const hash=await digest([seed,balance.version,week,'recruitment',i]);
@@ -18,7 +17,7 @@ export async function market(seed:string,week:number,reputation:number,digest:Di
   const stats=Object.fromEntries(attributes.map((a,j)=>[a,Math.min(95,25+level*5+n(8+j*4,21))]));
   const band=balance.salaryBands[level<=2?0:level<=6?1:2];
   const salary=(band[0]+n(36,band[1]-band[0]+1))*100;
-  const profile={name:first[n(40,first.length)]+' '+last[n(44,last.length)],level,xp:0,specialization,attributes:stats,traits:[traits[n(48,6)],traits[(n(48,6)+1+n(52,5))%6]]};
+  const profile={...operatorIdentity('candidate-'+hash.slice(0,24)),level,xp:0,specialization,attributes:stats,traits:[traits[n(48,6)],traits[(n(48,6)+1+n(52,5))%6]]};
   return {id:'candidate-'+hash.slice(0,24),week,profile_json:JSON.stringify(profile),salary_cents:salary,bonus_cents:salary*balance.signingSalaryFactor,hired:0};
  }));
 }

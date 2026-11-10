@@ -703,3 +703,7 @@ Campanha integrada de 336 turnos com todos os módulos, sete missões concluída
 A companhia escolhe Fácil, Normal ou Difícil na criação, sem troca posterior por UI/API. Normal é selecionado por padrão. Cada campanha salva identificador, versão e snapshot dos modificadores. Campanhas existentes tornam-se Normal v1 mantendo estado, sorteios, contratos e finanças anteriores.
 
 Os multiplicadores aprovados estão no ADR 0009 e em difficulty.v1.json. Aplicar sobre probabilidades-base de eventos positivos/negativos e complicações, remuneração de contratos novos e frequência de atuação dos rivais. Preços, salários, atributos, prazos e capital inicial permanecem iguais. A interpretação de frequência dos rivais preserva o algoritmo anterior no Normal, que não tinha chance de interesse. A escolha aparece nas informações da companhia durante toda a campanha.
+
+## Catálogo narrativo content-1
+
+Conteúdo em `packages/rules/content.v1.json`, seleção em `packages/engine/content.ts`. Identidades, títulos, objetivos, briefings e relatos usam uma chave estável e um fluxo separado da aleatoriedade mecânica. Novos contratos persistem a narrativa em intel_json; operadores persistem codinome e versão no perfil. Projeções expõem apenas o briefing público, sem dados reais ocultos de inteligência. Registros anteriores permanecem com seus textos e sem briefing quando não existente. Futuras revisões devem versionar o catálogo para preservar reproduções.

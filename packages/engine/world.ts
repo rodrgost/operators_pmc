@@ -1,3 +1,4 @@
+import {contractContent,worldNarrative} from './content.ts';
 import {NORMAL_V1,eventProbability,rivalActs,rivalWindow,reward,type DifficultyProfile} from './difficulty.ts';
 import config from '../rules/world.json' with {type:'json'};
 
@@ -175,7 +176,7 @@ export async function worldTurn(original:World,operations:Operations,turn:number
 
     if(!eligible||random(await digest([seed,config.version,turn,'event',r.id,definition.type]))>=eventProbability(definition.chance,definition.type==='political_reform'||definition.type==='corporate_investment'?'positive':'negative',profile))continue;
 
-    const e=worldEvent(w,r,turn,definition.type,definition.category,definition.title+' em '+r.name+'. '+(r.last_event_id?'Evolução de acontecimentos anteriores.':'Condições regionais provocaram nova demanda.'),r.last_event_id,null,definition.effects,definition.duration);
+    const e=worldEvent(w,r,turn,definition.type,definition.category,worldNarrative(definition.type,[seed,turn,r.id,definition.type],r.name,!!r.last_event_id),r.last_event_id,null,definition.effects,definition.duration);
 
     change(r,definition.effects);r.cooldown_until=turn+config.cooldownTurns;r.last_event_id=e.id;r.last_event_type=e.type;
 
@@ -273,11 +274,12 @@ export async function publishWorldContracts(w:World,o:Operations,seed:string,tur
 
   const id='emergent-'+e.id;if(o.contracts.some(c=>c.id===id))continue;
 
+  const content=contractContent(template.type,id,r.name,w.organizations.find(o=>o.id==='gov-'+r.country_id)!.name,'world_event');
   const difficulty=Math.max(1,clamp((100-r.security+template.baseDifficulty)/2)),risk=Math.max(1,clamp(r.tension*0.6+(100-r.security)*0.4));
 
   const h=await digest([seed,config.version,e.id,'offer-intel']);const estimate=(v:number,i:number)=>{const center=clamp(v+parseInt(h.slice(i,i+4),16)%9-4);return {min:Math.max(1,center-12),max:Math.min(100,center+12)}};
 
-  o.contracts.push({id,type:template.type,title:template.title+' · '+r.name,region_id:r.id,client_id:'gov-'+r.country_id,source:'world_event',origin_event_id:e.id,offered_turn:turn,expires_turn:turn+28,difficulty,risk,intel_json:JSON.stringify({estimatedDifficulty:estimate(difficulty,0),estimatedRisk:estimate(risk,4),confidence:45,source:'Contratante / notícia regional',collectedTurn:turn}),reward_cents:reward(Math.round(template.rewardCents*(1+r.tension/200)),profile),minimum_operators:2,status:'available'});e.contract_id=id;
+  o.contracts.push({id,type:template.type,title:content.title+' · '+r.name,region_id:r.id,client_id:'gov-'+r.country_id,source:'world_event',origin_event_id:e.id,offered_turn:turn,expires_turn:turn+28,difficulty,risk,intel_json:JSON.stringify({estimatedDifficulty:estimate(difficulty,0),estimatedRisk:estimate(risk,4),confidence:45,source:'Contratante / notícia regional',collectedTurn:turn,narrative:content}),reward_cents:reward(Math.round(template.rewardCents*(1+r.tension/200)),profile),minimum_operators:2,status:'available'});e.contract_id=id;
 
  }
 
