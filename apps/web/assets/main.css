@@ -36,3 +36,27 @@
 
 /* Contextual details stay attached to the card that opened them. */
 .personnel-grid{align-items:start}.inline-action{min-width:0;margin-top:18px;padding:20px 0 0;border-top:1px solid #484848;overflow-anchor:none}.inline-action p{margin:14px 0}.operator-card>.inline-action{margin-bottom:0}.inline-action h2,.inline-action h3{overflow-wrap:anywhere}.inline-action .personnel-actions{margin-top:18px}.inline-action .personnel-label{margin-top:14px}.inline-action.squad-form{margin-bottom:0}
+
+/* Shared command layout: compact status, navigation, then page content. */
+.planned-shell{padding-top:0}
+.planned-shell .account-bar{position:sticky;top:0;inset-inline:0;min-height:0;padding:12px 18px;gap:6px 12px;align-items:start}
+.account-identity small{margin-top:4px;font-size:11px;line-height:1.5}
+.company-details summary{cursor:pointer;list-style:none;font-size:14px;font-weight:600;min-height:28px;display:flex;align-items:center;gap:8px;overflow-wrap:anywhere}
+.company-details summary::-webkit-details-marker{display:none}
+.company-details summary span{color:#999;font-size:16px;flex-shrink:0}
+.company-details summary:focus-visible{outline:2px solid #8dafff;outline-offset:3px;border-radius:4px}
+.company-details-content{position:absolute;left:18px;right:18px;top:100%;max-width:460px;padding:20px;background:#151515;border:1px solid #444;border-radius:16px;box-shadow:0 14px 35px #000a;max-height:60dvh;overflow:auto}
+.company-details-content h2{font-size:18px}.company-details-content dl{font-size:13px;margin:16px 0}.company-details-content dl>div{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-top:1px solid #303030}.company-details-content dt{color:#aaa}.company-details-content dd{margin:0;text-align:right}.company-details-content button{width:100%}
+.planned-shell .command-navigation{padding:0 18px;border-bottom:1px solid #292929}
+.command-navigation .company-return{display:none}
+.main-nav-wrap{position:relative;min-width:0}
+.main-nav-wrap:after{content:'';position:absolute;right:0;top:0;bottom:0;width:22px;background:linear-gradient(90deg,transparent,#080808);pointer-events:none}
+.command-navigation nav{margin:0;padding:8px 20px 8px 0;scrollbar-width:thin;scrollbar-color:#555 #151515;gap:4px}
+.command-navigation nav button{min-height:44px;font-size:13px;padding:10px 13px}
+.planned-shell .content{padding-top:18px}
+.planned-shell .page-heading{margin-bottom:18px}
+.planned-shell .page-heading h1{margin:0;font-size:28px;line-height:1.2}
+.company-crisis{padding:12px 14px;border:1px solid #765139;background:#271b11;border-radius:12px;color:#efc396;margin-bottom:16px;font-size:13px}
+.agenda-toggle{min-height:48px;padding:9px 0}.agenda-toggle>span:first-child{gap:4px 10px}.agenda-toggle strong{font-size:12px}.agenda-toggle small{font-size:11px}
+@media(max-width:420px){.account-balance>strong{font-size:18px}.account-balance>span{font-size:8px}.planned-shell .account-bar{column-gap:8px}.account-identity small{font-size:10px}.company-details summary{font-size:13px}.agenda-toggle>span:first-child{flex-direction:column;align-items:flex-start}}
+@media(min-width:1000px){.planned-shell{padding-top:0}.planned-shell .account-bar{left:auto;padding:16px 38px;min-height:0}.planned-shell .command-navigation{padding:24px 18px;top:0}.command-navigation .company-return{display:block;padding:8px 10px;min-height:44px}.main-nav-wrap:after{display:none}.command-navigation nav{padding:0;overflow:visible;margin-top:16px}.planned-shell .content{padding-top:26px}.planned-shell .page-heading h1{font-size:32px}.company-details-content{left:38px;right:38px}}
