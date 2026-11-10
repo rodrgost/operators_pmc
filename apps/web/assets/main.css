@@ -33,3 +33,6 @@
 .section-nav button.active{background:#eee;color:#111;border-color:#eee;font-weight:700}
 .section-nav button:focus-visible{outline:2px solid #c5d49d;outline-offset:2px}
 .section-nav button:disabled{opacity:.55;cursor:wait}
+
+/* Contextual details stay attached to the card that opened them. */
+.personnel-grid{align-items:start}.inline-action{min-width:0;margin-top:18px;padding:20px 0 0;border-top:1px solid #484848;overflow-anchor:none}.inline-action p{margin:14px 0}.operator-card>.inline-action{margin-bottom:0}.inline-action h2,.inline-action h3{overflow-wrap:anywhere}.inline-action .personnel-actions{margin-top:18px}.inline-action .personnel-label{margin-top:14px}.inline-action.squad-form{margin-bottom:0}
