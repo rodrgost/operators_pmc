@@ -208,6 +208,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
     if(path[2]==='squads'&&path[4]==='members'&&path[5]&&request.method==='DELETE')return json(await personnelAction(db,id,owner,'squad_member_remove',path[3],{...commandSchema.parse(body),operatorId:path[5]},digest));
     if(path[2]==='squads'&&path.length===3)return json(await personnelAction(db,id,owner,'squad_create',undefined,squadSchema.parse(body),digest),201);
     if(path[2]==='squads'&&path[4]==='training')return json(await personnelAction(db,id,owner,'squad_training',path[3],commandSchema.parse(body),digest));
+    if(path[2]==='squads'&&path.length===4&&request.method==='DELETE')return json(await personnelAction(db,id,owner,'squad_delete',path[3],commandSchema.parse(body),digest));
     if(path[2]==='squads'&&path.length===4)return json(await personnelAction(db,id,owner,'squad_update',path[3],squadSchema.parse(body),digest));
    }
   }

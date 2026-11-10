@@ -14,13 +14,7 @@ export function orderRoute(path:string[],method:string){
  else if(method==='POST'&&area==='intelligence'&&target==='analyses'){scope='intelligence';kind='analysis';schema=analysisSchema;}
  else if(method==='POST'&&area==='recruitment'&&target==='hire'){scope='personnel';kind='hire';schema=hireSchema;}
  else if(area==='operators'&&method==='POST'){scope='personnel';id=target;if(action==='renew-contract'){kind='renew';schema=renewSchema;}else if(action==='activities'){kind=sub==='cancel'?'activity_cancel':'activity';schema=sub==='cancel'?commandSchema:activitySchema;}}
- else if(area==='squads'){
- scope='personnel';id=target??'';
- if(action==='members'&&method==='POST'){kind='squad_member_add';schema=memberSchema;}
- else if(action==='members'&&method==='DELETE'&&sub){kind='squad_member_remove';schema=commandSchema.transform((c:any)=>({...c,operatorId:sub}));}
- else if(action==='training'&&method==='POST'){kind='squad_training';schema=commandSchema;}
- else if(!action&&((!target&&method==='POST')||(target&&method==='PATCH'))){kind=target?'squad_update':'squad_create';schema=squadSchema;}
- }
+ else if(area==='squads'&&action==='training'&&method==='POST'){scope='personnel';id=target;kind='squad_training';schema=commandSchema;}
  else if(area==='contracts'&&method==='POST'&&['accept','cancel','start'].includes(action)){scope='operations';kind=action;id=target;schema=action==='start'?startSchema:commandSchema;}
  else if(area==='missions'&&method==='POST'&&action==='withdraw'){scope='operations';kind='withdraw';id=target;schema=commandSchema;}
  else if(area==='decisions'&&method==='POST'&&action==='resolve'){scope='operations';kind='decision';id=target;schema=decisionSchema;}

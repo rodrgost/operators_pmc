@@ -66,7 +66,7 @@ export async function ensurePersonnel(db:Database,id:string,owner:string,digest:
 }
 export function personnelProjection(g:Campaign,p:Personnel,l?:Logistics){
  const operators=p.operators.map(op=>({id:op.id,...JSON.parse(op.profile_json),health:op.health,fatigue:op.fatigue,morale:op.morale,loyalty:op.loyalty,hiredTurn:op.hired_turn,availability:availability(p,op,g.state.turn),employment:employment(p,op.id,g.state.turn)??null,lastEmployment:p.contracts.filter(c=>c.operator_id===op.id).sort((a,b)=>b.end_turn-a.end_turn)[0]??null,arrearsCents:p.contracts.filter(c=>c.operator_id===op.id).reduce((n,c)=>n+c.arrears_cents,0),reservation:p.reservations.find(r=>r.operator_id===op.id)??null}));
- return {squadNameSuggestions:catalog.squadNames,stateVersion:g.stateVersion,currentTurn:g.state.turn,operators,candidates:p.candidates.filter(c=>!c.hired).map(c=>({id:c.id,...JSON.parse(c.profile_json),salaryCents:c.salary_cents,signingBonusCents:c.bonus_cents,expiresTurn:(c.week+1)*28})),squads:p.squads.map(s=>squadProjection(p,s,g.state.turn)),familiarity:p.familiarity,capacity:l?moduleCapacity(l,'administration'):balance.operatorCapacity,facilityRules:l?{trainingCostCents:logisticsConfig.trainingCostCents,treatmentCostCents:logisticsConfig.treatmentCostCents,activityTurns:logisticsConfig.trainingTurns,seriousRecoveryTurns:logisticsConfig.seriousRecoveryTurns}:null,trainingCapacity:l?moduleCapacity(l,'training'):null,recoveryCapacity:l?moduleCapacity(l,'infirmary'):null,trainingProgress:l?.progress??[],headquartersArrearsCents:l?.headquarters.arrears_cents??0,employed:operators.filter(o=>o.employment).length,weeklySalaryCents:p.contracts.filter(c=>c.status==='active'&&c.start_turn<=g.state.turn&&c.end_turn>g.state.turn).reduce((n,c)=>n+c.salary_cents,0),arrearsCents:p.contracts.reduce((n,c)=>n+c.arrears_cents,0),nextMarketTurn:(Math.floor(g.state.turn/28)+1)*28};
+ return {squadNameSuggestions:catalog.squadNames,stateVersion:g.stateVersion,currentTurn:g.state.turn,operators,candidates:p.candidates.filter(c=>!c.hired).map(c=>({id:c.id,...JSON.parse(c.profile_json),salaryCents:c.salary_cents,signingBonusCents:c.bonus_cents,expiresTurn:(c.week+1)*28})),squads:p.squads.filter(s=>!JSON.parse(s.directives_json).disbanded).map(s=>squadProjection(p,s,g.state.turn)),familiarity:p.familiarity,capacity:l?moduleCapacity(l,'administration'):balance.operatorCapacity,facilityRules:l?{trainingCostCents:logisticsConfig.trainingCostCents,treatmentCostCents:logisticsConfig.treatmentCostCents,activityTurns:logisticsConfig.trainingTurns,seriousRecoveryTurns:logisticsConfig.seriousRecoveryTurns}:null,trainingCapacity:l?moduleCapacity(l,'training'):null,recoveryCapacity:l?moduleCapacity(l,'infirmary'):null,trainingProgress:l?.progress??[],headquartersArrearsCents:l?.headquarters.arrears_cents??0,employed:operators.filter(o=>o.employment).length,weeklySalaryCents:p.contracts.filter(c=>c.status==='active'&&c.start_turn<=g.state.turn&&c.end_turn>g.state.turn).reduce((n,c)=>n+c.salary_cents,0),arrearsCents:p.contracts.reduce((n,c)=>n+c.arrears_cents,0),nextMarketTurn:(Math.floor(g.state.turn/28)+1)*28};
 }
 function assert(condition:unknown,code:string,message:string):asserts condition{if(!condition)throw new ApiError(422,code,message);}
 export async function personnelAction(db:Database,id:string,owner:string,kind:string,target:string|undefined,command:any,digest:Digest){
@@ -98,8 +98,17 @@ export async function personnelAction(db:Database,id:string,owner:string,kind:st
     assert(p.contracts.filter(c=>c.status==='active').length<(l?moduleCapacity(l,'administration'):balance.operatorCapacity),'CAPACITY','Capacidade administrativa atingida.');
     p.contracts.push({id:'employment-'+command.requestId,operator_id:target,salary_cents:previous.salary_cents,start_turn:g.state.turn,end_turn:g.state.turn+command.weeks*28,next_pay_turn:g.state.turn+28,arrears_cents:0,status:'active'});
    }
-  }else if(['squad_create','squad_update','squad_member_add','squad_member_remove'].includes(kind)){
+  }else if(['squad_create','squad_update','squad_member_add','squad_member_remove','squad_delete'].includes(kind)){
    const s=kind==='squad_create'?{id:'squad-'+command.requestId}:p.squads.find(s=>s.id===target);assert(s,'SQUAD_NOT_FOUND','Equipe não encontrada.');entityId=s.id;
+   assert(!s.directives_json||!JSON.parse(s.directives_json).disbanded,'SQUAD_NOT_FOUND','Equipe não encontrada.');
+   if(!db.planning){
+    const mission=await db.prepare("SELECT id FROM online_missions WHERE game_id=? AND squad_id=? AND status IN ('active','awaiting_decision','returning') LIMIT 1").bind(id,s.id).first();
+    assert(!mission,'SQUAD_BUSY','A equipe está comprometida com uma operação. Aguarde seu retorno.');
+    const pending=await db.prepare("SELECT id FROM online_pending_orders WHERE game_id=? AND status='pending' AND (target=? OR json_extract(command_json,'$.squadId')=?) LIMIT 1").bind(id,s.id,s.id).first();
+    assert(!pending,'SQUAD_PENDING_ORDER','Remova a ordem agendada desta equipe antes de reorganizá-la.');
+   }
+   if(kind==='squad_delete')command={...command,name:s.name,specialization:s.specialization,memberIds:[],leaderId:null,deputyId:null,directives:{...JSON.parse(s.directives_json),disbanded:true}};
+
    if(kind==='squad_member_add'||kind==='squad_member_remove'){
     const ids=p.members.filter(m=>m.squad_id===s.id).map(m=>m.operator_id);
     if(kind==='squad_member_remove')assert(ids.includes(command.operatorId),'MEMBER_NOT_FOUND','Operador não integra esta equipe.');
@@ -107,7 +116,7 @@ export async function personnelAction(db:Database,id:string,owner:string,kind:st
     command={...command,name:s.name,specialization:s.specialization,memberIds,leaderId:memberIds.includes(s.leader_id)?s.leader_id:null,deputyId:memberIds.includes(s.deputy_id)?s.deputy_id:null,directives:JSON.parse(s.directives_json)};
    }
    const ids=command.memberIds as string[];assert(ids.length<=balance.squadMax,'SQUAD_CAPACITY','Equipe aceita no máximo seis membros.');assert(new Set(ids).size===ids.length,'DUPLICATE_MEMBER','Operadores repetidos na equipe.');
-   for(const operatorId of ids){active(operatorId);assert(!p.members.some(m=>m.operator_id===operatorId&&m.squad_id!==s.id),'ALREADY_ASSIGNED','Operador já pertence a outra equipe.');}
+   for(const operatorId of ids){active(operatorId);assert(!p.reservations.some(r=>r.operator_id===operatorId&&r.kind==='mission'),'OPERATOR_BUSY','Operador comprometido com uma missão.');assert(!p.members.some(m=>m.operator_id===operatorId&&m.squad_id!==s.id),'ALREADY_ASSIGNED','Operador já pertence a outra equipe.');}
    assert(!command.leaderId||ids.includes(command.leaderId),'INVALID_LEADER','O líder precisa integrar a equipe.');
    assert(!command.deputyId||ids.includes(command.deputyId),'INVALID_DEPUTY','O substituto precisa integrar a equipe.');
    assert(!command.leaderId||command.leaderId!==command.deputyId,'INVALID_DEPUTY','Líder e substituto devem ser diferentes.');

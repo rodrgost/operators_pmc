@@ -66,7 +66,7 @@ it('operações: snapshots permanecem imutáveis e reserva impede atividade e se
  const s=await fixture();try{
   const mission=(await s.start()).data.missionId;const snapshot=s.db.prepare('SELECT snapshot_json FROM online_mission_assignments WHERE mission_id=? ORDER BY operator_id').all(mission);
   expect((await s.action('/operators/'+s.ids[0]+'/activities','rest',{type:'rest'})).data.code).toBe('OPERATOR_BUSY');
-  const edit={name:'Equipe alterada',memberIds:[s.ids[1]],leaderId:s.ids[1],deputyId:null};expect((await s.action('/squads/'+s.squad,'edit',edit)).status).toBe(200);
+  const edit={name:'Equipe alterada',memberIds:[s.ids[1]],leaderId:s.ids[1],deputyId:null};expect((await s.action('/squads/'+s.squad,'edit',edit)).data.code).toBe('SQUAD_BUSY');
   expect(s.db.prepare('SELECT snapshot_json FROM online_mission_assignments WHERE mission_id=? ORDER BY operator_id').all(mission)).toEqual(snapshot);
   expect((await s.call(s.path+'/missions/'+mission)).data.crew).toHaveLength(3);
   const other=(await s.call(s.path+'/contracts')).data.find((c:any)=>c.id!==s.contract.id);await s.action('/contracts/'+other.id+'/accept','accept-other');
