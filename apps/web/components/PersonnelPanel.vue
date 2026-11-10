@@ -41,7 +41,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
 <div class="personnel">
  <div v-if="error" class="error" role="alert">{{error}}</div><p v-if="notice" role="status" class="personnel-notice">{{notice}}</p>
  <div v-if="pending&&!busy" class="panel"><p>Há um comando aguardando confirmação. Repetir consulta a mesma solicitação.</p><button class="primary" @click="run(pending.path,pending.body,pending.method)">Repetir comando</button></div>
- <div class="personnel-tabs" aria-label="Áreas de pessoal"><button v-for="s in [['roster','Operadores'],['recruitment','Recrutamento'],['squads','Equipes']]" :key="s[0]" :class="{active:section===s[0]}" @click="section=s[0]">{{s[1]}}</button></div>
+ <SectionNav v-model="section" label="Seções de operadores" :disabled="locked" :items="[['roster','Efetivo'],['recruitment','Recrutamento'],['squads','Equipes']]" />
  <div class="personnel-summary"><span>{{data.employed||0}} / {{data.capacity||12}} vínculos ativos</span><span>{{money(data.weeklySalaryCents||0)}} / semana</span><span v-if="data.arrearsCents" class="debit">Em atraso: {{money(data.arrearsCents)}}</span></div>
  <template v-if="section==='recruitment'">
   <div class="section-intro"><h2>Mercado de operadores</h2><p>Ofertas válidas até o turno {{data.nextMarketTurn}}. Bônus de assinatura cobrado na passagem do turno; salários a cada 28 turnos do vínculo.</p></div>
