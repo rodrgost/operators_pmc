@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import {nextTurnCount} from '../utils/turnSelection'
 const props=defineProps<{game:any;command:any;busy:boolean;locked:boolean;turns:number;stop:boolean;pending:boolean;result:any;error:string}>()
 const emit=defineEmits(['advance','resume','cancel','navigate','update:turns','update:stop','height'])
 const expanded=ref(false),element=ref<HTMLElement|null>(null)
 const money=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'USD'}).format(n/100)
 const orders=computed(()=>props.command?.pendingOrders??[]),agenda=computed(()=>props.command?.agenda??[])
 const decisions=computed(()=>props.command?.alerts?.filter((a:any)=>a.id==='decisions')??[])
+const suggestedTurns=computed(()=>nextTurnCount(props.game.currentTurn,props.command))
+const turnOptions=computed(()=>[...new Set([1,4,28,suggestedTurns.value,props.turns])].sort((a,b)=>a-b))
+function turnLabel(n:number){return n===1?'1 turno · 6h':n===4?'4 turnos · 1 dia':n===28?'28 turnos · 1 semana':n+' turnos · '+n*6+'h'}
+watch(()=>[props.game.id,props.game.currentTurn,props.command,props.pending],()=>{if(props.command&&!props.pending)emit('update:turns',suggestedTurns.value)},{immediate:true})
 let observer:ResizeObserver|undefined
 onMounted(()=>{observer=new ResizeObserver(entries=>emit('height',Math.ceil(entries[0].contentRect.height)+16));if(element.value)observer.observe(element.value)})
 onBeforeUnmount(()=>observer?.disconnect())
@@ -21,7 +26,7 @@ onBeforeUnmount(()=>observer?.disconnect())
   </div>
   <p v-if="error" class="dock-error" role="alert">{{error}}</p>
   <p v-if="orders.length" class="commit-hint">{{orders.length}} {{orders.length===1?'ordem será confirmada':'ordens serão confirmadas'}} no primeiro turno do lote.</p>
-  <div class="dock-controls"><label><span class="sr-only">Quantidade de turnos</span><select :value="turns" :disabled="busy||locked||pending" @change="emit('update:turns',Number(($event.target as HTMLSelectElement).value))"><option :value="1">1 turno · 6h</option><option :value="4">4 turnos · 1 dia</option><option :value="28">28 turnos · 1 semana</option></select></label><button class="primary" :disabled="busy||locked" @click="result?.status==='failed'?emit('resume'):emit('advance')">{{busy?'Processando…':result?.status==='failed'?'Retomar lote':pending?'Repetir requisição':'Passar turno →'}}</button></div>
+  <div class="dock-controls"><label><span class="sr-only">Quantidade de turnos</span><select :value="turns" :disabled="busy||locked||pending" @change="emit('update:turns',Number(($event.target as HTMLSelectElement).value))"><option v-for="n in turnOptions" :key="n" :value="n">{{turnLabel(n)}}</option></select></label><button class="primary" :disabled="busy||locked" @click="result?.status==='failed'?emit('resume'):emit('advance')">{{busy?'Processando…':result?.status==='failed'?'Retomar lote':pending?'Repetir requisição':'Passar turno →'}}</button></div>
  </div>
 </section>
 </template>
