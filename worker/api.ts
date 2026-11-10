@@ -177,6 +177,8 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
    await ensurePersonnel(db,id,owner,digest);
    if(request.method==='GET'){
     const {g:current,p}=await readPersonnel(db,id,owner);const view=personnelProjection(current,p,current.logisticsInitialized?await readLogistics(db,id):undefined);
+    const pendingHires=(await orders(db,id)).filter(o=>o.kind==='hire');
+    for(const candidate of view.candidates)Object.assign(candidate,{scheduledOrderId:pendingHires.find(o=>o.command.candidateId===candidate.id)?.id??null});
     if(path[2]==='personnel'||(path[2]==='finances'&&path[3]==='summary'))return json(view);
     if(path[2]==='recruitment'&&path[3]==='candidates')return json(view.candidates);
     if(path[2]==='squads'){
