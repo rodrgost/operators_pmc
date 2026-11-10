@@ -57,6 +57,13 @@
       "when": 1794267667329,
       "tag": "0007_chilly_sentry",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1794269231669,
+      "tag": "0008_loving_patriot",
+      "breakpoints": true
     }
   ]
 }

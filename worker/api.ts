@@ -1,3 +1,4 @@
+import {difficultyChoices} from '../packages/engine/difficulty.ts';
 import {orderRoute,enqueue,orders,cancelOrder,prepareOrders,plannedFacts,orderCommitWrites} from './planning.ts';
 import {commandCenter,advanceSummary} from './command-center.ts';
 import {ensureIntelligence,readIntelligence,intelligenceWrites,intelligenceView,analysisAction,analysisSchema} from './intelligence.ts';
@@ -70,9 +71,9 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
     if(g.operationsInitialized){
      if(g.operationsVersion!==opsConfig.version)throw new ApiError(422,'OPERATIONS_RULES_MISMATCH','Regras de operações indisponíveis.');
      let operations=planned?.context.o??await readOperations(db,id);
-     if(g.worldInitialized){if(g.worldVersion!==worldConfig.version)throw new ApiError(422,'WORLD_RULES_MISMATCH','Regras mundiais indisponíveis.');const resolved=await worldTurn(await readWorld(db,id),operations,next.state.turn,g.seed,digest);worldEffects=resolved.world;operations=resolved.operations;}
+     if(g.worldInitialized){if(g.worldVersion!==worldConfig.version)throw new ApiError(422,'WORLD_RULES_MISMATCH','Regras mundiais indisponíveis.');const resolved=await worldTurn(await readWorld(db,id),operations,next.state.turn,g.seed,digest,g.difficultyProfile);worldEffects=resolved.world;operations=resolved.operations;}
      if(intelligence)intelligenceEvents.push(...await resolveAnalyses(intelligence,worldEffects,operations,next.state.turn,g.seed,digest));
-     opEffects=await operationsTurn(operations,p,next.state.turn,next.state.cashCents,next.state.reputation,g.seed,digest,logistics??undefined,intelligence??undefined);
+     opEffects=await operationsTurn(operations,p,next.state.turn,next.state.cashCents,next.state.reputation,g.seed,digest,logistics??undefined,intelligence??undefined,g.difficultyProfile);
      if(worldEffects)applyMissionResults(worldEffects,opEffects.operations,next.state.turn);
      if(intelligence)intelligenceEvents.push(...await collectReconnaissance(intelligence,worldEffects,opEffects.operations,opEffects.reports,next.state.turn,g.seed,digest));
      turnPersonnel=opEffects.personnel;next.state.cashCents=opEffects.cash;next.state.reputation=opEffects.reputation;
@@ -82,7 +83,7 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
     next.state.cashCents=effects.cash;
     if(logistics){const finance=facilitiesFinance(logistics,next.state.turn,next.state.cashCents);next.state.cashCents=finance.cash;logisticsLedger=finance.ledger;logisticsEvents.push(...finance.events);}
     next.state.status=next.state.cashCents<0||logistics?.headquarters.arrears_cents>0?'financial_crisis':effects.status;
-    if(worldEffects){await publishWorldContracts(worldEffects,opEffects.operations,g.seed,next.state.turn,digest);await refreshIntel(worldEffects,g.seed,next.state.turn,digest);next.summary.events=next.summary.events.filter(e=>e.type!=='public_bulletin');}
+    if(worldEffects){await publishWorldContracts(worldEffects,opEffects.operations,g.seed,next.state.turn,digest,g.difficultyProfile);await refreshIntel(worldEffects,g.seed,next.state.turn,digest);next.summary.events=next.summary.events.filter(e=>e.type!=='public_bulletin');}
     if(intelligence){await collectSources(intelligence,worldEffects,opEffects.operations,next.state.turn,digest);intelligence.snapshots=intelligence.snapshots.filter((s:any)=>opEffects.operations.missions.some((m:any)=>m.id===s.mission_id&&['active','awaiting_decision','returning'].includes(m.status)));}
     const weekly=next.summary.events.find(e=>e.type==='weekly_close');if(weekly)weekly.description='Semana encerrada. Consulte os pagamentos e vínculos no livro-razão.';
     for(const e of [...intelligenceEvents,...logisticsEvents,...(worldEffects?worldNotifications(worldEffects,next.state.turn):[]),...(opEffects?.events??[]),...effects.events])next.summary.events.push({...e,turn:next.state.turn,sequence:next.summary.events.length});
@@ -90,6 +91,7 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
     next.summary.events.forEach((e,i)=>e.sequence=i);
     next.summary.stateHash=await digest([stateInput(next.state),balance.version,canonical(effects.personnel),...(opEffects?[opsConfig.version,opsCanonical(opEffects.operations)]:[]),...(worldEffects?[worldConfig.version,worldCanonical(worldEffects)]:[]),...(logistics?[logisticsConfig.version,logisticsCanonical(logistics)]:[]),...(intelligence?[intelligenceConfig.version,intelligenceCanonical(intelligence)]:[])]);
    }
+   if(g.difficultyProfile.id!=='normal')next.summary.stateHash=await digest([next.summary.stateHash,g.difficultyProfile]);
    const processed=entry.processed+1;
    const important=entry.command.stopOnImportant&&next.summary.events.some(e=>e.important)&&processed<entry.command.turns;
    const status=opEffects?.critical?'interrupted':important?'interrupted':processed===entry.command.turns?'completed':'processing';
@@ -113,6 +115,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
   }
   const path=url.pathname.replace(/^\/api\/v1\/?/,'').split('/');
   if(path[0]==='health')return json({status:'ok',phase:'intelligence-online',rulesVersion:RULES_VERSION});
+  if(path[0]==='difficulties'&&path.length===1&&request.method==='GET')return json(difficultyChoices());
   if(path[0]!=='games')throw new ApiError(404,'NOT_FOUND','Rota não encontrada.');
   if(!path[1]){
    if(request.method==='GET')return json(await listGames(db,owner));

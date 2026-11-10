@@ -60,3 +60,12 @@
 - Cobranças e efeitos das ordens confirmados atomicamente com o primeiro turno.
 - Validação conjunta, proteção concorrente, idempotência e rollback.
 - Novos testes da API pública deferida; regras e saves anteriores preservados.
+
+## 0.9.0 — 2026-11-10
+
+- Escolha permanente de dificuldade na criação: Fácil, Normal e Difícil.
+- Perfis versionados com snapshot persistido e proteção de imutabilidade.
+- Multiplicadores para eventos, complicações, frequência de rivais e remuneração.
+- Campanhas anteriores identificadas como Normal, preservando a simulação.
+- Detalhes dos modificadores na criação e dificuldade visível na campanha.
+- Testes de migração, API, determinismo e comparação de várias sementes.

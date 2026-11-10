@@ -697,3 +697,9 @@ Campanha integrada de 336 turnos com todos os módulos, sete missões concluída
 - Em lote, a fila é aplicada uma única vez. Retomada confirma eventuais ordens pendentes somente no primeiro intervalo restante, respeitando idempotência. Turnos anteriores já confirmados não são revertidos.
 - Ordens confirmadas deixam de ser reversíveis gratuitamente. A partir daí, aplica-se a regra própria da atividade/retirada.
 - A fila não reserva ativos efetivos; a validação conjunta considera capacidade e recursos das ordens anteriores para impedir dupla alocação ou gasto excessivo.
+
+# Adendo aprovado — dificuldade permanente (2026-11-10)
+
+A companhia escolhe Fácil, Normal ou Difícil na criação, sem troca posterior por UI/API. Normal é selecionado por padrão. Cada campanha salva identificador, versão e snapshot dos modificadores. Campanhas existentes tornam-se Normal v1 mantendo estado, sorteios, contratos e finanças anteriores.
+
+Os multiplicadores aprovados estão no ADR 0009 e em difficulty.v1.json. Aplicar sobre probabilidades-base de eventos positivos/negativos e complicações, remuneração de contratos novos e frequência de atuação dos rivais. Preços, salários, atributos, prazos e capital inicial permanecem iguais. A interpretação de frequência dos rivais preserva o algoritmo anterior no Normal, que não tinha chance de interesse. A escolha aparece nas informações da companhia durante toda a campanha.

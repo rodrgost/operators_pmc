@@ -125,3 +125,12 @@ Typecheck/build aprovados e sete testes existentes de criação/recuperação de
 - Browser QA no preview: agendar melhoria preservou saldo; remover preservou saldo e turno; reagendar e passar turno debitou exatamente uma vez e ativou a melhoria.
 - Inspeção em conteúdo de 390 px: saldo no topo, botão no rodapé, painel expansível e «5 turnos» para melhoria de seis turnos após a primeira passagem. Controles persistem ao trocar de página.
 - A migração apenas adiciona a tabela de ordens; não reescreve histórico nem desfaz compras anteriores.
+
+## 0.9.0 — dificuldade
+
+- 135 testes: nove novos casos de criação/retry, imutabilidade API/banco, migração e legado, probabilidades, recompensa única, agenda de rivais, complicações reais e equivalência individual/lote em cada perfil.
+- Tipos e build online passaram.
+- Seis sementes, três perfis, 336 turnos cada; Normal comparado adicionalmente ao motor anterior, com hashes por turno idênticos em todas as seis sementes.
+- Campanha integrada de 336 turnos no Normal preservou o relatório financeiro e operacional anterior.
+- Browser QA a 390 px: Normal pré-selecionado, seleção de Difícil, aviso permanente e detalhes dos modificadores; criação e passagem de turno preservam o perfil e exibem a dificuldade no cabeçalho. Companhia anterior permanece Normal com mesmo saldo/turno.
+- Detalhes e limites da simulação no ADR 0009. Os valores são balanceamento inicial, não garantia de que toda campanha Difícil será mais desfavorável em cada sorteio.

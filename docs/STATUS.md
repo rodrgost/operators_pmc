@@ -125,3 +125,7 @@ Centro de comando, alertas de dívida/decisões/vínculos/condições/kits, agen
 ## Atualização 0.8.0
 
 Planejamento de ordens e confirmação atômica na passagem implementados. Saldo fixo no topo e agenda/controle de turno no rodapé aplicados globalmente na campanha. Migração aditiva; saves anteriores preservados. Valores e custos continuam provisórios. Ver ADR 0008 e planning.test.ts.
+
+## Atualização 0.9.0
+
+Dificuldade permanente por companhia, snapshot versionado, migração compatível e seletor mobile implementados. Normal mantém os mesmos resultados da versão anterior. Relatório multi-semente: DIFFICULTY_BALANCE.json. Contratos antigos não são recalculados; perfis futuros não substituem valores de campanhas já abertas.

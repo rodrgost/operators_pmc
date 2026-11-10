@@ -1,0 +1,215 @@
+{
+  "turnsPerCampaign": 336,
+  "seeds": 6,
+  "profiles": 3,
+  "normalMatchesPreviousEngine": true,
+  "scope": "Simulação mundial sem missões do jogador. Verifica integridade e tendências; não prova sustentabilidade de todas as estratégias. Nenhum limite ou cadence base foi removido.",
+  "averages": {
+    "easy": {
+      "negativeEvents": 151.17,
+      "positiveEvents": 129.33,
+      "rivalClaims": 67,
+      "newContracts": 324.83,
+      "meanOfferedRewardCents": 1048654.33,
+      "finalMeanSecurity": 43.67
+    },
+    "normal": {
+      "negativeEvents": 173,
+      "positiveEvents": 112.33,
+      "rivalClaims": 84,
+      "newContracts": 336.67,
+      "meanOfferedRewardCents": 927558.17,
+      "finalMeanSecurity": 43.5
+    },
+    "hard": {
+      "negativeEvents": 190.33,
+      "positiveEvents": 93.67,
+      "rivalClaims": 100,
+      "newContracts": 343.17,
+      "meanOfferedRewardCents": 832640.5,
+      "finalMeanSecurity": 42.33
+    }
+  },
+  "campaigns": [
+    {
+      "difficulty": "easy",
+      "seed": "difficulty-balance-0",
+      "negativeEvents": 145,
+      "positiveEvents": 125,
+      "rivalClaims": 67,
+      "newContracts": 313,
+      "meanOfferedRewardCents": 1029031,
+      "finalMeanSecurity": 43
+    },
+    {
+      "difficulty": "normal",
+      "seed": "difficulty-balance-0",
+      "negativeEvents": 170,
+      "positiveEvents": 113,
+      "rivalClaims": 84,
+      "newContracts": 333,
+      "meanOfferedRewardCents": 920573,
+      "finalMeanSecurity": 43
+    },
+    {
+      "difficulty": "hard",
+      "seed": "difficulty-balance-0",
+      "negativeEvents": 190,
+      "positiveEvents": 95,
+      "rivalClaims": 100,
+      "newContracts": 343,
+      "meanOfferedRewardCents": 834466,
+      "finalMeanSecurity": 43
+    },
+    {
+      "difficulty": "easy",
+      "seed": "difficulty-balance-1",
+      "negativeEvents": 150,
+      "positiveEvents": 133,
+      "rivalClaims": 67,
+      "newContracts": 330,
+      "meanOfferedRewardCents": 1054742,
+      "finalMeanSecurity": 43
+    },
+    {
+      "difficulty": "normal",
+      "seed": "difficulty-balance-1",
+      "negativeEvents": 173,
+      "positiveEvents": 111,
+      "rivalClaims": 84,
+      "newContracts": 340,
+      "meanOfferedRewardCents": 934398,
+      "finalMeanSecurity": 43
+    },
+    {
+      "difficulty": "hard",
+      "seed": "difficulty-balance-1",
+      "negativeEvents": 194,
+      "positiveEvents": 86,
+      "rivalClaims": 100,
+      "newContracts": 343,
+      "meanOfferedRewardCents": 848980,
+      "finalMeanSecurity": 42
+    },
+    {
+      "difficulty": "easy",
+      "seed": "difficulty-balance-2",
+      "negativeEvents": 154,
+      "positiveEvents": 121,
+      "rivalClaims": 67,
+      "newContracts": 322,
+      "meanOfferedRewardCents": 1028282,
+      "finalMeanSecurity": 46
+    },
+    {
+      "difficulty": "normal",
+      "seed": "difficulty-balance-2",
+      "negativeEvents": 171,
+      "positiveEvents": 105,
+      "rivalClaims": 84,
+      "newContracts": 327,
+      "meanOfferedRewardCents": 912645,
+      "finalMeanSecurity": 44
+    },
+    {
+      "difficulty": "hard",
+      "seed": "difficulty-balance-2",
+      "negativeEvents": 186,
+      "positiveEvents": 94,
+      "rivalClaims": 100,
+      "newContracts": 337,
+      "meanOfferedRewardCents": 831696,
+      "finalMeanSecurity": 43
+    },
+    {
+      "difficulty": "easy",
+      "seed": "difficulty-balance-3",
+      "negativeEvents": 151,
+      "positiveEvents": 126,
+      "rivalClaims": 67,
+      "newContracts": 322,
+      "meanOfferedRewardCents": 1059415,
+      "finalMeanSecurity": 43
+    },
+    {
+      "difficulty": "normal",
+      "seed": "difficulty-balance-3",
+      "negativeEvents": 173,
+      "positiveEvents": 110,
+      "rivalClaims": 84,
+      "newContracts": 333,
+      "meanOfferedRewardCents": 928410,
+      "finalMeanSecurity": 44
+    },
+    {
+      "difficulty": "hard",
+      "seed": "difficulty-balance-3",
+      "negativeEvents": 195,
+      "positiveEvents": 87,
+      "rivalClaims": 100,
+      "newContracts": 344,
+      "meanOfferedRewardCents": 825871,
+      "finalMeanSecurity": 43
+    },
+    {
+      "difficulty": "easy",
+      "seed": "difficulty-balance-4",
+      "negativeEvents": 155,
+      "positiveEvents": 136,
+      "rivalClaims": 67,
+      "newContracts": 334,
+      "meanOfferedRewardCents": 1058393,
+      "finalMeanSecurity": 44
+    },
+    {
+      "difficulty": "normal",
+      "seed": "difficulty-balance-4",
+      "negativeEvents": 178,
+      "positiveEvents": 120,
+      "rivalClaims": 84,
+      "newContracts": 349,
+      "meanOfferedRewardCents": 915321,
+      "finalMeanSecurity": 44
+    },
+    {
+      "difficulty": "hard",
+      "seed": "difficulty-balance-4",
+      "negativeEvents": 194,
+      "positiveEvents": 100,
+      "rivalClaims": 100,
+      "newContracts": 353,
+      "meanOfferedRewardCents": 818849,
+      "finalMeanSecurity": 42
+    },
+    {
+      "difficulty": "easy",
+      "seed": "difficulty-balance-5",
+      "negativeEvents": 152,
+      "positiveEvents": 135,
+      "rivalClaims": 67,
+      "newContracts": 328,
+      "meanOfferedRewardCents": 1062063,
+      "finalMeanSecurity": 43
+    },
+    {
+      "difficulty": "normal",
+      "seed": "difficulty-balance-5",
+      "negativeEvents": 173,
+      "positiveEvents": 115,
+      "rivalClaims": 84,
+      "newContracts": 338,
+      "meanOfferedRewardCents": 954002,
+      "finalMeanSecurity": 43
+    },
+    {
+      "difficulty": "hard",
+      "seed": "difficulty-balance-5",
+      "negativeEvents": 183,
+      "positiveEvents": 100,
+      "rivalClaims": 100,
+      "newContracts": 339,
+      "meanOfferedRewardCents": 835981,
+      "finalMeanSecurity": 41
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import {NORMAL_V1} from '../packages/engine/difficulty.ts';
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, uniqueIndex, index, primaryKey, check, foreignKey } from 'drizzle-orm/sqlite-core';
 // Immutable legacy archive. Read only when importing an existing campaign.
@@ -7,7 +8,7 @@ export const campaigns=sqliteTable('online_campaigns',{
 },t=>[uniqueIndex('campaign_creation').on(t.owner,t.requestId)]);
 export const games=sqliteTable('online_games',{
  id:text('id').primaryKey(),owner:text('owner').notNull(),requestId:text('creation_request_id').notNull(),createPayload:text('creation_payload').notNull(),
- name:text('name').notNull(),seed:text('seed').notNull(),rulesVersion:text('rules_version').notNull(),startDate:text('start_date').notNull(),
+ name:text('name').notNull(),seed:text('seed').notNull(),difficulty:text('difficulty').notNull().default('normal'),difficultyVersion:text('difficulty_version').notNull().default('difficulty-1'),difficultySnapshot:text('difficulty_json').notNull().default(JSON.stringify(NORMAL_V1)),rulesVersion:text('rules_version').notNull(),startDate:text('start_date').notNull(),
  turn:integer('current_turn').notNull().default(0),cash:integer('cash_cents').notNull(),reputation:integer('reputation').notNull(),status:text('status').notNull(),
  stateVersion:integer('state_version').notNull().default(0),revision:integer('revision').notNull().default(0),activeRequest:text('active_request'),commitToken:text('commit_token').notNull(),createdOrder:integer('created_order').notNull(),personnelVersion:text('personnel_version').notNull().default('personnel-0.1'),personnelInitialized:integer('personnel_initialized').notNull().default(0),operationsInitialized:integer('operations_initialized').notNull().default(0),operationsVersion:text('operations_version').notNull().default('operations-0.1'),worldInitialized:integer('world_initialized').notNull().default(0),worldVersion:text('world_version').notNull().default('world-0.1'),logisticsInitialized:integer('logistics_initialized').notNull().default(0),logisticsVersion:text('logistics_version').notNull().default('logistics-0.1'),intelligenceInitialized:integer('intelligence_initialized').notNull().default(0),intelligenceVersion:text('intelligence_version').notNull().default('intelligence-0.1'),
 },t=>[uniqueIndex('online_game_creation').on(t.owner,t.requestId),index('online_game_owner').on(t.owner,t.createdOrder),check('online_game_turn',sql`${t.turn} >= 0`),check('online_game_reputation',sql`${t.reputation} BETWEEN 0 AND 100`),check('online_game_revision',sql`${t.revision} >= 0 AND ${t.stateVersion} >= 0`)]);

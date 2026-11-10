@@ -1,3 +1,4 @@
+import {NORMAL_V1,reward,probability,type DifficultyProfile} from './difficulty.ts';
 import {perceivedRisk,type Intelligence} from './intelligence.ts';
 import {stageEquipment,returnEquipment,type Logistics} from './logistics.ts';
 import config from '../rules/operations.json' with {type:'json'};
@@ -8,14 +9,14 @@ export interface Operations {contracts:any[];missions:any[];assignments:any[];de
 export const liveStatuses=['active','awaiting_decision','returning'];
 export const emptyOperations=():Operations=>({contracts:[],missions:[],assignments:[],decisions:[]});
 const clamp=(v:number)=>Math.max(0,Math.min(100,v));
-export async function offers(seed:string,week:number,digest:Digest){return Promise.all(config.templates.map(async(t,i)=>{
+export async function offers(seed:string,week:number,digest:Digest,difficultyProfile:DifficultyProfile=NORMAL_V1){return Promise.all(config.templates.map(async(t,i)=>{
  const h=await digest([seed,config.version,'offers',week,t.type]);const n=(o:number,m:number)=>parseInt(h.slice(o,o+4),16)%m;
  const country=countries[n(0,countries.length)],difficulty=t.baseDifficulty+n(4,11),risk=t.baseRisk+n(8,11);
  const estimate=(v:number,offset:number)=>{const center=clamp(v+n(offset,15)-7);return {min:Math.max(1,center-12),max:Math.min(100,center+12)}};
- return {id:'contract-'+h.slice(0,24),type:t.type,title:t.title,region_id:country.id+'-'+n(12,3),client_id:'gov-'+country.id,source:'commercial',origin_event_id:null,offered_turn:week*28,expires_turn:(week+1)*28,difficulty,risk,intel_json:JSON.stringify({estimatedDifficulty:estimate(difficulty,16),estimatedRisk:estimate(risk,20),confidence:45,source:'Contratante',collectedTurn:week*28}),reward_cents:t.rewardCents+n(24,1001)*100,minimum_operators:2,status:'available'};
+ return {id:'contract-'+h.slice(0,24),type:t.type,title:t.title,region_id:country.id+'-'+n(12,3),client_id:'gov-'+country.id,source:'commercial',origin_event_id:null,offered_turn:week*28,expires_turn:(week+1)*28,difficulty,risk,intel_json:JSON.stringify({estimatedDifficulty:estimate(difficulty,16),estimatedRisk:estimate(risk,20),confidence:45,source:'Contratante',collectedTurn:week*28}),reward_cents:reward(t.rewardCents+n(24,1001)*100,difficultyProfile),minimum_operators:2,status:'available'};
 }));}
 export function opsCanonical(o:Operations){const current={...o,missions:o.missions.filter(m=>liveStatuses.includes(m.status))};return Object.fromEntries(Object.entries(current).map(([k,rows])=>[k,[...rows].sort((a:any,b:any)=>JSON.stringify(a).localeCompare(JSON.stringify(b),'en'))]));}
-export async function operationsTurn(original:Operations,personnel:Personnel,turn:number,cash:number,reputation:number,seed:string,digest:Digest,logistics?:Logistics,intelligence?:Intelligence){
+export async function operationsTurn(original:Operations,personnel:Personnel,turn:number,cash:number,reputation:number,seed:string,digest:Digest,logistics?:Logistics,intelligence?:Intelligence,difficultyProfile:DifficultyProfile=NORMAL_V1){
  const o:Operations=structuredClone(original),p:Personnel=structuredClone(personnel),ledger:any[]=[],reports:any[]=[],events:any[]=[],history:any[]=[];let critical=false;
  const event=(type:string,title:string,description:string,important=false)=>events.push({type,title,description,important});
  const report=(m:any,outcome:string,title:string,description:string,audit:any={},extra:any={})=>reports.push({id:m.id+':'+turn+':'+reports.length,mission_id:m.id,turn,summary_json:JSON.stringify({outcome,title,description,stageIndex:m.stage_index,...extra}),audit_json:JSON.stringify(audit)});
@@ -82,7 +83,7 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
   const margin=capacity-c.difficulty+(draw-0.5)*config.randomSpread;
   let outcome=margin>=config.successMargin?'success':margin>=config.partialMargin?'partial':margin>=config.delayMargin&&m.delays<config.maxDelays?'delay':'failure';
   const effectiveRisk=c.risk*action.risk*(profile.traits.includes('cautious')?config.cautiousTraitRisk:profile.traits.includes('impulsive')?config.impulsiveTraitRisk:1);
-  const complication=complicationDraw<effectiveRisk/config.riskDivisor;
+  const complication=complicationDraw<probability(effectiveRisk/config.riskDivisor,difficultyProfile.missionComplications);
   for(const {op} of operators){op.fatigue=clamp(op.fatigue+config.stageFatigue-equipment.fatigueReduction);const profile=JSON.parse(op.profile_json);profile.xp+=outcome==='success'?config.xpSuccess:outcome==='partial'?config.xpPartial:0;op.profile_json=JSON.stringify(profile);}
   if(complication){const victim=operators[parseInt(h.slice(16,20),16)%operators.length].op;victim.health=Math.max(5,victim.health-Math.max(1,Math.round((config.injuryMin+parseInt(h.slice(20,24),16)%(config.injuryMax-config.injuryMin+1))*(1-equipment.injuryReduction))));if(outcome==='success')outcome='complication';}
   const name=config.stages[m.stage_index];
@@ -92,6 +93,6 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
   m.success_points+=outcome==='success'||outcome==='complication'?2:outcome==='partial'?1:0;m.completed_stages++;m.stage_index++;m.stage_due_turn=turn+1;
   if(m.stage_index>=config.stages.length)finish(m,m.success_points>=config.minimumSuccessPoints?'completed':'failed');
  }
- if(turn%28===0){const generated=await offers(seed,turn/28,digest);o.contracts.push(...generated.filter(c=>!o.contracts.some(old=>old.id===c.id)));event('contracts_refreshed','Novos contratos comerciais','O catálogo semanal foi renovado.');}
+ if(turn%28===0){const generated=await offers(seed,turn/28,digest,difficultyProfile);o.contracts.push(...generated.filter(c=>!o.contracts.some(old=>old.id===c.id)));event('contracts_refreshed','Novos contratos comerciais','O catálogo semanal foi renovado.');}
  return {operations:o,personnel:p,cash,reputation,ledger,reports,events,history,critical};
 }

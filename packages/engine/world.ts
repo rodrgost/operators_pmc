@@ -1,3 +1,4 @@
+import {NORMAL_V1,eventProbability,rivalActs,rivalWindow,reward,type DifficultyProfile} from './difficulty.ts';
 import config from '../rules/world.json' with {type:'json'};
 
 import {countries,organizations} from '../rules/index.ts';
@@ -94,7 +95,7 @@ export function worldEvent(w:World,r:any,turn:number,type:string,category:string
 
 function change(r:any,effects:any){for(const m of metrics)r[m]=clamp(r[m]+(effects[m]??0));}
 
-export async function worldTurn(original:World,operations:Operations,turn:number,seed:string,digest:Digest){
+export async function worldTurn(original:World,operations:Operations,turn:number,seed:string,digest:Digest,profile:DifficultyProfile=NORMAL_V1){
 
  const w:World=structuredClone(original),o:Operations=structuredClone(operations);
 
@@ -172,7 +173,7 @@ export async function worldTurn(original:World,operations:Operations,turn:number
 
      r.stability>=65&&r.security>=60&&w.organizations.some(o=>o.type==='corporation'&&o.resources>=55);
 
-    if(!eligible||random(await digest([seed,config.version,turn,'event',r.id,definition.type]))>=definition.chance)continue;
+    if(!eligible||random(await digest([seed,config.version,turn,'event',r.id,definition.type]))>=eventProbability(definition.chance,definition.type==='political_reform'||definition.type==='corporate_investment'?'positive':'negative',profile))continue;
 
     const e=worldEvent(w,r,turn,definition.type,definition.category,definition.title+' em '+r.name+'. '+(r.last_event_id?'Evolução de acontecimentos anteriores.':'Condições regionais provocaram nova demanda.'),r.last_event_id,null,definition.effects,definition.duration);
 
@@ -210,9 +211,9 @@ export async function worldTurn(original:World,operations:Operations,turn:number
 
  if(turn%28===0)for(const r of w.rivals)r.budget_cents=Math.max(0,r.budget_cents-config.rivalWeeklyCents);
 
- if(turn%config.rivalCadence===0){
+ if(rivalActs(turn,config.rivalCadence,profile)){
 
-  const ordered=[...w.rivals].sort((a,b)=>a.id.localeCompare(b.id)),offset=(Math.floor(turn/config.rivalCadence)-1)%ordered.length;
+  const ordered=[...w.rivals].sort((a,b)=>a.id.localeCompare(b.id)),offset=(rivalWindow(turn,config.rivalCadence,profile)-1)%ordered.length;
 
   for(let i=0;i<ordered.length;i++){
 
@@ -262,7 +263,7 @@ export function applyMissionResults(w:World,o:Operations,turn:number){
 
 }
 
-export async function publishWorldContracts(w:World,o:Operations,seed:string,turn:number,digest:Digest){
+export async function publishWorldContracts(w:World,o:Operations,seed:string,turn:number,digest:Digest,profile:DifficultyProfile=NORMAL_V1){
 
  for(const e of w.events.filter(e=>e.created_turn===turn&&!e.contract_id)){
 
@@ -276,7 +277,7 @@ export async function publishWorldContracts(w:World,o:Operations,seed:string,tur
 
   const h=await digest([seed,config.version,e.id,'offer-intel']);const estimate=(v:number,i:number)=>{const center=clamp(v+parseInt(h.slice(i,i+4),16)%9-4);return {min:Math.max(1,center-12),max:Math.min(100,center+12)}};
 
-  o.contracts.push({id,type:template.type,title:template.title+' · '+r.name,region_id:r.id,client_id:'gov-'+r.country_id,source:'world_event',origin_event_id:e.id,offered_turn:turn,expires_turn:turn+28,difficulty,risk,intel_json:JSON.stringify({estimatedDifficulty:estimate(difficulty,0),estimatedRisk:estimate(risk,4),confidence:45,source:'Contratante / notícia regional',collectedTurn:turn}),reward_cents:Math.round(template.rewardCents*(1+r.tension/200)),minimum_operators:2,status:'available'});e.contract_id=id;
+  o.contracts.push({id,type:template.type,title:template.title+' · '+r.name,region_id:r.id,client_id:'gov-'+r.country_id,source:'world_event',origin_event_id:e.id,offered_turn:turn,expires_turn:turn+28,difficulty,risk,intel_json:JSON.stringify({estimatedDifficulty:estimate(difficulty,0),estimatedRisk:estimate(risk,4),confidence:45,source:'Contratante / notícia regional',collectedTurn:turn}),reward_cents:reward(Math.round(template.rewardCents*(1+r.tension/200)),profile),minimum_operators:2,status:'available'});e.contract_id=id;
 
  }
 

@@ -41,7 +41,7 @@ export async function ensureOperations(db:Database,id:string,owner:string,digest
   const g=await getGame(db,id,owner);if(g.operationsVersion!==config.version)throw new ApiError(422,'OPERATIONS_RULES_MISMATCH','Regras de operações indisponíveis.');
   if(g.operationsInitialized)return;
   if(g.activeRequest)throw new ApiError(409,'LOCKED','Conclua o lote antes de abrir os contratos.');
-  const o=emptyOperations();o.contracts=await offers(g.seed,Math.floor(g.state.turn/28),digest);
+  const o=emptyOperations();o.contracts=await offers(g.seed,Math.floor(g.state.turn/28),digest,g.difficultyProfile);
   if(await mutate(db,g,{...g,operationsInitialized:true},(guard,args)=>operationsWrites(db,g,o,guard,args)))return;
  }throw new ApiError(409,'BUSY','Tente novamente.');
 }

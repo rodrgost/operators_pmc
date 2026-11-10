@@ -1,0 +1,8 @@
+{
+  "version": "difficulty-1",
+  "profiles": {
+    "easy": {"id":"easy","version":"difficulty-1","label":"Fácil","description":"Mais margem financeira, menos crises e complicações, rivais menos frequentes.","negativeEvents":0.75,"positiveEvents":1.25,"missionComplications":0.75,"rivalInterest":0.8,"contractReward":1.15},
+    "normal": {"id":"normal","version":"difficulty-1","label":"Normal","description":"Equilíbrio original do jogo. Todos os multiplicadores permanecem em 1.","negativeEvents":1,"positiveEvents":1,"missionComplications":1,"rivalInterest":1,"contractReward":1},
+    "hard": {"id":"hard","version":"difficulty-1","label":"Difícil","description":"Mais crises e complicações, rivais mais frequentes e menor margem financeira.","negativeEvents":1.25,"positiveEvents":0.8,"missionComplications":1.25,"rivalInterest":1.2,"contractReward":0.9}
+  }
+}

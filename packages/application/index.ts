@@ -1,3 +1,4 @@
+import {NORMAL_V1,preset,type DifficultyId} from '../engine/difficulty.ts';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { DomainError, type Game, type AdvanceResult, type Summary } from '../domain/index.ts';
@@ -19,14 +20,15 @@ export class GameService {
  });
  }
  get(id:string):Game {const row=this.db.prepare('SELECT * FROM games WHERE id=?').get(id);if(!row)throw new DomainError('NOT_FOUND','Partida não encontrada.',404);return rowGame(row)}
- project(game:Game){return {id:game.id,name:game.name,rulesVersion:game.rulesVersion,currentTurn:game.state.turn,stateVersion:game.stateVersion,cashCents:game.state.cashCents,reputation:game.state.reputation,status:game.state.status,date:gameDate(game.startDate,game.state.turn)}}
+ project(game:Game){return {difficulty:(game.difficultyProfile??NORMAL_V1).id,difficultyLabel:(game.difficultyProfile??NORMAL_V1).label,difficultyVersion:(game.difficultyProfile??NORMAL_V1).version,id:game.id,name:game.name,rulesVersion:game.rulesVersion,currentTurn:game.state.turn,stateVersion:game.stateVersion,cashCents:game.state.cashCents,reputation:game.state.reputation,status:game.state.status,date:gameDate(game.startDate,game.state.turn)}}
  list(){return this.db.prepare('SELECT * FROM games ORDER BY rowid DESC').all().map(r=>this.project(rowGame(r)))}
- create(command:{requestId:string;name:string;seed:string}){
+ create(command:{requestId:string;name:string;seed:string;difficulty?:DifficultyId}){
  return transaction(this.db,()=>{
  const old=this.db.prepare('SELECT * FROM creation_requests WHERE request_id=?').get(command.requestId) as any;
- const payload=JSON.stringify(command);
- if(old){if(old.payload_json!==payload)throw new DomainError('REQUEST_REUSED','Identificador já utilizado com outros dados.');return this.project(this.get(old.game_id))}
- const id=randomUUID();this.db.prepare('INSERT INTO games VALUES(?,?,?,?,?,?,?,?,?,?)').run(id,command.name,command.seed,RULES_VERSION,rules.startDate,0,rules.initialCashCents,rules.initialReputation,'active',0);
+ const canonicalCreation=(c:any)=>JSON.stringify({requestId:c.requestId,name:c.name,seed:c.seed,difficulty:c.difficulty??'normal'});
+ const payload=canonicalCreation(command),profile=preset(command.difficulty??'normal');
+ if(old){if(canonicalCreation(JSON.parse(old.payload_json))!==payload)throw new DomainError('REQUEST_REUSED','Identificador já utilizado com outros dados.');return this.project(this.get(old.game_id))}
+ const id=randomUUID();this.db.prepare('INSERT INTO games(id,name,seed,rules_version,start_date,current_turn,cash_cents,reputation,status,state_version,difficulty,difficulty_version,difficulty_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').run(id,command.name,command.seed,RULES_VERSION,rules.startDate,0,rules.initialCashCents,rules.initialReputation,'active',0,profile.id,profile.version,JSON.stringify(profile));
  this.db.prepare('INSERT INTO creation_requests VALUES(?,?,?)').run(command.requestId,payload,id);
  for(const country of countries){this.db.prepare('INSERT INTO countries VALUES(?,?,?,?)').run(id,country.id,country.name,country.description);country.regions.forEach((name,i)=>this.db.prepare('INSERT INTO regions VALUES(?,?,?,?)').run(id,country.id,`${country.id}-${i}`,name))}
  for(const org of organizations)this.db.prepare('INSERT INTO organizations VALUES(?,?,?,?)').run(id,org.id,org.name,org.type);
