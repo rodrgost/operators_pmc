@@ -28,11 +28,15 @@
 .company-delete{color:#e69898;background:transparent;border:0;min-height:44px;margin-top:8px;cursor:pointer}.delete-company-backdrop{position:fixed;inset:0;z-index:1000;background:#000c;display:flex;align-items:center;justify-content:center;padding:20px}.delete-company-dialog{width:min(100%,480px);max-height:90dvh;overflow:auto}.delete-company-dialog label{display:grid;gap:10px;margin:24px 0}.delete-company-dialog input{width:100%;box-sizing:border-box}.delete-company-dialog .danger{background:#8b3038;color:white;min-height:44px;padding:12px 18px;border:1px solid #b44b53;border-radius:12px}.delete-company-dialog button:disabled{opacity:.4;cursor:not-allowed}
 
 /* Module sections: one subject at a time, with horizontal navigation on mobile. */
-.section-nav{display:flex;flex-direction:row;flex-wrap:nowrap;gap:8px;overflow-x:auto;max-width:100%;padding:4px 0 12px;margin:0 0 18px;border-bottom:1px solid #34403d;scrollbar-width:thin;overscroll-behavior-x:contain}
-.section-nav button{flex:0 0 auto;width:auto;text-align:center;white-space:nowrap;min-height:44px;padding:10px 16px;border:1px solid #46514c;border-radius:7px;background:transparent;color:inherit;font:inherit;cursor:pointer}
-.section-nav button.active{background:#eee;color:#111;border-color:#eee;font-weight:700}
-.section-nav button:focus-visible{outline:2px solid #c5d49d;outline-offset:2px}
+/* Secondary navigation is subordinate to the main command menu. */
+.section-nav{display:flex;flex-direction:row;flex-wrap:nowrap;gap:8px;overflow-x:auto;max-width:100%;padding:2px 0 4px;margin:0 0 18px;border-bottom:1px solid #303030;scrollbar-width:thin;scrollbar-color:#555 #151515;overscroll-behavior-x:contain}
+.section-nav button{position:relative;display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:auto;height:46px;min-height:46px;padding:10px 14px;text-align:center;white-space:nowrap;border:0;border-radius:0;background:transparent;color:#aaa;font-size:14px;font-weight:500;line-height:1.4;cursor:pointer}
+.section-nav button.active{background:transparent;color:#fff;font-weight:500}
+.section-nav button.active:after{content:'';position:absolute;left:14px;right:14px;bottom:0;height:2px;background:#eee;border-radius:2px}
+.section-nav button:focus-visible{outline:2px solid #8dafff;outline-offset:-2px}
 .section-nav button:disabled{opacity:.55;cursor:wait}
+@media(hover:hover){.section-nav button:hover:not(:disabled){background:#141414;color:#fff}}
+
 
 /* Contextual details stay attached to the card that opened them. */
 .personnel-grid{align-items:start}.inline-action{min-width:0;margin-top:18px;padding:20px 0 0;border-top:1px solid #484848;overflow-anchor:none}.inline-action p{margin:14px 0}.operator-card>.inline-action{margin-bottom:0}.inline-action h2,.inline-action h3{overflow-wrap:anywhere}.inline-action .personnel-actions{margin-top:18px}.inline-action .personnel-label{margin-top:14px}.inline-action.squad-form{margin-bottom:0}
@@ -60,3 +64,21 @@
 .agenda-toggle{min-height:48px;padding:9px 0}.agenda-toggle>span:first-child{gap:4px 10px}.agenda-toggle strong{font-size:12px}.agenda-toggle small{font-size:11px}
 @media(max-width:420px){.account-balance>strong{font-size:18px}.account-balance>span{font-size:8px}.planned-shell .account-bar{column-gap:8px}.account-identity small{font-size:10px}.company-details summary{font-size:13px}.agenda-toggle>span:first-child{flex-direction:column;align-items:flex-start}}
 @media(min-width:1000px){.planned-shell{padding-top:0}.planned-shell .account-bar{left:auto;padding:16px 38px;min-height:0}.planned-shell .command-navigation{padding:24px 18px;top:0}.command-navigation .company-return{display:block;padding:8px 10px;min-height:44px}.main-nav-wrap:after{display:none}.command-navigation nav{padding:0;overflow:visible;margin-top:16px}.planned-shell .content{padding-top:26px}.planned-shell .page-heading h1{font-size:32px}.company-details-content{left:38px;right:38px}}
+
+/* Consistent navigation and content selection touch targets. */
+.command-navigation nav button{height:46px;min-height:46px;font-size:14px;font-weight:500;line-height:1.4;border-radius:12px;padding:10px 14px;flex-shrink:0}
+.command-navigation nav button.active{background:#242424;color:#fff}
+.world-panel>.section-intro{margin-bottom:14px}
+.world-panel>.section-intro p{margin-top:8px}
+.country-list{align-items:start;gap:10px}
+.country-group{min-width:0;width:100%}
+.country-list .country-option{width:100%;min-height:52px;border:1px solid #303030;border-radius:12px;background:#141414;color:#bcbcbc;padding:12px 16px;gap:12px;justify-content:space-between}
+.country-list .country-option strong{font-size:14px;font-weight:500;line-height:1.5;overflow-wrap:anywhere}
+.country-list .country-option.selected{background:#202020;border-color:#aaa;color:#fff}
+.country-list .selection-mark{flex:0 0 18px;font-size:14px;line-height:1;text-align:center;color:inherit}
+.country-list .world-regions{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;padding:10px 0 4px 14px;margin:0 0 2px 12px;border-left:1px solid #353535}
+.country-list .region-option{min-height:46px;border:1px solid #333;border-radius:12px;background:#141414;color:#aaa;padding:10px 12px;gap:10px;font-size:14px;font-weight:500;line-height:1.4}
+.country-list .region-option.selected{background:#202020;border-color:#aaa;color:#fff}
+.country-list .region-option .region-name{font-size:14px;line-height:1.4;color:inherit;overflow-wrap:anywhere}
+.country-list .region-option small{font-size:11px;line-height:1.4;color:#c6b08d;margin-top:3px}
+@media(hover:hover){.country-list .country-option:hover,.country-list .region-option:hover{background:#252525}}
