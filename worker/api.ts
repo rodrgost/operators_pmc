@@ -106,6 +106,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
  // Production callers do not pass this argument; no HTTP flag can enable it.
  try{
   const url=new URL(request.url),owner=request.headers.get('oai-authenticated-user-id');
+  if(url.pathname==='/api/v1/session'&&request.method==='GET')return json({authenticated:!!owner});
   if(!owner)return json({code:'UNAUTHORIZED',message:'Entre com sua conta ChatGPT para continuar.'},401);
   if(!env.DB)throw new ApiError(503,'STORAGE_UNAVAILABLE','Salvamento temporariamente indisponível.');
   const db=env.DB.withSession?.('first-primary')??env.DB;

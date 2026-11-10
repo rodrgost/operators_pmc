@@ -88,3 +88,5 @@
 .section-nav button .navigation-badge{margin-left:8px}
 .command-navigation nav button{display:inline-flex;align-items:center;gap:0}
 @media(min-width:1000px){.command-navigation nav button{display:flex;gap:10px}.command-navigation nav button .navigation-badge{margin-left:auto}}
+
+.sign-in-panel{max-width:580px}.sign-in-panel p{margin:12px 0 22px}.sign-in-link{display:inline-flex;align-items:center;justify-content:center;min-height:48px;text-decoration:none}.plan-validation{margin:14px 0}.sign-in-link:focus-visible{outline:2px solid #8dafff;outline-offset:4px}

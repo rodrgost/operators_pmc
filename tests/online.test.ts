@@ -85,3 +85,9 @@ it('online: recusa versão de regras desconhecida sem alterar campanha',async()=
   expect((await call(`/games/${g.id}`)).data.currentTurn).toBe(0);
  }finally{db.close()}
 });
+
+it('sessão pública: permite identificar visitante sem liberar dados da campanha',async()=>{
+ const anonymous=await handleApi(new Request('https://pmc.example/api/v1/session'),{} as any);expect(anonymous.status).toBe(200);expect(await anonymous.json()).toEqual({authenticated:false});expect(anonymous.headers.get('cache-control')).toBe('no-store');
+ const denied=await handleApi(new Request('https://pmc.example/api/v1/games'),{} as any);expect(denied.status).toBe(401);
+ const signedIn=await handleApi(new Request('https://pmc.example/api/v1/session',{headers:{'oai-authenticated-user-id':'test-owner'}}),{} as any);expect(await signedIn.json()).toEqual({authenticated:true});
+});
