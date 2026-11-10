@@ -12,7 +12,7 @@ for(const failAt of ['write','refresh'] as const){
    return {operators:[],candidates:[],squads:[],stateVersion:actions.size};
   };
   function mount(){
-   const context:any={useActionFeedback:()=>({feedbackTarget:{value:''},captureAction:()=>{}}),defineProps:()=>({game:{id:'g',stateVersion:0}}),defineEmits:()=>()=>{},ref:(value:any)=>({value}),computed:(input:any)=>typeof input==='function'?{get value(){return input()}}:{get value(){return input.get()},set value(v){input.set(v)}},useState:(key:string,init:any)=>store[key]??(store[key]={value:init()}),watch:()=>{},onMounted:()=>{},crypto:{randomUUID:()=>`action-${++ids}`},$fetch:transport};
+   const context:any={useNavigationNews:()=>({sync:()=>{},markRead:()=>{},status:()=>''}),useActionFeedback:()=>({feedbackTarget:{value:''},captureAction:()=>{}}),defineProps:()=>({game:{id:'g',stateVersion:0}}),defineEmits:()=>()=>{},ref:(value:any)=>({value}),computed:(input:any)=>typeof input==='function'?{get value(){return input()}}:{get value(){return input.get()},set value(v){input.set(v)}},useState:(key:string,init:any)=>store[key]??(store[key]={value:init()}),watch:()=>{},onMounted:()=>{},crypto:{randomUUID:()=>`action-${++ids}`},$fetch:transport};
    runInNewContext(ts.transpileModule(source+';globalThis.harness={run,refresh,pending,notice};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,context);
    return context.harness;
   }

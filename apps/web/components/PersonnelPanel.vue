@@ -2,6 +2,7 @@
 const {feedbackTarget,captureAction}=useActionFeedback()
 const trainingAttributes=ref<Record<string,string>>({})
 const props=defineProps<{game:any}>()
+const navigationNews=useNavigationNews()
 const emit=defineEmits(['changed','processing'])
 const data=ref<any>({operators:[],candidates:[],squads:[],familiarity:[]}),busy=ref(false),error=ref(''),notice=ref(''),section=ref('roster'),weeks=ref(4),confirmation=ref<any>(null),selected=ref<any>(null),history=ref<any[]>([])
 const pendingStore=useState<Record<string,any>>('personnel-commands',()=>({}))
@@ -18,7 +19,7 @@ const base=()=>'/api/v1/games/'+props.game.id
 const locked=computed(()=>busy.value||!!pending.value)
 const available=computed(()=>data.value.operators.filter((o:any)=>o.employment))
 const operatorName=(id:string)=>data.value.operators.find((o:any)=>o.id===id)?.name||'Não designado'
-async function refresh(){try{data.value=await $fetch(base()+'/personnel');return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar os operadores.';return false}}
+async function refresh(){try{data.value=await $fetch(base()+'/personnel');navigationNews.markRead(props.game.id,'operators.'+section.value);return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar os operadores.';return false}}
 async function details(op:any){selected.value=op;history.value=[];try{history.value=await $fetch<any[]>(base()+'/operators/'+op.id+'/history')}catch{error.value='Não foi possível carregar o histórico.'}}
 async function run(path:string,body:any,method='POST'){
  if(busy.value)return
@@ -37,12 +38,14 @@ function edit(s?:any){editorId.value=s?.id||'';squadName.value=s?.name||'';squad
 function save(){return run('/squads'+(editorId.value?'/'+editorId.value:''),{name:squadName.value,specialization:squadSpec.value,memberIds:members.value,leaderId:members.value.includes(leader.value)?leader.value:null,deputyId:members.value.includes(deputy.value)?deputy.value:null,directives:{posture:posture.value,priority:priority.value,riskTolerance:risk.value,withdrawalPolicy:withdrawal.value}},editorId.value?'PATCH':'POST')}
 watch(()=>[props.game.id,props.game.stateVersion],async()=>{confirmation.value=null;selected.value=null;await refresh()})
 onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
+
+watch(section,()=>{if(data.value?.stateVersion!==undefined)navigationNews.markRead(props.game.id,'operators.'+section.value)})
 </script>
 <template>
 <div class="personnel" @click.capture="captureAction($event);error='';notice=''">
  <ActionFeedback :target="feedbackTarget" :error="error" :notice="notice" />
  <div v-if="pending&&!busy" class="panel"><p>Há um comando aguardando confirmação. Repetir consulta a mesma solicitação.</p><button class="primary" @click="run(pending.path,pending.body,pending.method)">Repetir comando</button></div>
- <SectionNav v-model="section" label="Seções de operadores" :disabled="locked" :items="[['roster','Efetivo'],['recruitment','Recrutamento'],['squads','Equipes']]" />
+ <SectionNav :game-id="game.id" scope="operators" v-model="section" label="Seções de operadores" :disabled="locked" :items="[['roster','Efetivo'],['recruitment','Recrutamento'],['squads','Equipes']]" />
  <div class="personnel-summary"><span>{{data.employed||0}} / {{data.capacity||12}} vínculos ativos</span><span>{{money(data.weeklySalaryCents||0)}} / semana</span><span v-if="data.arrearsCents" class="debit">Em atraso: {{money(data.arrearsCents)}}</span></div>
  <template v-if="section==='recruitment'">
   <div class="section-intro"><h2>Mercado de operadores</h2><p>Ofertas válidas até o turno {{data.nextMarketTurn}}. Bônus de assinatura cobrado na passagem do turno; salários a cada 28 turnos do vínculo.</p></div>

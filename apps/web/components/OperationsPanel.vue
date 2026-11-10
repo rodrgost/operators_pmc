@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const {feedbackTarget,captureAction}=useActionFeedback()
 const props=defineProps<{game:any;mode:string;regionId?:string}>(),emit=defineEmits(['changed','processing','clear-region','open-world'])
+const navigationNews=useNavigationNews()
 const data=ref<any>({contracts:[],missions:[],decisions:[]}),people=ref<any>({operators:[],squads:[]}),busy=ref(false),error=ref(''),notice=ref(''),filter=ref(''),selectedContract=ref<any>(null),selectedMission=ref<any>(null),reports=ref<any[]>([]),preview=ref<any>(null),withdrawal=ref<any>(null)
 const operationSection=ref('missions')
 const visibleMissions=computed(()=>data.value.missions.filter((m:any)=>operationSection.value==='history'?!['active','awaiting_decision','returning'].includes(m.status):['active','awaiting_decision','returning'].includes(m.status)))
@@ -19,7 +20,7 @@ const outcomeNames:any={success:'Sucesso',partial:'Parcial',delay:'Atraso',failu
 const contracts=computed(()=>data.value.contracts.filter((c:any)=>(!filter.value||c.type===filter.value)&&(!props.regionId||c.regionId===props.regionId)&&(statusFilter.value==='all'||statusFilter.value==='actionable'?statusFilter.value==='all'||['available','accepted'].includes(c.status):c.status===statusFilter.value)&&(!search.value||[c.title,c.regionName,c.countryName,c.clientName].join(' ').toLocaleLowerCase('pt-BR').includes(search.value.toLocaleLowerCase('pt-BR')))))
 const permanentOptions=computed(()=>people.value.operators.filter((o:any)=>people.value.squads.find((s:any)=>s.id===squadId.value)?.memberIds.includes(o.id)))
 const name=(id:string)=>people.value.operators.find((o:any)=>o.id===id)?.name||id
-async function refresh(){try{const [ops,staff]=await Promise.all([$fetch(base()+'/operations'),$fetch(base()+'/personnel')]);data.value=ops;people.value=staff;return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar as operações.';return false}}
+async function refresh(){try{const [ops,staff]=await Promise.all([$fetch(base()+'/operations'),$fetch(base()+'/personnel')]);data.value=ops;people.value=staff;navigationNews.markRead(props.game.id,props.mode==='contracts'?'contracts':'operations.'+operationSection.value);return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar as operações.';return false}}
 async function run(path:string,body:any={}){
  if(busy.value)return
  const command=pending.value||{path,body:{...body,requestId:crypto.randomUUID(),expectedVersion:body.expectedVersion??data.value.stateVersion}}
@@ -37,13 +38,15 @@ async function details(m:any){selectedMission.value=m;reports.value=[];departure
 watch(operationSection,()=>{selectedMission.value=null;withdrawal.value=null})
 watch(()=>[props.game.id,props.game.stateVersion],async()=>{preview.value=null;selectedMission.value=null;await refresh()})
 onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
+
+watch([operationSection,()=>props.mode],()=>{if(data.value?.stateVersion!==undefined)navigationNews.markRead(props.game.id,props.mode==='contracts'?'contracts':'operations.'+operationSection.value)})
 </script>
 <template>
 <div class="operations-panel" @click.capture="captureAction($event);error='';notice=''">
  <ActionFeedback :target="feedbackTarget" :error="error" :notice="notice" />
  <section v-if="pending&&!busy" class="panel"><p>Comando aguardando confirmação. A repetição não duplica efeitos.</p><button class="primary" @click="run(pending.path,pending.body)">Repetir comando</button></section>
  <div class="personnel-summary"><span>{{data.missions.filter((m:any)=>['active','awaiting_decision','returning'].includes(m.status)).length}} / {{data.capacity||1}} operações simultâneas</span><span>{{data.decisions.length}} decisões pendentes</span></div>
- <SectionNav v-if="mode==='operations'" v-model="operationSection" label="Seções de operações" :disabled="locked" :items="[['missions','Em andamento'],['decisions','Decisões ('+data.decisions.length+')'],['history','Histórico']]" />
+ <SectionNav :game-id="game.id" scope="operations" v-if="mode==='operations'" v-model="operationSection" label="Seções de operações" :disabled="locked" :items="[['missions','Em andamento'],['decisions','Decisões ('+data.decisions.length+')'],['history','Histórico']]" />
  <p v-if="mode==='contracts'&&data.decisions.length" class="batch-result">{{data.decisions.length}} decisão(ões) pendente(s). Consulte Operações → Decisões.</p>
  <template v-if="mode==='operations'&&operationSection==='decisions'"><p v-if="!data.decisions.length" class="empty">Nenhuma decisão pendente.</p><section v-for="d in data.decisions" :key="d.id" data-action-card :id="'operations-d-'+d.id" class="panel decision-card"><span class="eyebrow">DECISÃO DO COMANDANTE</span><h2>Autorizar a próxima etapa?</h2><p>A equipe reportou uma situação excepcional. Prazo: turno {{d.expiresTurn}}. Sem resposta: {{d.fallbackAction==='withdraw'?'retirada':'abordagem cautelosa'}}. O tempo pode avançar e aplicar essa política.</p><div v-for="o in d.options" :key="o.id" class="decision-option"><p><strong>{{o.label}}</strong><br>{{o.consequence}}</p><button class="secondary" :disabled="locked" @click="run('/decisions/'+d.id+'/resolve',{choice:o.id})">{{o.label}}</button></div></section>
  </template><template v-if="mode==='contracts'">

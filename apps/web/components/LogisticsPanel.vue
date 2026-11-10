@@ -1,19 +1,22 @@
 <script setup lang="ts">
 const {feedbackTarget,captureAction}=useActionFeedback()
 const props=defineProps<{game:any}>(),emit=defineEmits(['changed','processing'])
+const navigationNews=useNavigationNews()
 const data=ref<any>(null),busy=ref(false),error=ref(''),notice=ref(''),review=ref<any>(null),mode=ref('headquarters'),category=ref(''),quantity=ref(1)
 const commands=useState<Record<string,any>>('logistics-commands',()=>({})),pending=computed({get:()=>commands.value[props.game.id]??null,set:(v:any)=>commands.value={...commands.value,[props.game.id]:v}}),locked=computed(()=>busy.value||!!pending.value)
 const base=()=>'/api/v1/games/'+props.game.id,money=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'USD'}).format(n/100)
 const categories:any={combat:'Combate',recon:'Reconhecimento',medical:'Médico',technical:'Técnico',communication:'Comunicação',logistics:'Logístico'},states:any={in_delivery:'Em entrega',available:'No depósito',reserved:'Reservado',in_use:'Em missão',maintenance:'Em preparação',destroyed:'Destruído'},capacities:any={training:'vagas de treinamento',infirmary:'vagas de tratamento',depot:'unidades de armazenagem',operations:'operações simultâneas',administration:'operadores com vínculo'}
-async function refresh(){try{data.value=await $fetch(base()+'/logistics');return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar a sede.';return false}}
+async function refresh(){try{data.value=await $fetch(base()+'/logistics');navigationNews.markRead(props.game.id,'infrastructure.'+mode.value);return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar a sede.';return false}}
 function prepare(path:string,body:any,label:string,cost:number,consequence:string){review.value={path,body,label,cost,consequence};error.value=''}
 async function run(){if(busy.value||(!review.value&&!pending.value))return;const command=pending.value||{path:review.value.path,body:{...review.value.body,requestId:crypto.randomUUID(),expectedVersion:data.value.stateVersion}};pending.value=command;busy.value=true;emit('processing',true);error.value='';let done=false;try{await $fetch(base()+command.path,{method:'POST',body:command.body});if(!await refresh())return;pending.value=null;review.value=null;notice.value='Ordem agendada. Confirme ao passar o turno ou remova no painel inferior.';done=true}catch(e:any){if(e.status>=400&&e.status<500){pending.value=null;review.value=null;await refresh()}error.value=e.data?.message||'Falha de conexão. Repita para recuperar o mesmo comando.'}finally{busy.value=false;emit('processing',!!pending.value)}if(done)emit('changed')}
 watch(()=>[props.game.id,props.game.stateVersion],async()=>{review.value=null;await refresh()})
 onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
+
+watch(mode,()=>{if(data.value?.stateVersion!==undefined)navigationNews.markRead(props.game.id,'infrastructure.'+mode.value)})
 </script>
 <template><div class="logistics-panel" @click.capture="captureAction($event);error='';notice=''"><ActionFeedback :target="feedbackTarget" :error="error" :notice="notice" />
  <section v-if="pending&&!busy" class="panel"><p>Comando aguardando confirmação. Repetir não duplica compras ou débitos.</p><button class="primary" @click="run">Repetir comando</button></section>
- <template v-if="data"><SectionNav v-model="mode" label="Seções de sede e logística" :disabled="locked" :items="[['headquarters','Instalações'],['catalog','Comprar kits'],['inventory','Estoque e serviços']]" />
+ <template v-if="data"><SectionNav :game-id="game.id" scope="infrastructure" v-model="mode" label="Seções de sede e logística" :disabled="locked" :items="[['headquarters','Instalações'],['catalog','Comprar kits'],['inventory','Estoque e serviços']]" />
  <div class="stats finance-stats"><section class="stat"><span>MANUTENÇÃO SEMANAL</span><strong>{{money(data.headquarters.weeklyMaintenanceCents)}}</strong><small>Fechamento a cada 28 turnos, após salários</small></section><section class="stat"><span>ARMAZENAGEM</span><strong>{{data.load}} / {{data.loadCapacity}}</strong><small>Inclui kits em entrega, serviço e missão</small></section></div>
  <div v-if="data.headquarters.arrearsCents" class="error">Manutenção em atraso: {{money(data.headquarters.arrearsCents)}}. Compras, serviços, melhorias, novas missões e treinos suspensos. A quitação ocorre ao avançar com caixa suficiente após os salários.</div>
 
