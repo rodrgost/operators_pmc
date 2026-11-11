@@ -133,6 +133,27 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
    if(path[3]&&path[4]==='cancel'&&request.method==='POST')return json(await cancelOrder(db,id,owner,path[3],await request.json()));
   }
   const route=execution==='queued'?orderRoute(path,request.method):null;
+  if(execution==='queued'&&path[2]==='squads'&&['POST','PATCH'].includes(request.method)&&path[4]!=='training'){
+   const body=await request.clone().json(),pending=await orders(db,id);
+   const ids=body.memberIds??(body.operatorId?[body.operatorId]:[]);
+   const previous=await db.prepare('SELECT id FROM online_pending_orders WHERE game_id=? AND id=?').bind(id,body.requestId).first();
+   if(previous||pending.some(o=>o.kind==='hire'&&ids.includes('operator-'+o.command.candidateId))){
+    const kind=path.length===3?'squad_create':path[4]==='members'?'squad_member_add':'squad_update';
+    const schema=kind==='squad_member_add'?memberSchema:squadSchema;
+    return json(await enqueue(db,id,owner,{scope:'personnel',kind,target:path[3]??'',schema},schema.parse(body),digest),201);
+   }
+  }
+  if(route?.kind==='activity_cancel'){
+   const body=commandSchema.parse(await request.clone().json());
+   const previous=await db.prepare('SELECT request_id FROM online_actions WHERE game_id=? AND request_id=?').bind(id,body.requestId).first();
+   const queued=await db.prepare('SELECT id FROM online_pending_orders WHERE game_id=? AND id=?').bind(id,body.requestId).first();
+   if(previous&&!queued)return json(await personnelAction(db,id,owner,'activity_cancel',path[3],body,digest));
+   const rest=await db.prepare("SELECT operator_id FROM online_reservations WHERE game_id=? AND operator_id=? AND kind='rest'").bind(id,path[3]).first();
+   if(rest){
+    if((await orders(db,id)).some(o=>o.target===path[3]))throw new ApiError(422,'ORDER_ALREADY_PENDING','Remova a ordem deste operador antes de interromper o descanso.');
+    return json(await personnelAction(db,id,owner,'activity_cancel',path[3],commandSchema.parse(await request.json()),digest));
+   }
+  }
   if(route)return json(await enqueue(db,id,owner,route,route.schema.parse(await request.json()),digest),201);
   if(path[2]==='command-center'&&path.length===3&&request.method==='GET')return json(await commandCenter(db,g));
   if(path[2]==='intelligence'){
@@ -165,7 +186,8 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
    if(request.method==='POST'){
     const body=await request.json();
     if(path[2]==='contracts'&&path[4]==='plan'){
-     const {g:latest,p}=await readPersonnel(db,id,owner),o=await readOperations(db,id),c=o.contracts.find(c=>c.id===path[3]);const plan=validatePlan(latest,p,o,c,planSchema.parse(body),latest.logisticsInitialized?await readLogistics(db,id):undefined,latest.intelligenceInitialized?await readIntelligence(db,latest):undefined);return json({...plan,stateVersion:latest.stateVersion});
+     const latest=await getGame(db,id,owner),planned=execution==='queued'?(await prepareOrders(db,latest,digest)).context:null;
+     const p=planned?.p??(await readPersonnel(db,id,owner)).p,o=planned?.o??await readOperations(db,id),c=o.contracts.find((c:any)=>c.id===path[3]);const plan=validatePlan(planned?.g??latest,p,o,c,planSchema.parse(body),planned?.l??(latest.logisticsInitialized?await readLogistics(db,id):undefined),planned?.i??(latest.intelligenceInitialized?await readIntelligence(db,latest):undefined));return json({...plan,stateVersion:latest.stateVersion});
     }
     if(path[2]==='contracts'&&['accept','cancel'].includes(path[4]))return json(await operationAction(db,id,owner,path[4],path[3],commandSchema.parse(body),digest));
     if(path[2]==='contracts'&&path[4]==='start')return json(await operationAction(db,id,owner,'start',path[3],startSchema.parse(body),digest),201);
@@ -179,6 +201,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
    if(request.method==='GET'){
     const {g:current,p}=await readPersonnel(db,id,owner);const view=personnelProjection(current,p,current.logisticsInitialized?await readLogistics(db,id):undefined);
     const pendingOrders=await orders(db,id);Object.assign(view,{pendingOrders});const pendingHires=pendingOrders.filter(o=>o.kind==='hire');
+    if(pendingOrders.length){try{const {context}=await prepareOrders(db,current,digest,pendingOrders);Object.assign(view,{plannedPersonnel:personnelProjection(current,context.p,context.l)});}catch(e){if(!(e instanceof ApiError))throw e;Object.assign(view,{planningError:e.message});}}
     for(const candidate of view.candidates)Object.assign(candidate,{scheduledOrderId:pendingHires.find(o=>o.command.candidateId===candidate.id)?.id??null});
     if(path[2]==='personnel'||(path[2]==='finances'&&path[3]==='summary'))return json(view);
     if(path[2]==='recruitment'&&path[3]==='candidates')return json(view.candidates);

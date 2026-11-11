@@ -2,6 +2,14 @@
 
 Status: implementado por solicitação do usuário em 2026-11-09.
 
+## Revisão em 2026-11-11 — execução desde o primeiro avanço
+
+Planejar não consome tempo. As ordens são aplicadas antes da resolução do período, e o primeiro avanço já conta para duração e efeitos. A fila e os cards mostram previsão de conclusão (ou próxima etapa), incluindo esse primeiro período.
+
+Descanso recupera fadiga a cada turno até zerar, com duração estimada pela fadiga atual. Interromper um descanso ativo é imediato e preserva a recuperação obtida. Descansos existentes passam a seguir essa regra no próximo avanço; treinamento e tratamento mantêm seus prazos.
+
+Equipes com contratações pendentes são planejadas junto delas; a organização com operadores já contratados continua imediata. A projeção de pessoal permite selecionar os futuros integrantes e a equipe ao planejar uma missão. A revisão de formação usa o mesmo estado virtual da fila, permitindo contratar, montar equipe, aceitar contrato e enviar na mesma confirmação, desde que os recursos necessários já estejam disponíveis. Remover uma dependência não remove outras ordens silenciosamente: elas continuam visíveis e impedem a confirmação até a correção.
+
 A API pública passa a enfileirar os comandos mutáveis de domínio. `online_pending_orders` guarda comando, chave idempotente, escopo, alvo, custo líquido estimado, título, estado e turno de confirmação. A migration é aditiva; histórico financeiro e saves existentes são preservados.
 
 ## Validação e atomicidade

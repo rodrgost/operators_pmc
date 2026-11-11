@@ -3,7 +3,7 @@ import {readLogistics,logisticsWrites} from './logistics.ts';
 import {moduleCapacity,config as logisticsConfig,type Logistics} from '../packages/engine/logistics.ts';
 import { z } from 'zod';
 import { ApiError, type Database,type Statement,type Campaign,rowGame,mutate,getGame,projection } from './persistence.ts';
-import { balance,market,emptyPersonnel,employment,availability,squadProjection,specializations,type Personnel,type Digest } from '../packages/engine/personnel.ts';
+import { balance,restTurns,restFatiguePerTurn,market,emptyPersonnel,employment,availability,squadProjection,specializations,type Personnel,type Digest } from '../packages/engine/personnel.ts';
 const requestId=z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/);
 const id=z.string().min(1).max(180);
 const weeks=z.union([z.literal(4),z.literal(8),z.literal(12)]);
@@ -65,8 +65,8 @@ export async function ensurePersonnel(db:Database,id:string,owner:string,digest:
  }throw new ApiError(409,'BUSY','Tente novamente.');
 }
 export function personnelProjection(g:Campaign,p:Personnel,l?:Logistics){
- const operators=p.operators.map(op=>({id:op.id,...JSON.parse(op.profile_json),health:op.health,fatigue:op.fatigue,morale:op.morale,loyalty:op.loyalty,hiredTurn:op.hired_turn,availability:availability(p,op,g.state.turn),employment:employment(p,op.id,g.state.turn)??null,lastEmployment:p.contracts.filter(c=>c.operator_id===op.id).sort((a,b)=>b.end_turn-a.end_turn)[0]??null,arrearsCents:p.contracts.filter(c=>c.operator_id===op.id).reduce((n,c)=>n+c.arrears_cents,0),reservation:p.reservations.find(r=>r.operator_id===op.id)??null}));
- return {squadNameSuggestions:catalog.squadNames,stateVersion:g.stateVersion,currentTurn:g.state.turn,operators,candidates:p.candidates.filter(c=>!c.hired).map(c=>({id:c.id,...JSON.parse(c.profile_json),salaryCents:c.salary_cents,signingBonusCents:c.bonus_cents,expiresTurn:(c.week+1)*28})),squads:p.squads.filter(s=>!JSON.parse(s.directives_json).disbanded).map(s=>squadProjection(p,s,g.state.turn)),familiarity:p.familiarity,capacity:l?moduleCapacity(l,'administration'):balance.operatorCapacity,facilityRules:l?{trainingCostCents:logisticsConfig.trainingCostCents,treatmentCostCents:logisticsConfig.treatmentCostCents,activityTurns:logisticsConfig.trainingTurns,seriousRecoveryTurns:logisticsConfig.seriousRecoveryTurns}:null,trainingCapacity:l?moduleCapacity(l,'training'):null,recoveryCapacity:l?moduleCapacity(l,'infirmary'):null,trainingProgress:l?.progress??[],headquartersArrearsCents:l?.headquarters.arrears_cents??0,employed:operators.filter(o=>o.employment).length,weeklySalaryCents:p.contracts.filter(c=>c.status==='active'&&c.start_turn<=g.state.turn&&c.end_turn>g.state.turn).reduce((n,c)=>n+c.salary_cents,0),arrearsCents:p.contracts.reduce((n,c)=>n+c.arrears_cents,0),nextMarketTurn:(Math.floor(g.state.turn/28)+1)*28};
+ const operators=p.operators.map(op=>({id:op.id,...JSON.parse(op.profile_json),health:op.health,fatigue:op.fatigue,restTurns:op.fatigue>0?restTurns(op.fatigue):0,morale:op.morale,loyalty:op.loyalty,hiredTurn:op.hired_turn,availability:availability(p,op,g.state.turn),employment:employment(p,op.id,g.state.turn)??null,lastEmployment:p.contracts.filter(c=>c.operator_id===op.id).sort((a,b)=>b.end_turn-a.end_turn)[0]??null,arrearsCents:p.contracts.filter(c=>c.operator_id===op.id).reduce((n,c)=>n+c.arrears_cents,0),reservation:p.reservations.find(r=>r.operator_id===op.id)??null}));
+ return {restFatiguePerTurn,squadNameSuggestions:catalog.squadNames,stateVersion:g.stateVersion,currentTurn:g.state.turn,operators,candidates:p.candidates.filter(c=>!c.hired).map(c=>({id:c.id,...JSON.parse(c.profile_json),salaryCents:c.salary_cents,signingBonusCents:c.bonus_cents,expiresTurn:(c.week+1)*28})),squads:p.squads.filter(s=>!JSON.parse(s.directives_json).disbanded).map(s=>squadProjection(p,s,g.state.turn)),familiarity:p.familiarity,capacity:l?moduleCapacity(l,'administration'):balance.operatorCapacity,facilityRules:l?{trainingCostCents:logisticsConfig.trainingCostCents,treatmentCostCents:logisticsConfig.treatmentCostCents,activityTurns:logisticsConfig.trainingTurns,seriousRecoveryTurns:logisticsConfig.seriousRecoveryTurns}:null,trainingCapacity:l?moduleCapacity(l,'training'):null,recoveryCapacity:l?moduleCapacity(l,'infirmary'):null,trainingProgress:l?.progress??[],headquartersArrearsCents:l?.headquarters.arrears_cents??0,employed:operators.filter(o=>o.employment).length,weeklySalaryCents:p.contracts.filter(c=>c.status==='active'&&c.start_turn<=g.state.turn&&c.end_turn>g.state.turn).reduce((n,c)=>n+c.salary_cents,0),arrearsCents:p.contracts.reduce((n,c)=>n+c.arrears_cents,0),nextMarketTurn:(Math.floor(g.state.turn/28)+1)*28};
 }
 function assert(condition:unknown,code:string,message:string):asserts condition{if(!condition)throw new ApiError(422,code,message);}
 export async function personnelAction(db:Database,id:string,owner:string,kind:string,target:string|undefined,command:any,digest:Digest){
@@ -107,6 +107,7 @@ export async function personnelAction(db:Database,id:string,owner:string,kind:st
     const pending=await db.prepare("SELECT id FROM online_pending_orders WHERE game_id=? AND status='pending' AND (target=? OR json_extract(command_json,'$.squadId')=?) LIMIT 1").bind(id,s.id,s.id).first();
     assert(!pending,'SQUAD_PENDING_ORDER','Remova a ordem agendada desta equipe antes de reorganizá-la.');
    }
+   else assert(!db.planning.o?.missions.some((m:any)=>m.squad_id===s.id&&['active','awaiting_decision','returning'].includes(m.status)),'SQUAD_BUSY','A equipe está comprometida com uma operação. Aguarde seu retorno.');
    if(kind==='squad_delete')command={...command,name:s.name,specialization:s.specialization,memberIds:[],leaderId:null,deputyId:null,directives:{...JSON.parse(s.directives_json),disbanded:true}};
 
    if(kind==='squad_member_add'||kind==='squad_member_remove'){
@@ -134,7 +135,8 @@ export async function personnelAction(db:Database,id:string,owner:string,kind:st
    for(const operatorId of ids){active(operatorId);const o=op(operatorId);
     assert(!p.reservations.some(r=>r.operator_id===operatorId),'OPERATOR_BUSY','Operador já possui uma atividade ou missão.');
     assert(type!=='training'||(o.health>=balance.minimumHealth&&o.fatigue<balance.exhaustionFatigue),'OPERATOR_UNFIT','Operador sem condições para treinamento.');
-    const duration=l?(type==='recovery'&&o.health<25?logisticsConfig.seriousRecoveryTurns:logisticsConfig.trainingTurns):balance.activityTurns;
+    assert(type!=='rest'||o.fatigue>0,'REST_UNNECESSARY','O operador já está sem fadiga.');
+    const duration=type==='rest'?restTurns(o.fatigue):l?(type==='recovery'&&o.health<25?logisticsConfig.seriousRecoveryTurns:logisticsConfig.trainingTurns):balance.activityTurns;
     const c=employment(p,operatorId,g.state.turn);assert(c.end_turn>=g.state.turn+duration,'CONTRACT_TOO_SHORT','Renove o vínculo antes de iniciar esta atividade.');
     p.reservations.push({operator_id:operatorId,kind:type,source_id:command.requestId,start_turn:g.state.turn,end_turn:g.state.turn+duration});
     if(l){const previous=l.activities.find(a=>a.operator_id===operatorId);const activity={operator_id:operatorId,request_id:command.requestId,kind:type,attribute:command.attribute??'combat',started_turn:g.state.turn,minimum_end_turn:type==='recovery'&&o.health<25?g.state.turn+duration:g.state.turn,status:'active'};if(previous)Object.assign(previous,activity);else l.activities.push(activity);}

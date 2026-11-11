@@ -41,6 +41,7 @@ export function facilityTurn(l:Logistics,p:Personnel,turn:number){const managed:
    const value=profile.attributes[a.attribute];progress.progress+=Math.max(1,Math.floor(config.trainingProgressPerTurn*config.trainingEfficiency[moduleLevel(l,'training')-1]/100*(1-value/125)));
    while(progress.progress>=100){progress.progress-=100;profile.attributes[a.attribute]=Math.min(100,profile.attributes[a.attribute]+1);}op.profile_json=JSON.stringify(profile);op.fatigue=Math.min(100,op.fatigue+2);
   }
+  if(a.kind==='rest')r.end_turn=turn+Math.ceil(op.fatigue/config.restFatiguePerTurn);
   if(r.end_turn<=turn)a.status='completed';
  }return managed;
 }
