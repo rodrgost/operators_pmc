@@ -1,10 +1,10 @@
 <script setup lang="ts">
 const {feedbackTarget,captureAction}=useActionFeedback()
 const trainingAttributes=ref<Record<string,string>>({})
-const props=defineProps<{game:any}>()
+const props=defineProps<{game:any;initialSection?:string}>()
 const navigationNews=useNavigationNews()
 const emit=defineEmits(['changed','processing'])
-const data=ref<any>({operators:[],candidates:[],squads:[],familiarity:[]}),busy=ref(false),error=ref(''),notice=ref(''),section=ref('roster'),weeks=ref(4),confirmation=ref<any>(null),selected=ref<any>(null),history=ref<any[]>([])
+const data=ref<any>({operators:[],candidates:[],squads:[],familiarity:[]}),busy=ref(false),error=ref(''),notice=ref(''),section=ref(['roster','recruitment','squads'].includes(props.initialSection||'')?props.initialSection!:'roster'),weeks=ref(4),confirmation=ref<any>(null),selected=ref<any>(null),history=ref<any[]>([])
 const pendingStore=useState<Record<string,any>>('personnel-commands',()=>({}))
 const pending=computed({get:()=>pendingStore.value[props.game.id]??null,set:(value:any)=>{pendingStore.value={...pendingStore.value,[props.game.id]:value}}})
 const suggestionIndex=ref(0)
