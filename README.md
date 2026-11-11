@@ -2,6 +2,17 @@
 
 Jogo de gestão single-player em português. A edição atual implementa a fundação temporal e a gestão de pessoal: recrutamento semanal, operadores, vínculos de emprego, salários, equipes permanentes e familiaridade. Contratos comerciais e missões autônomas agora estão disponíveis. Simulação mundial causal, kits, sede e inteligência progressiva continuam pendentes.
 
+## Fluxo único de desenvolvimento
+
+O desenvolvimento deste projeto fica concentrado no **Codex**, na pasta `C:\Users\rodrg\DEV\operators_pmc`. O fluxo acordado em 11/11/2026 é:
+
+1. Atualizar a cópia local a partir do [GitHub](https://github.com/rodrgost/operators_pmc), preservando alterações locais existentes.
+2. Implementar e validar as mudanças no Codex.
+3. Registrar as mudanças no Git e sincronizar com a branch `master` do GitHub.
+4. Publicar essa mesma versão no site do ChatGPT usando Sites, quando solicitado ou autorizado.
+
+A pasta local é a cópia de trabalho do repositório; o GitHub mantém o histórico compartilhado; Sites recebe o resultado para publicação. Não desenvolver uma versão independente em conversas do ChatGPT. A cópia em `.sites-runtime` serve apenas à integração de publicação. Esse fluxo não implica sincronização automática em segundo plano.
+
 ## Executar localmente
 
 Requisitos: Node.js 24 e npm.

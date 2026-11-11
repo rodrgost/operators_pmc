@@ -2,6 +2,10 @@
 
 Pasta principal: `C:\Users\rodrg\DEV\operators_pmc`.
 
+## Fluxo acordado — 11/11/2026
+
+Desenvolver no Codex usando esta pasta como cópia de trabalho do repositório `https://github.com/rodrgost/operators_pmc` (remoto `origin`, branch remota `master`). Atualizar a cópia local preservando mudanças existentes, implementar e validar no Codex, registrar e sincronizar as alterações com o GitHub e publicar a mesma versão por Sites quando solicitado ou autorizado. Não manter desenvolvimento separado dentro do ChatGPT. Os fontes antes hospedados no ChatGPT já foram importados e sincronizados. Ver a seção “Fluxo único de desenvolvimento” no README. Não há sincronização automática em segundo plano.
+
 ## Estado atual — 0.7.1
 
 Fundação e persistência normalizada implementadas, agora com operadores, recrutamento semanal, vínculos 4/8/12 semanas, pagamentos e dívidas salariais, renovação, equipes permanentes, líderes/substitutos, histórico de composição, reservas exclusivas de agenda e familiaridade por treino conjunto. Interface mobile preto/cinza; manter esse padrão em todas as telas.
