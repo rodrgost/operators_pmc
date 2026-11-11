@@ -6,6 +6,9 @@ import config from '../rules/operations.json' with {type:'json'};
 import {countries,organizations} from '../rules/index.ts';
 import {employment,type Personnel,type Digest} from './personnel.ts';
 export {config};
+// Acceptance starts a separate two-day mobilization window. Older saves retain their deadline.
+export const mobilizationTurns=config.mobilizationTurns;
+export function contractDeadline(c:any){return c.status==='accepted'?(JSON.parse(c.intel_json).mobilizationDueTurn??c.expires_turn):c.expires_turn;}
 export interface Operations {contracts:any[];missions:any[];assignments:any[];decisions:any[]}
 export const liveStatuses=['active','awaiting_decision','returning'];
 export const emptyOperations=():Operations=>({contracts:[],missions:[],assignments:[],decisions:[]});
@@ -42,7 +45,7 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
   report(m,status,status==='completed'?'Missão concluída':status==='withdrawn'?'Retirada concluída':'Missão fracassada',reportNarrative(status,[m.id,turn,'final']),{}, {paymentCents:payment,reputationDelta:delta,totalPaidCents:m.paid_cents});
   event('mission_'+status,status==='completed'?'Missão concluída':status==='withdrawn'?'Equipe retornou':'Missão fracassada',c.title+' · consulte o relatório.',true);
  }
- for(const c of o.contracts)if(['available','accepted'].includes(c.status)&&c.expires_turn<=turn){c.status='expired';event('contract_expired','Oferta expirada',c.title);}
+ for(const c of o.contracts)if(['available','accepted'].includes(c.status)&&contractDeadline(c)<=turn){const accepted=c.status==='accepted';c.status='expired';event('contract_expired',accepted?'Prazo de mobilização encerrado':'Oferta expirada',c.title);}
  for(const m of o.missions){
   if(!liveStatuses.includes(m.status))continue;
   if(m.status==='returning'){if(m.stage_due_turn<=turn)finish(m,'withdrawn');continue;}

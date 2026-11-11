@@ -4,6 +4,7 @@
   "maxReinforcements": 2,
   "maxMembers": 8,
   "offerTurns": 28,
+  "mobilizationTurns": 8,
   "decisionTurns": 2,
   "maxDelays": 2,
   "mobilizationPerOperatorCents": 20000,

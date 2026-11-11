@@ -2,11 +2,25 @@
 
 Status: implementado por solicitação do usuário em 2026-11-09.
 
+## Revisão em 2026-11-11 — decisões sem avanço e execução por período
+
+Renovar vínculo, aceitar/cancelar contrato não iniciado, responder decisão, ordenar retirada e interromper atividade são confirmações imediatas. Não avançam o relógio. Retirada e decisões alteram a ordem em vigor, mas a próxima etapa, retorno e acerto financeiro só acontecem ao simular o período seguinte. Interrupção preserva cura, atributo e progresso já obtidos, sem reembolso. Ferimentos graves exigem oito turnos mínimos de tratamento antes da interrupção. Conflitos com ordens planejadas do mesmo alvo exigem remover a ordem pendente primeiro.
+
+Contratações continuam reversíveis no planejamento por envolverem custo, podendo encadear formação e missão. Renovar um vínculo de uma contratação ainda planejada também depende dessa confirmação. Comandos administrativos já salvos na fila continuam no protocolo anterior, incluindo repetição após confirmação, para preservar campanhas e idempotência.
+
+Aceitar contrato registra imediatamente `acceptedTurn` e `mobilizationDueTurn` dentro do JSON de contexto já persistido. O prazo de mobilização é de oito turnos (dois dias), contado do aceite; o vencimento original continua sendo o prazo para aceitar a oferta. Contratos aceitos em saves antigos sem esses campos mantêm o prazo original. Missões iniciadas dentro da janela podem prosseguir depois dela.
+
+Tratamento recupera saúde por período até 100, com previsão variável e mínimo para ferimentos graves. Descanso segue até fadiga zero. Ambos recalculam a conclusão conforme os efeitos efetivos. Treinamento mantém sessões de quatro turnos; a UI prevê atributo e progresso ao final, esclarecendo que uma sessão pode terminar sem aumentar o atributo. O cálculo da previsão reutiliza a progressão real, incluindo melhoria de treinamento já prevista durante a sessão.
+
+A sugestão de avanço considera prazos ativos e conclusões/etapas de ordens planejadas. Compromissos sem duração (ou ordens antigas sem previsão) sugerem um período; não existe período adicional de confirmação. A agenda inclui o prazo de mobilização dos contratos aceitos. A sugestão para prazos que exigem ação para um período antes do vencimento, deixando uma oportunidade de decisão.
+
+O painel de avanço mostra compromissos financeiros conhecidos para os 1–28 períodos selecionados: ordens confirmadas, salários, sede, dívidas atuais e devoluções de adiantamento de missões já em retorno. Usa pessoal e logística projetados, incluindo contratações e melhorias pendentes. Receitas incertas de missões são excluídas; saldo após compromissos é capacidade financeira estimada, podendo ser negativo, e não promessa de pagamentos efetivos ou duração integral do lote. Planejamento inválido mantém suas ordens visíveis e desabilita a previsão financeira até correção.
+
 ## Revisão em 2026-11-11 — execução desde o primeiro avanço
 
 Planejar não consome tempo. As ordens são aplicadas antes da resolução do período, e o primeiro avanço já conta para duração e efeitos. A fila e os cards mostram previsão de conclusão (ou próxima etapa), incluindo esse primeiro período.
 
-Descanso recupera fadiga a cada turno até zerar, com duração estimada pela fadiga atual. Interromper um descanso ativo é imediato e preserva a recuperação obtida. Descansos existentes passam a seguir essa regra no próximo avanço; treinamento e tratamento mantêm seus prazos.
+Descanso recupera fadiga a cada turno até zerar, com duração estimada pela fadiga atual. Interromper um descanso ativo é imediato e preserva a recuperação obtida. Descansos existentes passam a seguir essa regra no próximo avanço. A revisão acima substitui a duração fixa do tratamento e mantém sessões de treinamento.
 
 Equipes com contratações pendentes são planejadas junto delas; a organização com operadores já contratados continua imediata. A projeção de pessoal permite selecionar os futuros integrantes e a equipe ao planejar uma missão. A revisão de formação usa o mesmo estado virtual da fila, permitindo contratar, montar equipe, aceitar contrato e enviar na mesma confirmação, desde que os recursos necessários já estejam disponíveis. Remover uma dependência não remove outras ordens silenciosamente: elas continuam visíveis e impedem a confirmação até a correção.
 
@@ -32,4 +46,4 @@ Saldo e previsão no topo; TurnDock compartilhado em todas as páginas, seguro p
 
 ## Testes e compatibilidade
 
-O dispatcher de produção usa execução `queued` por padrão. Não há header, query ou variável de runtime que habilite comandos imediatos. Os testes antigos de regras dos subsistemas optam explicitamente pelo dispatcher interno `immediate`, preservando suas verificações de regras e resolução sem acoplar os fixtures ao novo protocolo. A suíte `planning.test.ts` usa exclusivamente a API pública padrão e cobre fila, reversão, atomicidade, dependências, inteligência, missões, concorrência e cobrança única. A API Fastify normalizada compartilha a mesma execução pública deferida.
+O dispatcher de produção mantém o planejamento como padrão para atividades e investimentos, com as ações administrativas imediatas definidas acima. Não há header, query ou variável de runtime que altere essa classificação. Os testes antigos de regras dos subsistemas optam explicitamente pelo dispatcher interno `immediate`, preservando suas verificações de regras e resolução sem acoplar os fixtures ao novo protocolo. A suíte `planning.test.ts` usa exclusivamente a API pública padrão e cobre fila, reversão, atomicidade, dependências, inteligência, missões, concorrência e cobrança única. A API Fastify normalizada compartilha a mesma classificação pública de ações.

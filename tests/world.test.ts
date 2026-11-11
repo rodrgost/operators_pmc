@@ -29,7 +29,7 @@ it('mundo: crise gera demanda e conflito encadeado com participantes',async()=>{
 });
 it('mundo: rivais respeitam aceite e usam seu próprio orçamento',async()=>{const s=await fixture();try{
  const c=(await s.call(s.path+'/contracts')).data[0];const g=(await s.call(s.path)).data;expect((await s.call(s.path+'/contracts/'+c.id+'/accept',{requestId:'accept',expectedVersion:g.stateVersion})).status).toBe(200);
- const cash=(await s.call(s.path)).data.cashCents;expect((await s.advance(8)).data).toMatchObject({status:'completed',currentTurn:8});expect((await s.call(s.path+'/contracts/'+c.id)).data.status).toBe('accepted');expect((await s.call(s.path)).data.cashCents).toBe(cash);
+ const cash=(await s.call(s.path)).data.cashCents;expect((await s.advance(7)).data).toMatchObject({status:'completed',currentTurn:7});expect((await s.call(s.path+'/contracts/'+c.id)).data.status).toBe('accepted');await s.advance(1,'mobilization-deadline');expect((await s.call(s.path+'/contracts/'+c.id)).data.status).toBe('expired');expect((await s.call(s.path)).data.cashCents).toBe(cash);
  const jobs=s.db.prepare('SELECT * FROM online_world_rival_jobs').all() as any[];expect(jobs.length).toBeGreaterThan(0);expect(jobs.some(j=>j.status!=='active')).toBe(true);expect(jobs.some(j=>j.contract_id===c.id)).toBe(false);
  expect((await s.call(s.path+'/finances/ledger')).data).toHaveLength(1);
  }finally{s.db.close()}});

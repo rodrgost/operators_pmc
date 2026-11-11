@@ -143,19 +143,20 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
     return json(await enqueue(db,id,owner,{scope:'personnel',kind,target:path[3]??'',schema},schema.parse(body),digest),201);
    }
   }
-  if(route?.kind==='activity_cancel'){
-   const body=commandSchema.parse(await request.clone().json());
-   const previous=await db.prepare('SELECT request_id FROM online_actions WHERE game_id=? AND request_id=?').bind(id,body.requestId).first();
+  if(route&&['renew','activity_cancel','accept','cancel','decision','withdraw'].includes(route.kind)){
+   const body=route.schema.parse(await request.clone().json());
+   // Existing queued commands retain their original protocol, including retries after commit.
    const queued=await db.prepare('SELECT id FROM online_pending_orders WHERE game_id=? AND id=?').bind(id,body.requestId).first();
-   if(previous&&!queued)return json(await personnelAction(db,id,owner,'activity_cancel',path[3],body,digest));
-   const rest=await db.prepare("SELECT operator_id FROM online_reservations WHERE game_id=? AND operator_id=? AND kind='rest'").bind(id,path[3]).first();
-   if(rest){
-    if((await orders(db,id)).some(o=>o.target===path[3]))throw new ApiError(422,'ORDER_ALREADY_PENDING','Remova a ordem deste operador antes de interromper o descanso.');
-    return json(await personnelAction(db,id,owner,'activity_cancel',path[3],commandSchema.parse(await request.json()),digest));
+   const previous=await db.prepare('SELECT request_id FROM online_actions WHERE game_id=? AND request_id=?').bind(id,body.requestId).first();
+   const pending=await orders(db,id);
+   const futureHire=route.kind==='renew'&&pending.some(o=>o.kind==='hire'&&'operator-'+o.command.candidateId===route.target);
+   if(!queued&&!futureHire){
+    if(!previous&&pending.some(o=>o.target===route.target&&(route.kind==='renew'?o.kind==='renew':true)))throw new ApiError(422,'PENDING_ORDER_CONFLICT','Remova a ordem planejada deste alvo antes de confirmar esta ação.');
+    return json(route.scope==='personnel'?await personnelAction(db,id,owner,route.kind,route.target,body,digest):await operationAction(db,id,owner,route.kind,route.target,body,digest));
    }
   }
   if(route)return json(await enqueue(db,id,owner,route,route.schema.parse(await request.json()),digest),201);
-  if(path[2]==='command-center'&&path.length===3&&request.method==='GET')return json(await commandCenter(db,g));
+  if(path[2]==='command-center'&&path.length===3&&request.method==='GET')return json(await commandCenter(db,g,digest));
   if(path[2]==='intelligence'){
    await ensureIntelligence(db,id,owner,digest);const current=await getGame(db,id,owner);
    if(request.method==='POST'&&path[3]==='analyses')return json(await analysisAction(db,id,owner,analysisSchema.parse(await request.json()),digest),201);

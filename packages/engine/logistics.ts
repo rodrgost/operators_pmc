@@ -33,15 +33,27 @@ export function stageEquipment(l:Logistics,missionId:string,stage:number,type:st
  return {capacity,injuryReduction:Math.min(0.6,injuryReduction),fatigueReduction:Math.min(3,Math.floor(fatigueReduction)),used};
 }
 export function returnEquipment(l:Logistics,missionId:string,turn:number){for(const a of l.assignments.filter(a=>a.mission_id===missionId&&a.status==='assigned')){const k=l.equipment.find(k=>k.id===a.equipment_id)!;a.status='returned';a.returned_turn=turn;k.status=k.condition===0?'destroyed':'available';k.mission_id=null;}}
+function trainingStep(value:number,progress:number,level:number){
+ progress+=Math.max(1,Math.floor(config.trainingProgressPerTurn*config.trainingEfficiency[level-1]/100*(1-value/125)));
+ while(progress>=100){progress-=100;value=Math.min(100,value+1);}
+ return {value,progress};
+}
+export function trainingEstimate(l:Logistics,op:any,attribute:string,turn=0){
+ const before=JSON.parse(op.profile_json).attributes[attribute],initial=l.progress.find(p=>p.operator_id===op.id&&p.attribute===attribute)?.progress??0;
+ let value=before,progress=initial;
+ const module=l.modules.find(m=>m.type==='training');
+ for(let n=0;n<config.trainingTurns;n++){const level=module?.target_level&&module.due_turn<=turn+n+1?module.target_level:moduleLevel(l,'training');const next=trainingStep(value,progress,level);value=next.value;progress=next.progress;}
+ return {attributeBefore:before,attributeAfter:value,progressBefore:initial,progressAfter:progress,turns:config.trainingTurns};
+}
 export function facilityTurn(l:Logistics,p:Personnel,turn:number){const managed:string[]=[];
  for(const a of l.activities.filter(a=>a.status==='active')){const r=p.reservations.find(r=>r.operator_id===a.operator_id&&r.source_id===a.request_id),op=p.operators.find(o=>o.id===a.operator_id);if(!r||!op){a.status='cancelled';continue;}managed.push(op.id);
   if(a.kind==='rest')op.fatigue=Math.max(0,op.fatigue-config.restFatiguePerTurn);
   if(a.kind==='recovery')op.health=Math.min(100,op.health+config.infirmaryHealing[moduleLevel(l,'infirmary')-1]);
   if(a.kind==='training'){const profile=JSON.parse(op.profile_json);let progress=l.progress.find(t=>t.operator_id===op.id&&t.attribute===a.attribute);if(!progress){progress={operator_id:op.id,attribute:a.attribute,progress:0};l.progress.push(progress)}
-   const value=profile.attributes[a.attribute];progress.progress+=Math.max(1,Math.floor(config.trainingProgressPerTurn*config.trainingEfficiency[moduleLevel(l,'training')-1]/100*(1-value/125)));
-   while(progress.progress>=100){progress.progress-=100;profile.attributes[a.attribute]=Math.min(100,profile.attributes[a.attribute]+1);}op.profile_json=JSON.stringify(profile);op.fatigue=Math.min(100,op.fatigue+2);
+   const next=trainingStep(profile.attributes[a.attribute],progress.progress,moduleLevel(l,'training'));progress.progress=next.progress;profile.attributes[a.attribute]=next.value;op.profile_json=JSON.stringify(profile);op.fatigue=Math.min(100,op.fatigue+2);
   }
   if(a.kind==='rest')r.end_turn=turn+Math.ceil(op.fatigue/config.restFatiguePerTurn);
+  if(a.kind==='recovery')r.end_turn=Math.max(a.minimum_end_turn??turn,turn+Math.ceil((100-op.health)/config.infirmaryHealing[moduleLevel(l,'infirmary')-1]));
   if(r.end_turn<=turn)a.status='completed';
  }return managed;
 }

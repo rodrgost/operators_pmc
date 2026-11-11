@@ -3,6 +3,7 @@ import balance from '../rules/personnel.json' with { type:'json' };
 export { balance };
 export const restFatiguePerTurn=balance.restFatigue/balance.activityTurns;
 export const restTurns=(fatigue:number)=>Math.max(1,Math.ceil(fatigue/restFatiguePerTurn));
+export const recoveryHealthPerTurn=balance.recoveryHealth/balance.activityTurns;
 export const attributes=['combat','stealth','technical','perception','endurance','leadership'] as const;
 export const specializations=['recon','assault','medic','technical','leader'] as const;
 export type Digest=(value:unknown)=>Promise<string>;
@@ -62,9 +63,13 @@ export async function personnelTurn(original:Personnel,turn:number,cash:number,s
   if(!managedIds.includes(op.id))op.fatigue=clamp(op.fatigue-restFatiguePerTurn);
   r.end_turn=turn+(op.fatigue>0?restTurns(op.fatigue):0);
  }
+ for(const r of p.reservations.filter(r=>r.kind==='recovery'&&!managedIds.includes(r.operator_id))){
+  const op=p.operators.find(o=>o.id===r.operator_id);if(!op)continue;
+  op.health=clamp(op.health+recoveryHealthPerTurn);
+  r.end_turn=turn+Math.ceil((100-op.health)/recoveryHealthPerTurn);
+ }
  const ended=p.reservations.filter(r=>r.kind!=='mission'&&r.end_turn<=turn);
  for(const r of ended){const op=p.operators.find(o=>o.id===r.operator_id);if(!op)continue;
-  if(!managedIds.includes(op.id)&&r.kind==='recovery')op.health=clamp(op.health+balance.recoveryHealth);
   if(!managedIds.includes(op.id)&&r.kind==='training')op.fatigue=clamp(op.fatigue+balance.trainingFatigue);
   record('activity:'+r.source_id+':'+op.id,'activity_completed','Atividade concluída',{operatorId:op.id,kind:r.kind});
  }
