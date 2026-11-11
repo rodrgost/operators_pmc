@@ -1,0 +1,13 @@
+.git
+.sites-runtime
+node_modules
+**/node_modules
+**/.nuxt
+**/.output
+apps/web/dist
+dist
+data
+.env*
+coverage
+apps/web/public/browser-game-worker.js
+apps/web/public/sql-wasm.wasm

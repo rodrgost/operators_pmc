@@ -8,3 +8,5 @@ coverage/
 dist/
 worker/assets.generated.ts
 .sites-runtime/
+apps/web/public/browser-game-worker.js
+apps/web/public/sql-wasm.wasm

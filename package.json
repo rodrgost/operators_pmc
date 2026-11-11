@@ -11,6 +11,8 @@
   ],
   "scripts": {
     "dev": "node scripts/preview-online.mjs",
+    "build:railway": "node scripts/build-railway.mjs",
+    "start:railway": "node scripts/serve-railway.mjs",
     "dev:api": "node --watch --import tsx apps/api/src/server.ts",
     "dev:web": "npm run dev --workspace @operators/web",
     "start:api": "node --import tsx apps/api/src/server.ts",
@@ -26,10 +28,13 @@
   "dependencies": {
     "@fastify/cors": "^11.1.0",
     "fastify": "^5.6.0",
+    "ofetch": "^1.5.1",
+    "sql.js": "^1.16.0",
     "zod": "^4.1.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "@types/sql.js": "^1.4.11",
     "concurrently": "^9.2.0",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.4",

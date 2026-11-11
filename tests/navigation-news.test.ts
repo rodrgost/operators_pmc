@@ -23,7 +23,7 @@ it('novidades: limpar submenu preserva irmãos e atenção não é apagada pela 
 });
 it('novidades: leitura persiste entre acessos e é isolada por companhia',()=>{
  const storage=new Map<string,string>();let stateStore:any={};
- const source=readFileSync('apps/web/composables/useNavigationNews.ts','utf8').replace(/^import .*\n/,'');
+ const source=readFileSync('apps/web/composables/useNavigationNews.ts','utf8').replace(/^import [^\n]*\n/,'');
  function mount(){const ctx:any={exports:{},newsStatus,acknowledgeNews,useState:(key:string,init:any)=>stateStore[key]??(stateStore[key]={value:init()}),localStorage:{getItem:(k:string)=>storage.get(k),setItem:(k:string,v:string)=>storage.set(k,v)}};runInNewContext(ts.transpileModule(source+';exports.h=useNavigationNews();',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.CommonJS}}).outputText,ctx);return ctx.exports.h}
  let h=mount();h.sync('a',{'world.news':1});h.sync('b',{'world.news':1});
  h.sync('a',{'world.news':2,'world.intelligence':3});expect(h.status('a','world')).toBe('new');

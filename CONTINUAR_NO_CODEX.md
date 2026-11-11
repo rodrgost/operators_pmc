@@ -4,6 +4,8 @@ Pasta principal: `C:\Users\rodrg\DEV\operators_pmc`.
 
 ## Fluxo acordado — 11/11/2026
 
+Destino de publicação solicitado posteriormente: Railway, com campanhas no navegador e sem login. Usar `build:railway` e o Dockerfile, conforme `docs/RAILWAY.md`. Não configurar Firebase; Android e salvamento Google são ideias futuras. O modo Sites anterior continua separado, sem migração automática das campanhas.
+
 Desenvolver no Codex usando esta pasta como cópia de trabalho do repositório `https://github.com/rodrgost/operators_pmc` (remoto `origin`, branch remota `master`). Atualizar a cópia local preservando mudanças existentes, implementar e validar no Codex, registrar e sincronizar as alterações com o GitHub e publicar a mesma versão por Sites quando solicitado ou autorizado. Não manter desenvolvimento separado dentro do ChatGPT. Os fontes antes hospedados no ChatGPT já foram importados e sincronizados. Ver a seção “Fluxo único de desenvolvimento” no README. Não há sincronização automática em segundo plano.
 
 ## Estado atual — 0.7.1

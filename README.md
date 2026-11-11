@@ -17,6 +17,8 @@ A preferência atual é trabalhar **localmente neste computador**, sem configura
 
 ## Executar localmente
 
+Para a publicação Railway com campanhas salvas no navegador e sem login, seguir [docs/RAILWAY.md](docs/RAILWAY.md). Android e salvamento Google ficam para uma etapa futura.
+
 Requisitos: Node.js 24 e npm.
 
 ```sh
