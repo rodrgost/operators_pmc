@@ -98,7 +98,19 @@ export async function turnSummary(db:Database,id:string,turn:number){
  const rows=await db.batch([db.prepare('SELECT * FROM online_turn_summaries WHERE game_id=? AND turn=?').bind(id,turn),db.prepare('SELECT * FROM online_events WHERE game_id=? AND turn=? ORDER BY sequence').bind(id,turn)]);
  const s=rows[0].results[0];if(!s)throw new ApiError(404,'NOT_FOUND','Resumo não encontrado.');return {turn:s.turn,date:s.date,stateHash:s.state_hash,events:rows[1].results.map(rowEvent)};
 }
-export async function financialLedger(db:Database,id:string){const rows=await db.prepare('SELECT turn,source_id AS sourceId,amount_cents AS amountCents,entry_type AS entryType FROM online_ledger WHERE game_id=? ORDER BY turn,source_id').bind(id).all();return rows.results;}
+export async function financialLedger(db:Database,id:string){
+ const rows=await db.prepare(`SELECT l.turn,l.source_id AS sourceId,l.amount_cents AS amountCents,l.entry_type AS entryType,g.start_date AS startDate,
+ COALESCE(json_extract(op.profile_json,'$.name'),c.title,p.title) AS detail
+ FROM online_ledger l JOIN online_games g ON g.id=l.game_id
+ LEFT JOIN online_employment e ON e.game_id=l.game_id AND l.source_id='salary:'||e.id||':'||l.turn
+ LEFT JOIN online_operators op ON op.game_id=e.game_id AND op.id=e.operator_id
+ LEFT JOIN online_missions m ON m.game_id=l.game_id AND l.source_id IN('mission:'||m.id||':mobilization','mission:'||m.id||':advance','mission:'||m.id||':completion','mission:'||m.id||':refund')
+ LEFT JOIN online_contracts c ON c.game_id=m.game_id AND c.id=m.contract_id
+ LEFT JOIN online_pending_orders p ON p.game_id=l.game_id AND p.status='committed' AND l.source_id IN('hire:'||p.id,'logistics:'||p.id,'facility:'||p.id,'analysis-'||p.id)
+ WHERE l.game_id=? ORDER BY l.turn,l.source_id,l.entry_type`).bind(id).all();
+ const descriptions:Record<string,string>={initial_capital:'Capital inicial',signing_bonus:'Bônus de contratação',salary_payment:'Pagamento de salário',equipment_purchase:'Compra de kits',equipment_maintenance:'Reparo de kit',equipment_resupply:'Reposição de suprimentos',headquarters_upgrade:'Melhoria da sede',headquarters_maintenance:'Manutenção da sede',operator_training:'Treinamento de operadores',operator_treatment:'Tratamento de operadores',intelligence_analysis:'Análise de inteligência',mission_mobilization:'Mobilização de missão',mission_advance:'Adiantamento de missão',mission_completion:'Pagamento final de missão',advance_refund:'Devolução de adiantamento'};
+ return rows.results.map(({startDate,...row}:any)=>({...row,date:gameDate(startDate,row.turn),description:descriptions[row.entryType]||'Movimentação financeira'}));
+}
 
 export async function deleteGame(db:Database,g:Campaign,confirmationName:string,expectedVersion:number){
  if(confirmationName!==g.name)throw new ApiError(422,'NAME_MISMATCH','Digite o nome exato da companhia para confirmar.');

@@ -31,7 +31,7 @@ it('importação: preserva campanha, eventos, resumos, ledger, retry e retomada 
   expect((await call(`/games/${f.id}/advance`,f.command)).data).toEqual(f.result);
   expect((await call(`/games/${f.id}/timeline?limit=100`)).data).toEqual([...f.campaign.events].reverse());
   for(let turn=1;turn<=16;turn++)expect((await call(`/games/${f.id}/turns/${turn}/summary`)).data).toEqual(f.campaign.summaries[turn]);
-  expect((await call(`/games/${f.id}/finances/ledger`)).data).toEqual([{turn:0,sourceId:'initial-capital',amountCents:10000000,entryType:'initial_capital'}]);
+  expect((await call(`/games/${f.id}/finances/ledger`)).data).toEqual([{turn:0,sourceId:'initial-capital',amountCents:10000000,entryType:'initial_capital',date:'2030-01-01T00:00:00.000Z',description:'Capital inicial',detail:null}]);
   expect((await call(`/games/${f.id}/advances/__proto__/resume`,{expectedVersion:16})).data).toMatchObject({currentTurn:28,processedTurns:28,status:'completed'});
   expect((db.prepare('SELECT state_json FROM online_campaigns').get() as any).state_json).toBe(f.raw);
  }finally{db.close()}
