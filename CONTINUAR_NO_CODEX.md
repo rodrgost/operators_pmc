@@ -8,6 +8,8 @@ Desenvolver no Codex usando esta pasta como cópia de trabalho do repositório `
 
 ## Estado atual — 0.7.1
 
+Preferência confirmada em 11/11/2026: usar o Codex local neste computador e sincronizar com o GitHub. Não configurar Codex Cloud como parte deste fluxo. A publicação por Sites continua sendo uma etapa separada da sincronização do código.
+
 Fundação e persistência normalizada implementadas, agora com operadores, recrutamento semanal, vínculos 4/8/12 semanas, pagamentos e dívidas salariais, renovação, equipes permanentes, líderes/substitutos, histórico de composição, reservas exclusivas de agenda e familiaridade por treino conjunto. Interface mobile preto/cinza; manter esse padrão em todas as telas.
 
 Agora também implementados: contratos comerciais, planejamento, snapshots de formação, reforços, etapas autônomas, decisões críticas com prazo/fallback, retirada, relatórios e pagamentos. Mundo causal, rivais, kits e módulos da sede implementados. Inteligência progressiva implementada; Centro de comando e campanha integrada de 336 turnos validados; balanceamento segue provisório. Reforços de missão preservam vínculo permanente; a formação enviada é imutável.

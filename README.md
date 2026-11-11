@@ -13,6 +13,8 @@ O desenvolvimento deste projeto fica concentrado no **Codex**, na pasta `C:\User
 
 A pasta local é a cópia de trabalho do repositório; o GitHub mantém o histórico compartilhado; Sites recebe o resultado para publicação. Não desenvolver uma versão independente em conversas do ChatGPT. A cópia em `.sites-runtime` serve apenas à integração de publicação. Esse fluxo não implica sincronização automática em segundo plano.
 
+A preferência atual é trabalhar **localmente neste computador**, sem configurar um ambiente Codex Cloud. O desenvolvimento local depende do acesso a este computador e à pasta de trabalho. Sincronizar as alterações concluídas com o GitHub durante as tarefas; publicar o site é uma etapa separada.
+
 ## Executar localmente
 
 Requisitos: Node.js 24 e npm.
