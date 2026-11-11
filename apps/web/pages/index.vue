@@ -50,9 +50,10 @@ async function removeCompany(){
  finally{busy.value=false}
 }
 async function create(){
- if(busy.value||personnelWorking.value||!canCreate.value)return;
+ if(busy.value||personnelWorking.value||(!canCreate.value&&!pendingCreation.value))return;
  busy.value=true;error.value='';
  try{
+  if(!canCreate.value){await load();if(!canCreate.value)return}
   const command=pendingCreation.value||{requestId:crypto.randomUUID(),name:name.value,seed:seed.value,difficulty:difficulty.value,registrationCountryId:registrationCountryId.value};
   pendingCreation.value=command;
   const created=await api('/games',{method:'POST',body:command});

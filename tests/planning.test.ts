@@ -17,7 +17,7 @@ it('recrutamento sinaliza ordem agendada e libera candidato após remoção',asy
  const queued=(await s.call(s.path+'/personnel')).data;
  expect(queued.candidates.find((c:any)=>c.id===candidate.id).scheduledOrderId).toBe('queued-hire');
  expect(queued.operators).toHaveLength(0);
- expect((await s.action('/recruitment/hire','duplicate-hire',{candidateId:candidate.id,weeks:4})).data.code).toBe('CANDIDATE_UNAVAILABLE');
+ expect((await s.action('/recruitment/hire','duplicate-hire',{candidateId:candidate.id,weeks:4})).data.code).toBe('ORDER_ALREADY_PENDING');
  expect((await s.call(s.path+'/orders')).data.orders).toHaveLength(1);
  await s.action('/orders/queued-hire/cancel','undo-hire');
  expect((await s.call(s.path+'/personnel')).data.candidates.find((c:any)=>c.id===candidate.id).scheduledOrderId).toBeNull();
@@ -61,3 +61,6 @@ it('equipes: integrantes e liderança mudam sem turno; desfazer preserva operado
   expect((await s.call(s.path+'/orders')).data.orders).toHaveLength(0);
  }finally{s.db.close()}
 });
+
+it('aceite agendado aparece no card, bloqueia duplicação e libera após remover',async()=>{const s=await fixture();try{const c=(await s.call(s.path+'/contracts')).data[0];const url='/contracts/'+c.id+'/accept';const before=(await s.call(s.path)).data;const body={requestId:'accept-visible',expectedVersion:before.stateVersion};const first=await s.call(s.path+url,body);expect(first.data.queued).toBe(true);expect((await s.call(s.path+url,body)).data).toEqual(first.data);expect((await s.action(url,'duplicate')).data.code).toBe('ORDER_ALREADY_PENDING');const view=(await s.call(s.path+'/operations')).data;expect(view.pendingOrders).toHaveLength(1);expect(view.contracts.find((x:any)=>x.id===c.id).status).toBe('available');await s.action('/orders/accept-visible/cancel','remove');expect((await s.call(s.path+'/operations')).data.pendingOrders).toHaveLength(0);expect((await s.action(url,'again')).data.queued).toBe(true);}finally{s.db.close()}});
+it('compras adicionais permanecem permitidas e visíveis na logística',async()=>{const s=await fixture();try{for(const id of ['buy-one','buy-two'])expect((await s.action('/equipment/purchases',id,{catalogId:'combat-1',quantity:1})).data.queued).toBe(true);expect((await s.call(s.path+'/logistics')).data.pendingOrders.filter((o:any)=>o.kind==='purchase')).toHaveLength(2);}finally{s.db.close()}});

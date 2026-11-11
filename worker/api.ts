@@ -143,13 +143,13 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
   if(path[2]==='world'&&request.method==='GET'){await ensureWorld(db,id,owner,digest);const current=await getGame(db,id,owner);const {offset,limit}=paginationSchema.parse(Object.fromEntries(url.searchParams));return json(await worldRoute(db,current,path,url,offset,limit));}
   if(['logistics','equipment','headquarters'].includes(path[2])){
    await ensureLogistics(db,id,owner,digest);const current=await getGame(db,id,owner);
-   if(request.method==='GET'){const view=logisticsView(current,await readLogistics(db,id));if(path[2]==='equipment'&&path[3]==='catalog')return json(view.catalog);if(path[2]==='equipment'&&path[3]==='inventory')return json(view.inventory);if(path[2]==='logistics'||path[2]==='headquarters')return json(view);}
+   if(request.method==='GET'){const view={...logisticsView(current,await readLogistics(db,id)),pendingOrders:await orders(db,id)};if(path[2]==='equipment'&&path[3]==='catalog')return json(view.catalog);if(path[2]==='equipment'&&path[3]==='inventory')return json(view.inventory);if(path[2]==='logistics'||path[2]==='headquarters')return json(view);}
    if(request.method==='POST'){const body=await request.json();if(path[2]==='equipment'&&path[3]==='purchases')return json(await logisticsAction(db,id,owner,'purchase','',purchaseSchema.parse(body),digest),201);if(path[2]==='equipment'&&['maintenance','resupply'].includes(path[4]))return json(await logisticsAction(db,id,owner,path[4],path[3],commandSchema.parse(body),digest));if(path[2]==='headquarters'&&path[3]==='modules'&&path[5]==='upgrade')return json(await logisticsAction(db,id,owner,'upgrade',path[4],commandSchema.parse(body),digest));}
   }
   if(['contracts','missions','decisions','operations'].includes(path[2])){
    await ensureOperations(db,id,owner,digest);const current=await getGame(db,id,owner);
    if(request.method==='GET'){
-    if(path[2]==='operations')return json(await operationsView(db,current));
+    if(path[2]==='operations')return json({...await operationsView(db,current),pendingOrders:await orders(db,id)});
     if(path[2]==='contracts'){
      if(!path[3]){const view=await operationsView(db,current);const status=url.searchParams.get('status'),type=url.searchParams.get('type'),region=url.searchParams.get('region');return json(view.contracts.filter(c=>(!status||c.status===status)&&(!type||c.type===type)&&(!region||c.regionId===region)));}
      const c=await db.prepare('SELECT * FROM online_contracts WHERE game_id=? AND id=?').bind(id,path[3]).first();if(!c)throw new ApiError(404,'NOT_FOUND','Contrato não encontrado.');return json(contractProjection(c,current.logisticsInitialized,current.intelligenceInitialized?dossier(await readIntelligence(db,current),'contract',c.id,current.state.turn):undefined));
@@ -178,7 +178,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
    await ensurePersonnel(db,id,owner,digest);
    if(request.method==='GET'){
     const {g:current,p}=await readPersonnel(db,id,owner);const view=personnelProjection(current,p,current.logisticsInitialized?await readLogistics(db,id):undefined);
-    const pendingHires=(await orders(db,id)).filter(o=>o.kind==='hire');
+    const pendingOrders=await orders(db,id);Object.assign(view,{pendingOrders});const pendingHires=pendingOrders.filter(o=>o.kind==='hire');
     for(const candidate of view.candidates)Object.assign(candidate,{scheduledOrderId:pendingHires.find(o=>o.command.candidateId===candidate.id)?.id??null});
     if(path[2]==='personnel'||(path[2]==='finances'&&path[3]==='summary'))return json(view);
     if(path[2]==='recruitment'&&path[3]==='candidates')return json(view.candidates);

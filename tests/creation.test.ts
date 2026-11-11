@@ -6,7 +6,10 @@ import ts from 'typescript';
 function setup(failAt:'create'|'list'|'select'){
  let fail=true,ids=0;const campaigns=new Map<string,any>();const posted:any[]=[];
  const source=readFileSync('apps/web/pages/index.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0];
- const context:any={useHead:()=>{},useState:(_key:string,init:any)=>({value:init()}),ref:(value:any)=>({value}),computed:(fn:any)=>({get value(){return fn()}}),onMounted:()=>{},localStorage:{setItem:()=>{}},crypto:{randomUUID:()=>`creation-${++ids}`},$fetch:async(path:string,options:any={})=>{
+ const context:any={watch:()=>{},useNavigationNews:()=>({sync:()=>{}}),useHead:()=>{},useState:(_key:string,init:any)=>({value:init()}),ref:(value:any)=>({value}),computed:(fn:any)=>({get value(){return fn()}}),onMounted:()=>{},localStorage:{setItem:()=>{}},crypto:{randomUUID:()=>`creation-${++ids}`},$fetch:async(path:string,options:any={})=>{
+  if(path==='/api/v1/session')return {authenticated:true};
+  if(path==='/api/v1/difficulties')return [{id:'normal'}];
+  if(path==='/api/v1/registration-countries')return [{id:'valdoria'}];
   if(options.method==='POST'){
    const command=options.body;posted.push(command);
    if(!campaigns.has(command.requestId))campaigns.set(command.requestId,{id:command.requestId,name:command.name});
@@ -23,7 +26,7 @@ function setup(failAt:'create'|'list'|'select'){
   }
   return [];
  }};
- runInNewContext(ts.transpileModule(source+';globalThis.harness={create,pendingCreation,name,seed,busy,error,showCreate};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,context);
+ runInNewContext(ts.transpileModule(source+`;authState.value='signedIn';setupReady.value=true;registrationCountries.value=[{id:'valdoria'}];difficultyOptions.value=[{id:'normal'}];globalThis.harness={create,pendingCreation,name,seed,busy,error,showCreate};`,{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,context);
  return {h:context.harness,campaigns,posted};
 }
 for(const failAt of ['create','list','select'] as const){
