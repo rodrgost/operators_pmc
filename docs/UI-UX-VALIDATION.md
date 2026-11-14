@@ -36,3 +36,9 @@ Data: 14/11/2026. Trabalho local; nenhuma publicação em produção.
 ## Limites
 
 A validação mobile usa viewports do Chrome no desktop. Não houve teste em aparelho físico, Safari/iOS, leitor de tela ou rede móvel instável. Publicação e observação em produção não fazem parte desta entrega.
+
+## Integração com a pasta principal
+
+As alterações locais de instalação PWA, ícones, modo offline e ordenação do livro-razão foram preservadas. Finanças mantém resumo e lançamentos na mesma página, sem repetir o saldo do cabeçalho; a agenda operacional não repete os compromissos financeiros. A revisão antes do avanço continua apresentando custos e previsões.
+
+Após a integração, os 210 testes, a checagem de tipos e os builds online/Railway passaram novamente. Manifest, ícones e script do service worker também foram verificados nos artefatos gerados.

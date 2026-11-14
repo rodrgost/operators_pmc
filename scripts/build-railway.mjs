@@ -1,3 +1,4 @@
+import { buildPwa } from './build-pwa.mjs';
 import { build } from 'esbuild';
 import { readdirSync, readFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -13,3 +14,4 @@ await build({ entryPoints: ['scripts/browser-game-worker.mjs'], outfile: 'apps/w
 copyFileSync('node_modules/sql.js/dist/sql-wasm.wasm', 'apps/web/public/sql-wasm.wasm');
 const result = spawnSync(process.execPath, ['node_modules/nuxt/bin/nuxt.mjs', 'generate', 'apps/web'], { stdio: 'inherit', env: { ...process.env, NUXT_PUBLIC_STORAGE_MODE: 'browser' } });
 process.exitCode = result.status ?? 1;
+if (result.status === 0) { const pwa=buildPwa(); console.log('PWA offline: '+pwa.assets.length+' arquivos, '+pwa.cache); }
