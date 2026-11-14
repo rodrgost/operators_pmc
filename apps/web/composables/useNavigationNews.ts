@@ -1,6 +1,7 @@
 import {newsStatus,acknowledgeNews,type NewsState} from '../utils/navigationNews'
 export function useNavigationNews(){
  const states=useState<Record<string,NewsState>>('navigation-news',()=>({}))
+ const activeScope=useState('campaign-active-scope',()=> '')
  const storageKey=(id:string)=>'operators-navigation-seen-v1:'+id
  function sync(id:string,latest:Record<string,number>,alerts:any[]=[]){
   let seen=states.value[id]?.seen
@@ -12,7 +13,7 @@ export function useNavigationNews(){
   persist(id)
  }
  function persist(id:string){try{localStorage.setItem(storageKey(id),JSON.stringify(states.value[id].seen))}catch{}}
- function markRead(id:string,key:string){const state=states.value[id];if(!state)return;states.value={...states.value,[id]:acknowledgeNews(state,key)};persist(id)}
+ function markRead(id:string,key:string){if(activeScope.value&&key.split('.')[0]!==activeScope.value)return;const state=states.value[id];if(!state)return;states.value={...states.value,[id]:acknowledgeNews(state,key)};persist(id)}
  function status(id:string,key:string){return newsStatus(states.value[id],key)}
  return {sync,markRead,status}
 }

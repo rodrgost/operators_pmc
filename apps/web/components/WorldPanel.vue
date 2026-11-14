@@ -12,6 +12,7 @@ const base=()=>'/api/v1/games/'+props.game.id+'/world'
 async function refresh(){loading.value=true;error.value='';try{data.value=await $fetch(base());older.value=[];offset.value=0;detail.value=null;if(focus.value[props.game.id]){await cause(focus.value[props.game.id]);focus.value={...focus.value,[props.game.id]:''}};navigationNews.markRead(props.game.id,'world.'+section.value)}catch(e:any){error.value=e.data?.message||'Não foi possível carregar o mundo.'}finally{loading.value=false}}
 async function history(){try{const rows=await $fetch<any[]>(base()+'/regions/'+selected.value+'/history?offset='+offset.value+'&limit=20');older.value.push(...rows);offset.value+=rows.length}catch{error.value='Não foi possível carregar o histórico.'}}
 async function cause(id:string){section.value='news';try{detail.value=await $fetch(base()+'/events/'+id)}catch{error.value='Não foi possível carregar a origem.'}}
+watch(()=>focus.value[props.game.id],async id=>{if(id&&data.value&&!loading.value){await cause(id);focus.value={...focus.value,[props.game.id]:''}}})
 watch(selected,()=>{detail.value=null;older.value=[];offset.value=0})
 watch(()=>[props.game.id,props.game.stateVersion],refresh)
 onMounted(refresh)
