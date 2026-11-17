@@ -1,4 +1,4 @@
-import {operatorIdentity} from './content.ts';
+import {operatorIdentity,uniqueOperatorName,operatorAppearance} from './content.ts';
 import balance from '../rules/personnel.json' with { type:'json' };
 export { balance };
 export const restFatiguePerTurn=balance.restFatigue/balance.activityTurns;
@@ -10,9 +10,18 @@ export type Digest=(value:unknown)=>Promise<string>;
 export interface Personnel {operators:any[];contracts:any[];candidates:any[];squads:any[];members:any[];familiarity:any[];reservations:any[]}
 export const emptyPersonnel=():Personnel=>({operators:[],contracts:[],candidates:[],squads:[],members:[],familiarity:[],reservations:[]});
 const clamp=(n:number)=>Math.max(0,Math.min(100,n));
-export async function market(seed:string,week:number,reputation:number,digest:Digest){
+export function uniqueCandidateNames(candidates:any[],operators:any[]=[]){
+ const used=new Set<string>(operators.map(o=>JSON.parse(o.profile_json).name));
+ return candidates.map(candidate=>{
+  if(candidate.hired)return candidate;
+  const profile=JSON.parse(candidate.profile_json),name=uniqueOperatorName(profile.name,candidate.id,used);
+  used.add(name);
+  return name===profile.name?candidate:{...candidate,profile_json:JSON.stringify({...profile,name,...operatorAppearance(name,profile.specialization)})};
+ });
+}
+export async function market(seed:string,week:number,reputation:number,digest:Digest,operators:any[]=[]){
  const traits=['disciplined','cautious','impulsive','resilient','loyal','ambitious'];
- return Promise.all(Array.from({length:balance.candidatesPerWeek},async(_,i)=>{
+ const candidates=await Promise.all(Array.from({length:balance.candidatesPerWeek},async(_,i)=>{
   const hash=await digest([seed,balance.version,week,'recruitment',i]);
   const n=(offset:number,max:number)=>parseInt(hash.slice(offset,offset+4),16)%max;
   const level=1+n(0,Math.min(10,2+Math.floor(reputation/15)));
@@ -20,9 +29,10 @@ export async function market(seed:string,week:number,reputation:number,digest:Di
   const stats=Object.fromEntries(attributes.map((a,j)=>[a,Math.min(95,25+level*5+n(8+j*4,21))]));
   const band=balance.salaryBands[level<=2?0:level<=6?1:2];
   const salary=(band[0]+n(36,band[1]-band[0]+1))*100;
-  const profile={...operatorIdentity('candidate-'+hash.slice(0,24)),level,xp:0,specialization,attributes:stats,traits:[traits[n(48,6)],traits[(n(48,6)+1+n(52,5))%6]]};
+  const profile={...operatorIdentity('candidate-'+hash.slice(0,24),specialization),level,xp:0,specialization,attributes:stats,traits:[traits[n(48,6)],traits[(n(48,6)+1+n(52,5))%6]]};
   return {id:'candidate-'+hash.slice(0,24),week,profile_json:JSON.stringify(profile),salary_cents:salary,bonus_cents:salary*balance.signingSalaryFactor,hired:0};
  }));
+ return uniqueCandidateNames(candidates,operators);
 }
 export function employment(p:Personnel,id:string,turn:number){return p.contracts.find(c=>c.operator_id===id&&c.status==='active'&&c.start_turn<=turn&&c.end_turn>turn)}
 export function availability(p:Personnel,op:any,turn:number){
@@ -81,6 +91,6 @@ export async function personnelTurn(original:Personnel,turn:number,cash:number,s
  }
  if(ended.length)add('activity_completed','Atividades concluídas',ended.length+' operador(es) concluíram atividades.');
  p.reservations=p.reservations.filter(r=>!ended.includes(r));
- if(turn%28===0){p.candidates=await market(seed,turn/28,reputation,digest);add('recruitment_refreshed','Mercado renovado','Novos candidatos disponíveis para contratação.');}
+ if(turn%28===0){p.candidates=await market(seed,turn/28,reputation,digest,p.operators);add('recruitment_refreshed','Mercado renovado','Novos candidatos disponíveis para contratação.');}
  return {personnel:p,cash,ledger,events,history,status:p.contracts.some(c=>c.arrears_cents>0)?'financial_crisis' as const:'active' as const};
 }

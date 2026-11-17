@@ -3,7 +3,7 @@ import {readLogistics,logisticsWrites} from './logistics.ts';
 import {moduleCapacity,moduleLevel,trainingEstimate,config as logisticsConfig,type Logistics} from '../packages/engine/logistics.ts';
 import { z } from 'zod';
 import { ApiError, type Database,type Statement,type Campaign,rowGame,mutate,getGame,projection } from './persistence.ts';
-import { balance,restTurns,restFatiguePerTurn,recoveryHealthPerTurn,market,emptyPersonnel,employment,availability,squadProjection,specializations,type Personnel,type Digest } from '../packages/engine/personnel.ts';
+import { balance,restTurns,restFatiguePerTurn,recoveryHealthPerTurn,market,uniqueCandidateNames,emptyPersonnel,employment,availability,squadProjection,specializations,type Personnel,type Digest } from '../packages/engine/personnel.ts';
 const requestId=z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/);
 const id=z.string().min(1).max(180);
 const weeks=z.union([z.literal(4),z.literal(8),z.literal(12)]);
@@ -32,6 +32,7 @@ export async function readPersonnel(db:Database,id:string,owner:string):Promise<
  if(!rows[0].results[0])throw new ApiError(404,'NOT_FOUND','Partida não encontrada.');
  const g=rowGame(rows[0].results[0]);
  const p:Personnel={operators:clean(rows[1].results),contracts:clean(rows[2].results),candidates:clean(rows[3].results),squads:clean(rows[4].results),members:clean(rows[5].results),familiarity:clean(rows[6].results),reservations:clean(rows[7].results)};
+ p.candidates=uniqueCandidateNames(p.candidates,p.operators);
  return {g,p};
 }
 // Bounded roster snapshots are small; bulk SQL avoids one D1 round trip per operator.

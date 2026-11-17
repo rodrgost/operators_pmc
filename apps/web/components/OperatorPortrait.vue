@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const props=defineProps<{name:string;specialization:string;level:number}>()
-const initials=computed(()=>props.name.trim().split(/\s+/).filter(Boolean).map(part=>part[0]).filter((_,index,all)=>index===0||index===all.length-1).join('').slice(0,2).toLocaleUpperCase('pt-BR'))
+import {operatorPortrait} from '../../../packages/engine/content'
+const props=defineProps<{name:string;specialization:string;level:number;gender?:string;portraitVariant?:number}>()
+const source=computed(()=>operatorPortrait(props.name,props.specialization,props.gender,props.portraitVariant))
 </script>
-<template><div :class="['operator-portrait',specialization]" aria-hidden="true"><GameIcon name="company" /><strong>{{initials}}</strong><small>L{{level}}</small></div></template>
+<template><div :class="['operator-portrait',specialization]" aria-hidden="true"><img :src="source" alt="" width="64" height="72" loading="lazy" /><small>L{{level}}</small></div></template>
