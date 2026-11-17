@@ -1,11 +1,11 @@
 export const RULES_VERSION = '0.1.0';
 export const rules = Object.freeze({ startDate: '2030-01-01T00:00:00.000Z', hoursPerTurn: 6, turnsPerWeek: 28, maxBatch: 28, initialCashCents: 10_000_000, initialReputation: 10 });
 export const countries = [
-  { id:'valdoria', name:'República de Valdoria', description:'Segurança corporativa e economia estável', regions:['Nova Valdoria','Porto Leste','Distrito Central'] },
-  { id:'karsen', name:'Federação de Karsen', description:'Indústria e tensões separatistas', regions:['Varkov','Fronteira Norte','Distrito da Capital'] },
-  { id:'solmar', name:'Emirado de Solmar', description:'Energia e tensões fronteiriças', regions:['Capital de Solmar','Campos Energéticos','Fronteira Desértica'] },
-  { id:'norvik', name:'Confederação de Norvik', description:'Portos e instabilidade regional', regions:['Porto de Norvik','Interior','Costa Oriental'] },
-  { id:'arken', name:'União de Arken', description:'Tecnologia e estabilidade institucional', regions:['Capital de Arken','Polo Tecnológico','Distrito Norte'] }
+  { id:'valdoria', name:'República de Valdoria', description:'Segurança corporativa e economia estável' },
+  { id:'karsen', name:'Federação de Karsen', description:'Indústria e tensões separatistas' },
+  { id:'solmar', name:'Emirado de Solmar', description:'Energia e tensões fronteiriças' },
+  { id:'norvik', name:'Confederação de Norvik', description:'Portos e instabilidade política' },
+  { id:'arken', name:'União de Arken', description:'Tecnologia e estabilidade institucional' }
 ];
 export const organizations = [
  ['gov-valdoria','Governo de Valdoria','government'], ['corp-meridian','Meridian Holdings','corporation'],

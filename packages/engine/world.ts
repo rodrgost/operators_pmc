@@ -46,7 +46,7 @@ export async function refreshIntel(w:World,seed:string,turn:number,digest:Digest
 
   let remaining=100-presence.reduce((n,f)=>n+f.score,0);for(let i=0;remaining>0;i++,remaining-=5)presence[i%presence.length].score+=5;
 
-  r.intel_json=JSON.stringify({indicators,controllerId:r.controller_id,presence:presence.filter(f=>f.score).map(f=>({organizationId:f.organizationId,estimatedShare:f.score})),confidence:config.intelConfidence,source:'Boletim regional',collectedTurn:turn});
+  r.intel_json=JSON.stringify({indicators,controllerId:r.controller_id,presence:presence.filter(f=>f.score).map(f=>({organizationId:f.organizationId,estimatedShare:f.score})),confidence:config.intelConfidence,source:'Boletim do país',collectedTurn:turn});
 
  }
 
@@ -56,19 +56,20 @@ export async function seedWorld(seed:string,turn:number,digest:Digest):Promise<W
 
  const w:World={regions:[],organizations:organizations.map(o=>({...o,goal:o.type==='government'?'stability':o.type==='armed_faction'?'expansion':o.type==='corporation'?'profit':o.type==='civil'?'relief':'contracts',resources:60,company_relation:0})),influences:[],relations:[],events:[],conflicts:[],participants:[],rivals:config.rivals.map(r=>({id:r.id,capacity:r.capacity,budget_cents:r.budgetCents,reputation:r.reputation,specialization:r.specialization,completed:0,failed:0})),jobs:[]};
 
- for(const c of countries)for(let i=0;i<c.regions.length;i++){
+ // Each stored geographic area now represents an entire country.
+ for(const c of countries){
 
-  const id=c.id+'-'+i,h=await digest([seed,config.version,'region',id]);const initial=config.initial[c.id as keyof typeof config.initial];
+  const id=c.id,h=await digest([seed,config.version,'region',id]);const initial=config.initial[c.id as keyof typeof config.initial];
 
-  const r:any={id,country_id:c.id,name:c.regions[i],controller_id:'gov-'+c.id,cooldown_until:turn,last_event_id:null,last_event_type:null,intel_json:'{}'};
+  const r:any={id,country_id:c.id,name:c.name,controller_id:'gov-'+c.id,cooldown_until:turn,last_event_id:null,last_event_type:null,intel_json:'{}'};
 
   metrics.forEach((m,j)=>r[m]=clamp(initial[j]+parseInt(h.slice(j*4,j*4+4),16)%9-4));
 
-  if(id==='karsen-0')Object.assign(r,{stability:32,security:41,economy:76,tension:84});w.regions.push(r);
+  if(id==='karsen')Object.assign(r,{stability:32,security:41,economy:76,tension:84});w.regions.push(r);
 
   const corporate=c.id==='solmar'?'corp-helion':c.id==='arken'?'corp-nexa':'corp-meridian';
 
-  const shares=id==='karsen-0'?[[r.controller_id,50],['faction-north',45],['civil-relief',5]]:[[r.controller_id,75],[corporate,15],['civil-relief',10]];
+  const shares=id==='karsen'?[[r.controller_id,50],['faction-north',45],['civil-relief',5]]:[[r.controller_id,75],[corporate,15],['civil-relief',10]];
 
   for(const [organization_id,score] of shares)w.influences.push({region_id:id,organization_id,score});
 
@@ -279,7 +280,7 @@ export async function publishWorldContracts(w:World,o:Operations,seed:string,tur
 
   const h=await digest([seed,config.version,e.id,'offer-intel']);const estimate=(v:number,i:number)=>{const center=clamp(v+parseInt(h.slice(i,i+4),16)%9-4);return {min:Math.max(1,center-12),max:Math.min(100,center+12)}};
 
-  o.contracts.push({id,type:template.type,title:content.title+' · '+r.name,region_id:r.id,client_id:'gov-'+r.country_id,source:'world_event',origin_event_id:e.id,offered_turn:turn,expires_turn:turn+28,difficulty,risk,intel_json:JSON.stringify({estimatedDifficulty:estimate(difficulty,0),estimatedRisk:estimate(risk,4),confidence:45,source:'Contratante / notícia regional',collectedTurn:turn,narrative:content}),reward_cents:reward(Math.round(template.rewardCents*(1+r.tension/200)),profile),minimum_operators:2,status:'available'});e.contract_id=id;
+  o.contracts.push({id,type:template.type,title:content.title+' · '+r.name,region_id:r.id,client_id:'gov-'+r.country_id,source:'world_event',origin_event_id:e.id,offered_turn:turn,expires_turn:turn+28,difficulty,risk,intel_json:JSON.stringify({estimatedDifficulty:estimate(difficulty,0),estimatedRisk:estimate(risk,4),confidence:45,source:'Contratante / notícia do país',collectedTurn:turn,narrative:content}),reward_cents:reward(Math.round(template.rewardCents*(1+r.tension/200)),profile),minimum_operators:2,status:'available'});e.contract_id=id;
 
  }
 
@@ -297,5 +298,5 @@ export async function publishWorldContracts(w:World,o:Operations,seed:string,tur
 
 export function worldCanonical(w:World){const state={...w,events:w.events.filter(e=>e.status==='active'),conflicts:w.conflicts.filter(c=>c.status==='active'),jobs:w.jobs.filter(j=>j.status==='active')};return Object.fromEntries(Object.entries(state).map(([k,rows])=>[k,[...rows].sort((a:any,b:any)=>JSON.stringify(a).localeCompare(JSON.stringify(b),'en'))]));}
 
-export function worldNotifications(w:World,turn:number){return w.events.filter(e=>e.created_turn===turn).map(e=>({type:'world_'+e.type,title:config.events.find(d=>d.type===e.type)?.title??(e.type==='rival_claimed'?'Rival assumiu contrato':e.type==='rival_result'?'Resultado de rival':e.type==='ceasefire'?'Trégua regional':e.type==='control_changed'?'Controle político mudou':'Consequência regional'),description:e.summary,important:['armed_conflict','control_changed'].includes(e.type)}));}
+export function worldNotifications(w:World,turn:number){return w.events.filter(e=>e.created_turn===turn).map(e=>({type:'world_'+e.type,title:config.events.find(d=>d.type===e.type)?.title??(e.type==='rival_claimed'?'Rival assumiu contrato':e.type==='rival_result'?'Resultado de rival':e.type==='ceasefire'?'Trégua do país':e.type==='control_changed'?'Controle político mudou':'Consequência do país'),description:e.summary,important:['armed_conflict','control_changed'].includes(e.type)}));}
 

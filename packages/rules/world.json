@@ -1,6 +1,6 @@
 {
-  "version": "world-0.1",
-  "cooldownTurns": 12,
+  "version": "world-0.2-countries",
+  "cooldownTurns": 4,
   "maxActiveEventsPerRegion": 2,
   "recoveryCadence": 4,
   "rivalCadence": 4,

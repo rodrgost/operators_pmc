@@ -1,3 +1,5 @@
+import worldConfig from '../packages/rules/world.json' with {type:'json'};
+import operationsConfig from '../packages/rules/operations.json' with {type:'json'};
 import {NORMAL_V1,preset,savedDifficulty,type DifficultyProfile,type DifficultyId} from '../packages/engine/difficulty.ts';
 import type { State, Summary, AdvanceResult, Event } from '../packages/domain/index.ts';
 import type { AdvanceCommand } from '../packages/contracts/index.ts';
@@ -46,8 +48,8 @@ export async function createGame(db:Database,id:string,owner:string,command:{req
  const canonicalCreation=(c:any)=>JSON.stringify({requestId:c.requestId,name:c.name,seed:c.seed,difficulty:c.difficulty??'normal',registrationCountryId:c.registrationCountryId??null});
  const payload=canonicalCreation(command),profile=preset(command.difficulty??'normal'),token=crypto.randomUUID();
  await db.batch([
-  db.prepare(`INSERT INTO online_games(id,owner,creation_request_id,creation_payload,name,seed,rules_version,start_date,current_turn,cash_cents,reputation,status,state_version,revision,active_request,commit_token,created_order,difficulty,difficulty_version,difficulty_json,registration_country_id)
-  VALUES(?,?,?,?,?,?,?,?,0,?,?,'active',0,0,NULL,?,(SELECT coalesce(max(n),0)+1 FROM (SELECT created_order AS n FROM online_games UNION ALL SELECT rowid AS n FROM online_campaigns)),?,?,?,?) ON CONFLICT(id) DO NOTHING`).bind(id,owner,command.requestId,payload,command.name,command.seed,RULES_VERSION,rules.startDate,rules.initialCashCents,rules.initialReputation,token,profile.id,profile.version,JSON.stringify(profile),command.registrationCountryId??null),
+  db.prepare(`INSERT INTO online_games(id,owner,creation_request_id,creation_payload,name,seed,rules_version,start_date,current_turn,cash_cents,reputation,status,state_version,revision,active_request,commit_token,created_order,difficulty,difficulty_version,difficulty_json,registration_country_id,world_version,operations_version)
+  VALUES(?,?,?,?,?,?,?,?,0,?,?,'active',0,0,NULL,?,(SELECT coalesce(max(n),0)+1 FROM (SELECT created_order AS n FROM online_games UNION ALL SELECT rowid AS n FROM online_campaigns)),?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`).bind(id,owner,command.requestId,payload,command.name,command.seed,RULES_VERSION,rules.startDate,rules.initialCashCents,rules.initialReputation,token,profile.id,profile.version,JSON.stringify(profile),command.registrationCountryId??null,worldConfig.version,operationsConfig.version),
   db.prepare("INSERT INTO online_ledger SELECT id,'initial-capital','initial_capital',0,? FROM online_games WHERE id=? AND owner=? AND commit_token=?").bind(rules.initialCashCents,id,owner,token),
  ]);
  const g=await getGame(db,id,owner);if(canonicalCreation(JSON.parse(g.createPayload))!==payload)throw new ApiError(409,'REQUEST_REUSED','Identificador já utilizado com outros dados.');return projection(g);

@@ -1,5 +1,5 @@
 {
-  "version": "operations-0.1",
+  "version": "operations-0.2-countries",
   "capacity": 1,
   "maxReinforcements": 2,
   "maxMembers": 8,
@@ -57,7 +57,7 @@
     },
     {
       "type": "reconnaissance",
-      "title": "Reconhecimento regional",
+      "title": "Reconhecimento do país",
       "weights": {
         "stealth": 0.4,
         "perception": 0.35,

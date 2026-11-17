@@ -251,7 +251,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
    if(path[2]==='turns'&&path[4]==='summary'){
     const turn=Number(path[3]);if(!Number.isInteger(turn)||turn<1)throw new ApiError(404,'NOT_FOUND','Resumo não encontrado.');return json(await turnSummary(db,id,turn));
    }
-   if(path[2]==='world'&&path[3]==='countries')return json(countries.map(c=>({...c,regions:c.regions.map((name,i)=>({id:`${c.id}-${i}`,name}))})));
+   if(path[2]==='world'&&path[3]==='countries')return json(countries);
    if(path[2]==='finances'&&path[3]==='ledger')return json(await financialLedger(db,id));
   }
   throw new ApiError(404,'NOT_FOUND','Rota não encontrada.');

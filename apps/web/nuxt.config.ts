@@ -3,6 +3,6 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   ssr: false,
   css: ['~/assets/main.css'],
-  runtimeConfig: { apiBase: process.env.API_BASE || 'http://127.0.0.1:3001', public: { storageMode: process.env.NUXT_PUBLIC_STORAGE_MODE || 'server' } },
+  runtimeConfig: { apiBase: process.env.API_BASE || 'http://127.0.0.1:3001', public: { storageMode: process.env.NUXT_PUBLIC_STORAGE_MODE || 'server', browserWorkerUrl: process.env.NUXT_PUBLIC_BROWSER_WORKER_URL || '/browser-game-worker.js' } },
   app: { head: { title: 'OPERATORS — PMC Command', link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }, { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32.png' }, { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }, { rel: 'manifest', href: '/manifest.webmanifest' }], meta: [{ name: 'theme-color', content: '#080808' }, { name: 'apple-mobile-web-app-title', content: 'OPERATORS' }, { name: 'description', content: 'Centro de comando estratégico de uma companhia militar privada.' }] } }
 })

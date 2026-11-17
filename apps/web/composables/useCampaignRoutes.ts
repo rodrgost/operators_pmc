@@ -28,7 +28,8 @@ export function useCampaignRoutes(options:{game:Ref<any>;tab:Ref<string>;section
    const id=decodeURIComponent(match[1]),destination=Object.keys(paths).find(k=>paths[k]===match[2])!
    if(game.value?.id!==id&&!await options.select(id))return
    const defaults:Record<string,string>={operators:'roster',infrastructure:'headquarters',world:'regions',operations:'missions',finance:'summary'}
-   sections.value={...sections.value,[destination]:match[3]||defaults[destination]||''}
+   const requestedSection=destination==='world'&&['news','intelligence'].includes(match[3])?'regions':match[3]
+   sections.value={...sections.value,[destination]:requestedSection||defaults[destination]||''}
    if(destination==='finance')financeSection.value=sections.value.finance
    tab.value=destination;current=key()
    await nextTick();window.scrollTo({top:positions.get(current)||0,behavior:'instant'})

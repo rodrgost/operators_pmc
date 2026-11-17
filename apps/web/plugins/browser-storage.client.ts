@@ -2,7 +2,7 @@ import { createFetch } from 'ofetch';
 
 export default defineNuxtPlugin(() => {
  if (useRuntimeConfig().public.storageMode !== 'browser') return;
- const worker = new Worker('/browser-game-worker.js');
+ const worker = new Worker(useRuntimeConfig().public.browserWorkerUrl);
  const pending = new Map<number, { resolve: (response: Response) => void; reject: (error: Error) => void }>();
  let serial = 0;
  worker.onmessage = ({ data }) => {

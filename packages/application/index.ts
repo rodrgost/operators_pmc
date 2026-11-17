@@ -30,7 +30,7 @@ export class GameService {
  if(old){if(canonicalCreation(JSON.parse(old.payload_json))!==payload)throw new DomainError('REQUEST_REUSED','Identificador já utilizado com outros dados.');return this.project(this.get(old.game_id))}
  const id=randomUUID();this.db.prepare('INSERT INTO games(id,name,seed,rules_version,start_date,current_turn,cash_cents,reputation,status,state_version,difficulty,difficulty_version,difficulty_json,registration_country_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(id,command.name,command.seed,RULES_VERSION,rules.startDate,0,rules.initialCashCents,rules.initialReputation,'active',0,profile.id,profile.version,JSON.stringify(profile),command.registrationCountryId??null);
  this.db.prepare('INSERT INTO creation_requests VALUES(?,?,?)').run(command.requestId,payload,id);
- for(const country of countries){this.db.prepare('INSERT INTO countries VALUES(?,?,?,?)').run(id,country.id,country.name,country.description);country.regions.forEach((name,i)=>this.db.prepare('INSERT INTO regions VALUES(?,?,?,?)').run(id,country.id,`${country.id}-${i}`,name))}
+ for(const country of countries){this.db.prepare('INSERT INTO countries VALUES(?,?,?,?)').run(id,country.id,country.name,country.description);this.db.prepare('INSERT INTO regions VALUES(?,?,?,?)').run(id,country.id,country.id,country.name)}
  for(const org of organizations)this.db.prepare('INSERT INTO organizations VALUES(?,?,?,?)').run(id,org.id,org.name,org.type);
  this.db.prepare('INSERT INTO financial_ledger VALUES(?,?,?,?,?)').run(id,'initial-capital',0,rules.initialCashCents,'initial_capital');
  return this.project(this.get(id));

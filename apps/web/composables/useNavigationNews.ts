@@ -14,6 +14,9 @@ export function useNavigationNews(){
  }
  function persist(id:string){try{localStorage.setItem(storageKey(id),JSON.stringify(states.value[id].seen))}catch{}}
  function markRead(id:string,key:string){if(activeScope.value&&key.split('.')[0]!==activeScope.value)return;const state=states.value[id];if(!state)return;states.value={...states.value,[id]:acknowledgeNews(state,key)};persist(id)}
- function status(id:string,key:string){return newsStatus(states.value[id],key)}
+ function status(id:string,key:string){
+  if(key==='world.regions'){const statuses=['regions','news','intelligence'].map(section=>newsStatus(states.value[id],'world.'+section));return statuses.includes('attention')?'attention':statuses.includes('new')?'new':''}
+  return newsStatus(states.value[id],key)
+ }
  return {sync,markRead,status}
 }

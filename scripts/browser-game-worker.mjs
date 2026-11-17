@@ -3,7 +3,7 @@ import migrations from 'operators:migrations';
 import { createBrowserGame } from './browser-database.mjs';
 
 const openStore = new Promise((resolve, reject) => {
- const request = indexedDB.open('operators-campaigns', 1);
+ const request = indexedDB.open('operators-country-campaigns-v1', 1);
  request.onupgradeneeded = () => request.result.createObjectStore('saves');
  request.onsuccess = () => resolve(request.result);
  request.onerror = () => reject(request.error);
