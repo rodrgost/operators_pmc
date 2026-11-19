@@ -7,11 +7,11 @@ import {countries,organizations} from '../packages/rules/index.ts';
 import {type Database,type Statement,type Campaign,ApiError,mutate,getGame,projection} from './persistence.ts';
 import {ensurePersonnel,readPersonnel,personnelWrites,directives,commandSchema} from './personnel.ts';
 import {availability,employment,type Personnel,type Digest} from '../packages/engine/personnel.ts';
-import {config,contractDeadline,mobilizationTurns,offers,emptyOperations,liveStatuses,type Operations} from '../packages/engine/operations.ts';
+import {config,contractDeadline,mobilizationTurns,offers,emptyOperations,liveStatuses,evacuationDecision,isEvacuationDecision,type Operations} from '../packages/engine/operations.ts';
 const id=z.string().min(1).max(180);
 export const planSchema=z.object({squadId:id,memberIds:z.array(id).min(2).max(6),reinforcementIds:z.array(id).max(config.maxReinforcements).default([]),leaderId:id.optional(),deputyId:id.nullable().optional(),directives:directives.optional(),equipmentIds:z.array(id).max(12).default([])}).strict();
 export const startSchema=planSchema.extend(commandSchema.shape).strict();
-export const decisionSchema=commandSchema.extend({choice:z.enum(['proceed','safer','withdraw'])}).strict();
+export const decisionSchema=commandSchema.extend({choice:z.enum(['proceed','safer','withdraw','wait_transport','complete_partial'])}).strict();
 const clean=(rows:any[])=>rows.map(({game_id,...r})=>r);
 export async function readOperations(db:Database,gameId:string):Promise<Operations>{
  if(db.planning)return db.planning.o;
@@ -47,7 +47,22 @@ export async function ensureOperations(db:Database,id:string,owner:string,digest
 }
 const assert=(condition:unknown,code:string,message:string)=>{if(!condition)throw new ApiError(422,code,message)};
 export function contractProjection(c:any,logisticsEnabled=false,knowledge?:any){const intel=JSON.parse(c.intel_json);const country=countries.find(x=>c.region_id===x.id);const regionName=country?.name??c.region_id;return {countryName:country?.name??'',regionName,clientName:organizations.find(x=>x.id===c.client_id)?.name??c.client_id,id:c.id,type:c.type,title:c.title,briefing:intel.narrative?.briefing??null,objective:intel.narrative?.objective??null,context:intel.narrative?.context??null,catalogVersion:intel.narrative?.catalogVersion??null,regionId:c.region_id,clientId:c.client_id,source:c.source,originEventId:c.origin_event_id,status:c.status,expiresTurn:c.expires_turn,acceptedTurn:intel.acceptedTurn??null,mobilizationDueTurn:c.status==='accepted'?contractDeadline(c):null,mobilizationTurns,rewardCents:c.reward_cents,advanceCents:Math.round(c.reward_cents*config.advanceRate),minimumOperators:c.minimum_operators,mobilizationPerOperatorCents:config.mobilizationPerOperatorCents,requiredEquipment:logisticsEnabled?(logisticsConfig.requirements as any)[c.type]:[],stages:config.stages,intelligence:knowledge??null,estimatedDifficulty:knowledge?(knowledge.topics.difficulty.estimate??{min:0,max:100}):intel.estimatedDifficulty,estimatedRisk:knowledge?(knowledge.topics.risk.estimate??{min:0,max:100}):intel.estimatedRisk,confidence:knowledge?knowledge.topics.risk.confidence:intel.confidence,intelSource:knowledge?knowledge.topics.risk.sourceName:intel.source,collectedTurn:knowledge?knowledge.topics.risk.collectedTurn:intel.collectedTurn};}
-export function decisionProjection(d:any){return {id:d.id,missionId:d.mission_id,stageIndex:d.stage_index,createdTurn:d.created_turn,expiresTurn:d.expires_turn,fallbackAction:d.fallback_action,chosenAction:d.chosen_action,resolvedTurn:d.resolved_turn,status:d.status,options:[{id:'proceed',label:'Prosseguir',consequence:'Mantém as diretrizes e a exposição atual.'},{id:'safer',label:'Reduzir exposição',consequence:'Abordagem cautelosa, com menor capacidade ofensiva.'},{id:'withdraw',label:'Retirar equipe',consequence:'Retorno em um turno, devolução do adiantamento e perda de reputação.'}]};}
+const standardDecision={
+ title:'Autorizar a próxima etapa?',
+ description:'A equipe reportou uma situação excepcional.',
+ options:[
+  {id:'proceed',label:'Prosseguir',consequence:'Mantém as diretrizes e a exposição atual.'},
+  {id:'safer',label:'Reduzir exposição',consequence:'Abordagem cautelosa, com menor capacidade ofensiva.'},
+  {id:'withdraw',label:'Retirar equipe',consequence:'Retorno em um turno, devolução do adiantamento e perda de reputação.'},
+ ],
+};
+export function decisionProjection(d:any){
+ const context=isEvacuationDecision(d)?evacuationDecision:standardDecision;
+ return {
+  id:d.id,missionId:d.mission_id,stageIndex:d.stage_index,createdTurn:d.created_turn,expiresTurn:d.expires_turn,
+  fallbackAction:d.fallback_action,chosenAction:d.chosen_action,resolvedTurn:d.resolved_turn,status:d.status,...context,
+ };
+}
 export function missionProjection(m:any,assignments:any[]=[]){return {id:m.id,contractTitle:m.contract_title??null,contractId:m.contract_id,squadId:m.squad_id,leaderId:m.leader_id,deputyId:m.deputy_id,status:m.status,startedTurn:m.started_turn,endedTurn:m.ended_turn,stageIndex:m.stage_index,stageName:config.stages[m.stage_index]??'Finalizada',stageDueTurn:m.stage_due_turn,totalStages:config.stages.length,completedStages:m.completed_stages,directives:JSON.parse(m.directives_json),advanceCents:m.advance_cents,paidCents:m.paid_cents,crew:assignments.filter(a=>a.mission_id===m.id).map(a=>({operatorId:a.operator_id,name:JSON.parse(a.snapshot_json).name,assignmentType:a.assignment_type,role:a.role}))};}
 export function validatePlan(g:Campaign,p:Personnel,o:Operations,c:any,command:any,logistics?:Logistics,intelligence?:Intelligence){
  assert(c?.status==='accepted','CONTRACT_NOT_ACCEPTED','Aceite o contrato antes de iniciar ou planejar.');assert(contractDeadline(c)>g.state.turn,'CONTRACT_EXPIRED','O prazo de mobilização terminou.');
@@ -91,7 +106,8 @@ export async function operationAction(db:Database,id:string,owner:string,kind:st
    for(const d of o.decisions.filter(d=>d.mission_id===m.id&&d.status==='pending')){d.status='cancelled';d.chosen_action='withdraw';d.resolved_turn=g.state.turn;}
   }else if(kind==='decision'){
    const d=o.decisions.find(d=>d.id===target);assert(d&&d.status==='pending'&&d.expires_turn>g.state.turn,'DECISION_UNAVAILABLE','Decisão resolvida ou vencida.');
-   d.status='resolved';d.chosen_action=command.choice;d.resolved_turn=g.state.turn;const m=o.missions.find(m=>m.id===d.mission_id)!;m.status=command.choice==='withdraw'?'returning':'active';m.stage_due_turn=g.state.turn+1;missionId=m.id;
+   assert(decisionProjection(d).options.some(option=>option.id===command.choice),'INVALID_DECISION_CHOICE','Esta ação não está disponível para esta decisão.');
+   d.status='resolved';d.chosen_action=command.choice;d.resolved_turn=g.state.turn;const m=o.missions.find(m=>m.id===d.mission_id)!;m.status=command.choice==='withdraw'?'returning':'active';m.stage_due_turn=g.state.turn+(command.choice==='wait_transport'?2:1);missionId=m.id;
   }
   const response={...projection(next),action:kind,contractId:['accept','cancel','start'].includes(kind)?target:undefined,missionId,decisionId:kind==='decision'?target:undefined};
   history.push({id:'action:'+command.requestId,turn:g.state.turn,event_type:'operation_'+kind,title:'Comando de operação confirmado',data_json:JSON.stringify({kind,target,missionId})});

@@ -13,6 +13,15 @@ export interface Operations {contracts:any[];missions:any[];assignments:any[];de
 export const liveStatuses=['active','awaiting_decision','returning'];
 export const emptyOperations=():Operations=>({contracts:[],missions:[],assignments:[],decisions:[]});
 const clamp=(v:number)=>Math.max(0,Math.min(100,v));
+export const evacuationDecision={
+ title:'Atraso no transporte',
+ description:'Parte da evacuação foi concluída. O transporte para concluir o restante sofreu atraso.',
+ options:[
+  {id:'wait_transport',label:'Aguardar mais um turno',consequence:'A equipe continua reservada por um turno extra. A missão pode atingir o pagamento integral.'},
+  {id:'complete_partial',label:'Encerrar com sucesso parcial',consequence:'A missão termina no turno em que a ordem é aplicada, com pagamento proporcional. A disponibilidade segue as condições dos operadores.'},
+ ],
+};
+export function isEvacuationDecision(decision:any){return decision?.fallback_action==='complete_partial';}
 export async function offers(seed:string,week:number,digest:Digest,difficultyProfile:DifficultyProfile=NORMAL_V1){return Promise.all(config.templates.map(async(t,i)=>{
  const h=await digest([seed,config.version,'offers',week,t.type]);const n=(o:number,m:number)=>parseInt(h.slice(o,o+4),16)%m;
  const country=countries[n(0,countries.length)],difficulty=t.baseDifficulty+n(4,11),risk=t.baseRisk+n(8,11);
@@ -25,12 +34,12 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
  const o:Operations=structuredClone(original),p:Personnel=structuredClone(personnel),ledger:any[]=[],reports:any[]=[],events:any[]=[],history:any[]=[];let critical=false;
  const event=(type:string,title:string,description:string,important=false)=>events.push({type,title,description,important});
  const report=(m:any,outcome:string,title:string,description:string,audit:any={},extra:any={})=>reports.push({id:m.id+':'+turn+':'+reports.length,mission_id:m.id,turn,summary_json:JSON.stringify({catalogVersion:catalog.version,outcome,title,description,stageIndex:m.stage_index,...extra}),audit_json:JSON.stringify(audit)});
- function finish(m:any,status:string){
+ function finish(m:any,status:string,earlyPartial=false){
   if(logistics)returnEquipment(logistics,m.id,turn);
   const c=o.contracts.find(c=>c.id===m.contract_id);m.status=status;m.ended_turn=turn;c.status=status==='completed'?'completed':status==='withdrawn'?'withdrawn':'failed';
   let payment=0,delta=config.failureReputation;
   if(status==='completed'){
-   const total=Math.round(c.reward_cents*Math.max(config.minimumCompletionFactor,Math.min(1,m.success_points/(config.stages.length*2))));payment=total-m.advance_cents;m.paid_cents=total;delta=config.successReputation;
+   const total=Math.round(c.reward_cents*Math.max(config.minimumCompletionFactor,Math.min(earlyPartial?config.evacuationPartialMaximum:1,m.success_points/(config.stages.length*2))));payment=total-m.advance_cents;m.paid_cents=total;delta=config.successReputation;
    ledger.push({sourceId:'mission:'+m.id+':completion',entryType:'mission_completion',turn,amountCents:payment});
   }else {payment=-m.advance_cents;m.paid_cents=0;if(payment)ledger.push({sourceId:'mission:'+m.id+':refund',entryType:'advance_refund',turn,amountCents:payment});}
   cash+=payment;reputation=clamp(reputation+delta);
@@ -42,7 +51,7 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
    history.push({id:'mission:'+m.id+':'+id,turn,event_type:'mission_'+status,title:'Missão '+(status==='completed'?'concluída':status==='withdrawn'?'retirada':'fracassada'),data_json:JSON.stringify({operatorId:id,missionId:m.id})});
   }
   for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){let f=p.familiarity.find(f=>f.operator_low===ids[i]&&f.operator_high===ids[j]);if(!f){f={operator_low:ids[i],operator_high:ids[j],score:0};p.familiarity.push(f);}f.score=clamp(f.score+config.missionFamiliarity);}
-  report(m,status,status==='completed'?'Missão concluída':status==='withdrawn'?'Retirada concluída':'Missão fracassada',reportNarrative(status,[m.id,turn,'final']),{}, {paymentCents:payment,reputationDelta:delta,totalPaidCents:m.paid_cents});
+  report(m,status,earlyPartial?'Missão encerrada com sucesso parcial':status==='completed'?'Missão concluída':status==='withdrawn'?'Retirada concluída':'Missão fracassada',earlyPartial?'A equipe encerrou a evacuação com parte do objetivo cumprida.':reportNarrative(status,[m.id,turn,'final']),{}, {paymentCents:payment,reputationDelta:delta,totalPaidCents:m.paid_cents});
   event('mission_'+status,status==='completed'?'Missão concluída':status==='withdrawn'?'Equipe retornou':'Missão fracassada',c.title+' · consulte o relatório.',true);
  }
  for(const c of o.contracts)if(['available','accepted'].includes(c.status)&&contractDeadline(c)<=turn){const accepted=c.status==='accepted';c.status='expired';event('contract_expired',accepted?'Prazo de mobilização encerrado':'Oferta expirada',c.title);}
@@ -62,11 +71,13 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
    m.status='active';m.stage_due_turn=turn;
   }
   if(m.stage_due_turn>turn)continue;
+  if(decision?.chosen_action==='complete_partial'){finish(m,'completed',true);continue;}
   const knowledge=intelligence?.snapshots.some(s=>s.mission_id===m.id)?perceivedRisk(intelligence,c.id,turn):null;
   const evaluatedRisk=knowledge?.evaluation??c.risk,decisionRisk=knowledge?.threshold??c.risk;
-  if(m.stage_index===2&&!decision&&(decisionRisk>config.riskThresholds[directives.riskTolerance as keyof typeof config.riskThresholds]||m.success_points<2)){
-   decision={id:'decision-'+m.id+'-'+m.stage_index,mission_id:m.id,stage_index:m.stage_index,created_turn:turn,expires_turn:turn+config.decisionTurns,fallback_action:directives.withdrawalPolicy==='persistent'?'safer':'withdraw',chosen_action:null,resolved_turn:null,status:'pending'};
-   o.decisions.push(decision);m.status='awaiting_decision';critical=true;event('critical_decision','Decisão do comandante necessária',c.title+' · escolha uma ação até T'+decision.expires_turn+'.',true);report(m,'decision','Situação excepcional',reportNarrative('decision',[m.id,turn,m.stage_index]),{},knowledge?{intelligence:{level:knowledge.level,stale:knowledge.stale,conflicting:knowledge.conflicting}}:{});continue;
+  const transportDelay=c.type==='extraction'&&m.success_points>=2;
+  if(m.stage_index===2&&!decision&&(transportDelay||decisionRisk>config.riskThresholds[directives.riskTolerance as keyof typeof config.riskThresholds]||m.success_points<2)){
+   decision={id:'decision-'+m.id+'-'+m.stage_index,mission_id:m.id,stage_index:m.stage_index,created_turn:turn,expires_turn:turn+config.decisionTurns,fallback_action:transportDelay?'complete_partial':directives.withdrawalPolicy==='persistent'?'safer':'withdraw',chosen_action:null,resolved_turn:null,status:'pending'};
+   o.decisions.push(decision);m.status='awaiting_decision';critical=true;event('critical_decision','Decisão do comandante necessária',c.title+' · escolha uma ação até T'+decision.expires_turn+'.',true);report(m,'decision',transportDelay?evacuationDecision.title:'Situação excepcional',transportDelay?evacuationDecision.description:reportNarrative('decision',[m.id,turn,m.stage_index]),{},knowledge?{intelligence:{level:knowledge.level,stale:knowledge.stale,conflicting:knowledge.conflicting}}:{});continue;
   }
   const equipment=logistics?stageEquipment(logistics,m.id,m.stage_index,c.type,crew):{capacity:0,injuryReduction:0,fatigueReduction:0,used:[]};
   const t=config.templates.find(t=>t.type===c.type)!;let capacity=0;
