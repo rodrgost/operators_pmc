@@ -3,6 +3,7 @@ const {feedbackTarget,captureAction}=useActionFeedback()
 const trainingAttributes=ref<Record<string,string>>({})
 const props=defineProps<{game:any;initialSection?:string}>()
 const navigationNews=useNavigationNews()
+const missionContext=useState<any>('mission-preparation',()=>null)
 const emit=defineEmits(['changed','processing'])
 const data=ref<any>({operators:[],candidates:[],squads:[],familiarity:[]}),busy=ref(false),error=ref(''),notice=ref(''),section=ref(['roster','recruitment','squads'].includes(props.initialSection||'')?props.initialSection!:'roster'),weeks=ref(4),confirmation=ref<any>(null),selected=ref<any>(null),history=ref<any[]>([])
 const pendingStore=useState<Record<string,any>>('personnel-commands',()=>({}))
@@ -60,6 +61,7 @@ watch(section,()=>{if(data.value?.stateVersion!==undefined)navigationNews.markRe
   <div class="section-intro"><h2>Mercado de operadores</h2><p>Ofertas válidas até o turno {{data.nextMarketTurn}}. Bônus de contratação cobrado na passagem do turno; salários a cada 28 turnos do vínculo.</p></div>
 
 
+  <MissionFit v-if="missionContext?.gameId===game.id" :contract="missionContext" :operators="data.candidates" recruitment />
   <div class="company-filters"><label class="personnel-label">Especialidade<select v-model="candidateSpecialty"><option value="">Todas</option><option v-for="(label,key) in specs" :key="key" :value="key">{{label}}</option></select></label><label class="personnel-label">Ordenar candidatos<select v-model="candidateSort"><option value="salary">Menor salário</option><option value="bonus">Menor bônus</option><option value="level">Maior nível</option><option value="leadership">Maior liderança</option></select></label></div><p class="form-hint">{{candidates.length}} candidatos · selecione até dois para comparar atributos e custos.</p>
   <section v-if="comparison.length" ref="comparisonElement" class="panel candidate-comparison" aria-label="Comparação de operadores"><div class="panel-heading"><h3>Comparar operadores</h3><button class="secondary" @click="comparisonIds=[]">Limpar</button></div><p v-if="comparison.length===1">Selecione mais um candidato para comparar lado a lado.</p><div class="comparison-row comparison-heading"><span>Perfil</span><strong v-for="c in comparison" :key="c.id">{{c.name}}<small>{{specs[c.specialization]}} · nível {{c.level}}</small></strong></div><div class="comparison-row"><span>Salário / semana</span><strong v-for="c in comparison" :key="c.id">{{money(c.salaryCents)}}</strong></div><div class="comparison-row"><span>Bônus inicial</span><strong v-for="c in comparison" :key="c.id">{{money(c.signingBonusCents)}}</strong></div><div v-for="(label,key) in labels" :key="key" class="comparison-row"><span>{{label}}</span><strong v-for="c in comparison" :key="c.id">{{c.attributes[key]}}</strong></div></section>
   <p v-if="data.candidates.length&&!candidates.length" class="empty">Nenhum candidato desta especialidade. <button class="secondary" @click="candidateSpecialty=''">Ver todos</button></p>
