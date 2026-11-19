@@ -25,10 +25,15 @@ it('novidades: leitura persiste entre acessos e é isolada por companhia',()=>{
  const storage=new Map<string,string>();let stateStore:any={};
  const source=readFileSync('apps/web/composables/useNavigationNews.ts','utf8').replace(/^import [^\n]*\n/,'');
  function mount(){const ctx:any={exports:{},newsStatus,acknowledgeNews,useState:(key:string,init:any)=>stateStore[key]??(stateStore[key]={value:init()}),localStorage:{getItem:(k:string)=>storage.get(k),setItem:(k:string,v:string)=>storage.set(k,v)}};runInNewContext(ts.transpileModule(source+';exports.h=useNavigationNews();',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.CommonJS}}).outputText,ctx);return ctx.exports.h}
- let h=mount();h.sync('a',{'world.news':1});h.sync('b',{'world.news':1});
- h.sync('a',{'world.news':2,'world.intelligence':3});expect(h.status('a','world')).toBe('new');
- h.markRead('a','world.news');stateStore={};h=mount();h.sync('a',{'world.news':2,'world.intelligence':3});expect(h.status('a','world.news')).toBe('');expect(h.status('a','world.intelligence')).toBe('new');expect(h.status('b','world')).toBe('');
- h.sync('a',{'world.news':4,'world.intelligence':3});expect(h.status('a','world.news')).toBe('new');
+ let h=mount();h.sync('a',{'operations.missions':1},true);h.sync('b',{'operations.missions':1},true);
+ h.sync('a',{'operations.missions':2,'operations.decisions':2,'world.news':3},true);
+ expect(h.status('a','operations.missions')).toBe('new');
+ for(const key of ['operations','operations.decisions','world','world.news'])expect(h.status('a',key)).toBe('');
+ h.markRead('a','operations.missions');stateStore={};h=mount();
+ h.sync('a',{'operations.missions':2},true);h.sync('b',{'operations.missions':2},true);
+ expect(h.status('a','operations.missions')).toBe('');expect(h.status('b','operations.missions')).toBe('new');
+ h.sync('a',{'operations.missions':4},false);expect(h.status('a','operations.missions')).toBe('');
+ h.sync('a',{'operations.missions':5},true);expect(h.status('a','operations.missions')).toBe('new');
 });
 it('novidades: usa eventos de todos os turnos e ordens confirmadas; leitura não muda campanha',async()=>{
  const s=setup();try{

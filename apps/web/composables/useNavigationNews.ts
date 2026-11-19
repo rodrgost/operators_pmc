@@ -3,20 +3,21 @@ export function useNavigationNews(){
  const states=useState<Record<string,NewsState>>('navigation-news',()=>({}))
  const activeScope=useState('campaign-active-scope',()=> '')
  const storageKey=(id:string)=>'operators-navigation-seen-v1:'+id
- function sync(id:string,latest:Record<string,number>,alerts:any[]=[]){
+ const ongoingOperations='operations.missions'
+ function sync(id:string,cursors:Record<string,number>,hasActiveOperations:boolean){
+  const latest={[ongoingOperations]:cursors[ongoingOperations]??0}
   let seen=states.value[id]?.seen
   if(!seen){try{const stored=JSON.parse(localStorage.getItem(storageKey(id))||'null');if(stored&&typeof stored==='object'&&!Array.isArray(stored))seen=Object.fromEntries(Object.entries(stored).filter(([,v])=>typeof v==='number'&&Number.isFinite(v)).map(([key,value])=>[key,Number(value)]))}catch{} }
   // Establish a baseline on first access; old campaign history isn't new.
   if(!seen)seen={...latest}
-  const routes:Record<string,string>={decisions:'operations.decisions','salary-debt':'finance.summary','hq-debt':'infrastructure.headquarters',renewals:'operators.roster',unfit:'operators.roster',equipment:'infrastructure.inventory',runway:'finance.summary'}
-  states.value={...states.value,[id]:{latest,seen,attention:alerts.map(a=>routes[a.id]).filter(Boolean)}}
+  if(!hasActiveOperations)seen={...seen,[ongoingOperations]:latest[ongoingOperations]}
+  states.value={...states.value,[id]:{latest,seen,attention:[]}}
   persist(id)
  }
  function persist(id:string){try{localStorage.setItem(storageKey(id),JSON.stringify(states.value[id].seen))}catch{}}
- function markRead(id:string,key:string){if(activeScope.value&&key.split('.')[0]!==activeScope.value)return;const state=states.value[id];if(!state)return;states.value={...states.value,[id]:acknowledgeNews(state,key)};persist(id)}
+ function markRead(id:string,key:string){if(key!==ongoingOperations||(activeScope.value&&activeScope.value!=='operations'))return;const state=states.value[id];if(!state)return;states.value={...states.value,[id]:acknowledgeNews(state,key)};persist(id)}
  function status(id:string,key:string){
-  if(key==='world.regions'){const statuses=['regions','news','intelligence'].map(section=>newsStatus(states.value[id],'world.'+section));return statuses.includes('attention')?'attention':statuses.includes('new')?'new':''}
-  return newsStatus(states.value[id],key)
+  return key===ongoingOperations?newsStatus(states.value[id],key):''
  }
  return {sync,markRead,status}
 }
