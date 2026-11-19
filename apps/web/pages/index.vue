@@ -44,6 +44,22 @@ function openWorld(target:{regionId:string;eventId:string}){worldContext.value={
 const pendingAdvance=ref<any>(null)
 const pendingCreation=ref<any>(null)
 const personnelSummary=ref<any>({}),personnelWorking=ref(false),operationsSummary=ref<any>({missions:[],decisions:[]})
+const operationTarget=ref<{id:string}|null>(null)
+const activeOperations=computed(()=>operationsSummary.value.missions.filter((mission:any)=>['active','awaiting_decision','returning'].includes(mission.status)))
+const operationDecisions=computed(()=>[...operationsSummary.value.decisions].sort((a:any,b:any)=>a.expiresTurn-b.expiresTurn))
+const companyAlerts=computed(()=>(command.value?.alerts??[]).filter((alert:any)=>alert.id!=='decisions'))
+const availableContracts=computed(()=>(operationsSummary.value.contracts??[]).filter((contract:any)=>contract.status==='available').length)
+const interruptedDecision=computed(()=>result.value?.reason==='critical_decision'
+ ? operationDecisions.value.find((decision:any)=>decision.createdTurn===result.value.currentTurn)
+ : undefined)
+function openOperationCard(section:string,id:string){
+ operationTarget.value={id}
+ navigate('operations',section)
+}
+function openInterruptedDecision(){
+ if(interruptedDecision.value)openOperationCard('decisions','operations-d-'+interruptedDecision.value.id)
+}
+
 const entryName=(type:string)=>(({intelligence_analysis:'Análise de inteligência',equipment_purchase:'Compra de kits',equipment_maintenance:'Reparo de kit',equipment_resupply:'Reposição de suprimentos',headquarters_upgrade:'Melhoria da sede',headquarters_maintenance:'Manutenção da sede',operator_training:'Treinamento',operator_treatment:'Tratamento',initial_capital:'Capital inicial',signing_bonus:'Bônus de assinatura',salary_payment:'Pagamento salarial',mission_mobilization:'Mobilização',mission_advance:'Adiantamento de missão',mission_completion:'Acerto de missão',advance_refund:'Devolução de adiantamento'} as Record<string,string>)[type]||'Movimentação financeira')
 async function api(path:string,options:any={}){return await $fetch<any>('/api/v1'+path,options)}
 async function load(){
@@ -92,7 +108,7 @@ async function cancelOrder(orderId:string){
  try{await api(`/games/${game.value.id}/orders/${request.orderId}/cancel`,{method:'POST',body:request.body});cancelRequest.value=null;await select(game.value.id)}catch(e:any){if(e.status>=400&&e.status<500){cancelRequest.value=null;await select(game.value.id)}error.value=e.data?.message||'Falha ao remover a ordem. Repita para recuperar a mesma solicitação.'}finally{busy.value=false}
 }
 async function resume(){busy.value=true;error.value='';try{const r=await api(`/games/${game.value.id}/advances/${result.value.requestId}/resume`,{method:'POST',body:{expectedVersion:game.value.stateVersion}});result.value=r;if(!await select(game.value.id))return;result.value=r}catch(e:any){error.value=e.data?.message||'Não foi possível retomar.'}finally{busy.value=false}}
-async function home(){if(busy.value||personnelWorking.value)return;busy.value=true;error.value='';try{await load();game.value=null;missionContext.value=null;visited.value=[];sectionRoutes.value={};tab.value='overview';showCreate.value=false;contractRegion.value='';if(typeof window!=='undefined'){await nextTick();window.scrollTo({top:0,left:0,behavior:'instant'})}}catch{error.value='Não foi possível carregar as companhias. Tente novamente.'}finally{busy.value=false}}
+async function home(){if(busy.value||personnelWorking.value)return;busy.value=true;error.value='';try{await load();game.value=null;operationTarget.value=null;missionContext.value=null;visited.value=[];sectionRoutes.value={};tab.value='overview';showCreate.value=false;contractRegion.value='';if(typeof window!=='undefined'){await nextTick();window.scrollTo({top:0,left:0,behavior:'instant'})}}catch{error.value='Não foi possível carregar as companhias. Tente novamente.'}finally{busy.value=false}}
 onMounted(async()=>{const restoreRoute=useCampaignRoutes({game,tab,sections:sectionRoutes,financeSection,select,home,isLocked:()=>busy.value||personnelWorking.value});try{await load();await restoreRoute()}catch{error.value='Não foi possível conectar. Atualize a página para tentar novamente.'}finally{loadingCampaign.value=false}})
 </script>
 <template>
@@ -118,7 +134,20 @@ onMounted(async()=>{const restoreRoute=useCampaignRoutes({game,tab,sections:sect
  <section v-if="missionContext?.gameId===game.id&&tab!=='contracts'" class="preparation-return"><div><strong>Preparação de missão</strong><p>{{missionContext.title}}</p></div><button class="secondary" :disabled="busy||personnelWorking" @click="navigate('contracts')">Voltar à preparação →</button></section>
  <FirstMissionGuide v-if="tab==='overview'||missionContext?.gameId!==game.id" :command="command" :employed="personnelSummary.employed||0" :compact="tab!=='overview'" :disabled="busy||personnelWorking" @navigate="navigate" />
  <template v-if="tab==='overview'">
- <section v-if="command?.alerts?.length" class="panel command-alerts"><div class="panel-heading"><h2>Atenção do comandante</h2><span class="tag">{{command.alerts.length}} PENDÊNCIAS</span></div><article v-for="a in command.alerts" :key="a.id" class="command-alert" :class="a.severity"><div><h3>{{a.title}}</h3><p>{{a.description}}</p></div><button class="secondary" :disabled="busy||personnelWorking" @click="navigate(a.tab)">Resolver →</button></article></section>
+ <section class="panel command-alerts" aria-labelledby="operations-overview-title">
+  <h2 id="operations-overview-title">Operações</h2>
+  <article v-for="decision in operationDecisions" :key="decision.id" class="command-alert">
+   <div><h3>{{operationsSummary.missions.find((mission:any)=>mission.id===decision.missionId)?.contractTitle || 'Operação'}}</h3><p>Decisão pendente · prazo no turno {{decision.expiresTurn}}</p></div>
+   <button class="secondary" :disabled="busy||personnelWorking" @click="openOperationCard('decisions','operations-d-'+decision.id)">Ver decisão</button>
+  </article>
+  <article v-for="mission in activeOperations" :key="mission.id" class="command-alert">
+   <div><h3>{{mission.contractTitle || 'Operação'}}</h3><p>{{mission.status==='awaiting_decision'?'Aguardando decisão':mission.status==='returning'?'Equipe retornando':mission.stageName}}</p></div>
+   <button class="secondary" :disabled="busy||personnelWorking" @click="openOperationCard('missions','operations-m-'+mission.id)">Acompanhar</button>
+  </article>
+  <p v-if="!activeOperations.length">Nenhuma operação em andamento.</p>
+  <button class="secondary" :disabled="busy||personnelWorking" @click="contractRegion='';navigate('contracts')">Ver contratos ({{availableContracts}} disponíveis)</button>
+ </section>
+ <section v-if="companyAlerts.length" class="panel command-alerts"><div class="panel-heading"><h2>Atenção do comandante</h2><span class="tag">{{companyAlerts.length}} PENDÊNCIAS</span></div><article v-for="a in companyAlerts" :key="a.id" class="command-alert" :class="a.severity"><div><h3>{{a.title}}</h3><p>{{a.description}}</p></div><button class="secondary" :disabled="busy||personnelWorking" @click="navigate(a.tab)">Resolver →</button></article></section>
  <nav class="command-shortcuts" aria-label="Atalhos da companhia"><button class="secondary" :disabled="busy||personnelWorking" @click="navigate('operators','recruitment')">Contratar operadores →</button><button class="secondary" :disabled="busy||personnelWorking" @click="navigate('operators','squads')">Gerenciar equipes →</button><button class="secondary" :disabled="busy||personnelWorking" @click="navigate('infrastructure','catalog')">Comprar kits →</button><button class="secondary" :disabled="busy||personnelWorking" @click="navigate('contracts')">Ver contratos →</button></nav>
  <div class="stats overview-stats"><section class="stat"><span>CAIXA DISPONÍVEL</span><strong>{{currency(game.cashCents)}}</strong><small>{{personnelSummary.employed||0}} vínculos ativos</small></section><section class="stat"><span>REPUTAÇÃO GLOBAL</span><strong>{{game.reputation}}<em>/ 100</em></strong><small>Resultados e relações da campanha</small></section><section class="stat"><span>TURNO ATUAL</span><strong>{{String(game.currentTurn).padStart(3,'0')}}</strong><small>Semana {{Math.floor(game.currentTurn/28)+1}} · {{game.currentTurn*6}} horas decorridas</small></section><section class="stat"><span>QUADRO DE OPERADORES</span><strong>{{personnelSummary.employed||0}}<em> / {{personnelSummary.capacity||12}}</em></strong><small>Operadores com vínculo ativo</small></section></div>
 
@@ -130,12 +159,12 @@ onMounted(async()=>{const restoreRoute=useCampaignRoutes({game,tab,sections:sect
  <WorldPanel v-if="visited.includes('world')" v-show="tab==='world'" :game="game" @open-contracts="contractRegion=$event;navigate('contracts')" @changed="select(game.id)" @processing="personnelWorking=$event" />
  <LogisticsPanel v-if="visited.includes('infrastructure')" v-show="tab==='infrastructure'" :game="game" :initial-section="targetSection" @changed="select(game.id)" @processing="personnelWorking=$event" />
  <PersonnelPanel v-if="visited.includes('operators')" v-show="tab==='operators'" :game="game" :initial-section="targetSection" @changed="select(game.id)" @processing="personnelWorking=$event" />
- <OperationsPanel v-for="panelMode in ['contracts','operations'].filter(t=>visited.includes(t))" :key="panelMode" v-show="tab===panelMode" :game="game" :mode="panelMode" :region-id="contractRegion" @navigate="navigate" @clear-region="contractRegion=''" @open-world="openWorld($event)" @changed="select(game.id)" @processing="personnelWorking=$event" />
+ <OperationsPanel v-for="panelMode in ['contracts','operations'].filter(t=>visited.includes(t))" :key="panelMode" v-show="tab===panelMode" :game="game" :mode="panelMode" :region-id="contractRegion" :card-target="panelMode==='operations'?operationTarget:null" @card-opened="operationTarget===$event&&(operationTarget=null)" @navigate="navigate" @clear-region="contractRegion=''" @open-world="openWorld($event)" @changed="select(game.id)" @processing="personnelWorking=$event" />
  <template v-if="tab==='finance'"><CompanyFinanceSummary :game="game" :command="command" /><section id="finance-ledger" class="panel"><div class="panel-heading"><h2>Livro-razão</h2><span class="tag">CONFIRMADO</span></div><p class="form-hint">Turnos mais recentes primeiro. Datas e horários do jogo. Ordens agendadas entram aqui após a confirmação.</p><p v-if="!ledgerNewest.length" class="empty">Nenhuma movimentação confirmada.</p><table v-else><thead><tr><th>TURNO</th><th>LANÇAMENTO</th><th>VALOR</th></tr></thead><tbody><tr v-for="entry in ledgerNewest" :key="entry.sourceId+':'+entry.entryType"><td data-label="Turno"><span class="ledger-value">Turno {{entry.turn}}<small class="ledger-detail">{{formatGameDate(entry.date)}}</small></span></td><td data-label="Lançamento"><span class="ledger-value">{{entry.description||entryName(entry.entryType)}}<small v-if="entry.detail" class="ledger-detail">{{entry.detail}}</small></span></td><td data-label="Valor" :class="entry.amountCents<0?'debit':'credit'">{{currency(entry.amountCents,true)}}</td></tr></tbody></table></section></template>
 
  </template>
  </div>
  </main>
- <TurnDock :game="game" :command="command" :busy="busy" :locked="personnelWorking" :turns="batch" :stop="stop" :pending="!!pendingAdvance" :result="result" :error="error" @update:turns="batch=$event" @update:stop="stop=$event" @height="dockHeight=$event" @advance="advance" @resume="resume" @cancel="cancelOrder" @navigate="navigate($event)" />
+ <TurnDock :game="game" :command="command" :busy="busy" :locked="personnelWorking" :turns="batch" :stop="stop" :pending="!!pendingAdvance" :result="result" :has-interrupted-decision="!!interruptedDecision" :error="error" @open-decision="openInterruptedDecision" @update:turns="batch=$event" @update:stop="stop=$event" @height="dockHeight=$event" @advance="advance" @resume="resume" @cancel="cancelOrder" @navigate="navigate($event)" />
 </div>
 </template>

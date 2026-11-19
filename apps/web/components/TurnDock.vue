@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {nextTurnCount} from '../utils/turnSelection'
 import {turnReview} from '../utils/turnReview'
-const props=defineProps<{game:any;command:any;busy:boolean;locked:boolean;turns:number;stop:boolean;pending:boolean;result:any;error:string}>()
-const emit=defineEmits(['advance','resume','cancel','navigate','update:turns','update:stop','height'])
+const props=defineProps<{game:any;command:any;busy:boolean;locked:boolean;turns:number;stop:boolean;pending:boolean;result:any;hasInterruptedDecision?:boolean;error:string}>()
+const emit=defineEmits(['advance','resume','cancel','navigate','open-decision','update:turns','update:stop','height'])
 const reviewOpen=ref(false),reviewDialog=ref<HTMLDialogElement|null>(null)
 const expanded=ref(false),element=ref<HTMLElement|null>(null)
 const money=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'USD'}).format(n/100)
@@ -40,6 +40,10 @@ onBeforeUnmount(()=>observer?.disconnect())
    <section class="order-group"><h2>Em andamento <span>{{agenda.length}}</span></h2><p v-if="!agenda.length" class="agenda-empty">Nenhuma atividade ou prazo ativo.</p><button v-for="item in agenda" :key="item.id" class="agenda-link" :disabled="busy||locked" @click="openDestination(item.tab)"><span>{{item.title}}</span><strong>{{Math.max(0,item.dueTurn-game.currentTurn)}} {{Math.max(0,item.dueTurn-game.currentTurn)===1?'turno':'turnos'}}</strong></button><p v-if="agenda.length" class="agenda-help">Prazos de missão são estimativas da próxima etapa.</p></section>
    <label class="check"><input type="checkbox" :checked="stop" :disabled="busy||locked||pending" @change="emit('update:stop',($event.target as HTMLInputElement).checked)"> Interromper lote em evento importante</label>
   </div>
+  <div v-if="result?.reason==='critical_decision'" class="dock-interruption">
+   <p role="status">Avanço interrompido no turno {{result.currentTurn}} por uma decisão da equipe.</p>
+   <button v-if="hasInterruptedDecision" type="button" class="secondary" :disabled="busy||locked" @click="emit('open-decision')">Ver decisão</button>
+  </div>
   <p v-if="error" class="dock-error" role="alert">{{error}}</p>
   <p v-if="command?.planningError" class="dock-error">{{command.planningError}}</p>
   <div class="dock-controls"><label><span class="sr-only">Quantidade de turnos</span><select :value="turns" :disabled="busy||locked||pending" @change="emit('update:turns',Number(($event.target as HTMLSelectElement).value))"><option v-for="n in turnOptions" :key="n" :value="n">{{turnLabel(n)}}</option></select></label><button class="primary" :disabled="blocked" @click="requestAdvance">{{busy?'Processando…':result?.status==='failed'?'Retomar lote':pending?'Consultar avanço':review.label}}</button></div>
@@ -59,3 +63,16 @@ onBeforeUnmount(()=>observer?.disconnect())
  </dialog>
 </section>
 </template>
+
+<style scoped>
+.dock-interruption {
+ display: flex;
+ flex-wrap: wrap;
+ align-items: center;
+ justify-content: space-between;
+ gap: .5rem;
+}
+.dock-interruption p {
+ margin: 0;
+}
+</style>
