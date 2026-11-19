@@ -1,7 +1,11 @@
+import {DatabaseSync} from 'node:sqlite';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {it,expect,vi} from 'vitest';
 import {setupImmediate as setup,setup as setupQueued} from './online-helpers.ts';
-async function fixture(hook?:(sql:string,args:any[])=>void,type='security'){
- const s=setup(hook),g=(await s.call('/games',{requestId:'create',name:'Mission PMC',seed:'missions'})).data,path='/games/'+g.id;
+async function fixture(hook?:(sql:string,args:any[])=>void,type='security',db?:DatabaseSync){
+ const s=setup(hook,db),g=(await s.call('/games',{requestId:'create',name:'Mission PMC',seed:'missions'})).data,path='/games/'+g.id;
  async function data(){return (await s.call(path+'/personnel')).data}
  for(let i=0;i<3;i++){const p=await data();expect((await s.call(path+'/recruitment/hire',{requestId:'hire-'+i,expectedVersion:p.stateVersion,candidateId:p.candidates[0].id,weeks:4})).status).toBe(201)}
  const p=await data(),ids=p.operators.map((o:any)=>o.id);
@@ -218,4 +222,60 @@ it.each([
   const ledger=(await queued.call(s.path+'/finances/ledger')).data;
   expect(ledger.filter((entry:any)=>entry.entryType==='mission_completion')).toHaveLength(1);
  }finally{s.db.close()}
+});
+
+
+it('evacuação: partida reaberta preserva decisão e produz o mesmo resultado em lote ou turno a turno',async()=>{
+ const directory=mkdtempSync(join(tmpdir(),'operators-evacuation-'));
+ async function play(mode:'batch'|'single'){
+  const file=join(directory,mode+'.sqlite');
+  const fixtureDb=new DatabaseSync(file);
+  let db=fixtureDb;
+  try{
+   const s=await fixture(undefined,'extraction',db);
+   let api=setupQueued(undefined,db);
+   async function command(path:string,requestId:string,body:Record<string,unknown>={}){
+    const game=(await api.call(s.path)).data;
+    return api.call(s.path+path,{requestId,expectedVersion:game.stateVersion,...body});
+   }
+   const contract='/contracts/'+s.contract.id;
+   expect((await command(contract+'/accept','accept')).status).toBe(200);
+   expect((await api.call(s.path+contract+'/plan',s.plan)).status).toBe(200);
+   const start=await command(contract+'/start','start',s.plan);
+   expect(start.data.queued).toBe(true);
+   const advance=(turns:number,id:string)=>command('/advance',id,{turns,stopOnImportant:false});
+   if(mode==='single'){
+    await advance(1,'stage-1');
+    await advance(1,'stage-2');
+   }
+   expect((await advance(mode==='batch'?8:1,'until-decision')).data).toMatchObject({status:'interrupted',reason:'critical_decision',currentTurn:3});
+   const pending=(await api.call(s.path+'/decisions')).data;
+   expect(pending).toHaveLength(1);
+   db.close();
+   db=new DatabaseSync(file);
+   api=setupQueued(undefined,db);
+   expect((await api.call(s.path+'/decisions')).data).toEqual(pending);
+   const response=await command('/decisions/'+pending[0].id+'/resolve','decision',{choice:'wait_transport'});
+   expect(response.status).toBe(200);
+   const version=response.data.stateVersion;
+   const [mission]=(await api.call(s.path+'/missions')).data;
+   const finishCommand={requestId:'finish',expectedVersion:version,turns:mode==='batch'?3:1,stopOnImportant:false};
+   const completed=await api.call(s.path+'/advance',finishCommand);
+   expect(completed.status).toBe(200);
+   expect((await api.call(s.path+'/advance',finishCommand)).data).toEqual(completed.data);
+   if(mode==='single'){
+    await advance(1,'stage-resumed');
+    await advance(1,'stage-final');
+   }
+   const result=(await api.call(s.path+'/missions/'+mission.id)).data;
+   expect(result).toMatchObject({status:'completed',endedTurn:6});
+   const reports=(await api.call(s.path+'/missions/'+mission.id+'/reports')).data;
+   const ledger=(await api.call(s.path+'/finances/ledger')).data;
+   expect(ledger.filter((entry:any)=>entry.entryType==='mission_completion')).toHaveLength(1);
+   const game=(await api.call(s.path)).data;
+   return {result,reports,ledger,cash:game.cashCents,reputation:game.reputation};
+  }finally{db.close()}
+ }
+ try{expect(await play('batch')).toEqual(await play('single'));}
+ finally{rmSync(directory,{recursive:true,force:true});}
 });
