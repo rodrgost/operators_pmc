@@ -1,13 +1,17 @@
+import {DatabaseSync} from 'node:sqlite';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {it,expect,vi} from 'vitest';
-import {setupImmediate as setup} from './online-helpers.ts';
-async function fixture(hook?:(sql:string,args:any[])=>void){
- const s=setup(hook),g=(await s.call('/games',{requestId:'create',name:'Mission PMC',seed:'missions'})).data,path='/games/'+g.id;
+import {setupImmediate as setup,setup as setupQueued} from './online-helpers.ts';
+async function fixture(hook?:(sql:string,args:any[])=>void,type='security',db?:DatabaseSync){
+ const s=setup(hook,db),g=(await s.call('/games',{requestId:'create',name:'Mission PMC',seed:'missions'})).data,path='/games/'+g.id;
  async function data(){return (await s.call(path+'/personnel')).data}
  for(let i=0;i<3;i++){const p=await data();expect((await s.call(path+'/recruitment/hire',{requestId:'hire-'+i,expectedVersion:p.stateVersion,candidateId:p.candidates[0].id,weeks:4})).status).toBe(201)}
  const p=await data(),ids=p.operators.map((o:any)=>o.id);
  const squad=(await s.call(path+'/squads',{requestId:'squad',expectedVersion:p.stateVersion,name:'Alfa',memberIds:ids.slice(0,2),leaderId:ids[0],deputyId:ids[1]})).data.squadId;
  const view=(await s.call(path+'/operations')).data;
- const contract=view.contracts.find((c:any)=>c.type==='security');
+ const contract=view.contracts.find((c:any)=>c.type===type);
  s.db.prepare('UPDATE online_contracts SET difficulty=1,risk=1 WHERE game_id=? AND id=?').run(g.id,contract.id);
  async function action(url:string,requestId:string,extra:any={}){const state=(await s.call(path)).data;return s.call(path+url,{requestId,expectedVersion:state.stateVersion,...extra});}
  async function advance(turns:number,requestId='advance'){return action('/advance',requestId,{turns,stopOnImportant:false})}
@@ -168,4 +172,110 @@ it('operações: demanda vinculada a evento usa o mesmo motor e preserva origem'
   const c=(await s.call(s.path+'/contracts/'+s.contract.id)).data;expect(c.originEventId).toBe('fixture-crisis');expect(c.source).toBe('world_event');
   const m=(await s.start()).data.missionId;await s.advance(4);expect((await s.call(s.path+'/missions/'+m)).data.status).toBe('completed');
  }finally{s.db.close()}
+});
+
+it.each([
+ ['complete_partial',4,true],
+ ['wait_transport',7,false],
+ [null,5,true],
+])('evacuação: escolha %s termina no turno %s',async(choice,endedTurn,partial)=>{
+ const s=await fixture(undefined,'extraction');
+ try{
+  const {missionId}= (await s.start()).data;
+  const nextOffer=(await s.call(s.path+'/contracts')).data.find((contract:any)=>contract.type==='security');
+  s.db.prepare('UPDATE online_contracts SET expires_turn=6 WHERE id=?').run(nextOffer.id);
+  expect((await s.advance(8)).data).toMatchObject({currentTurn:3,reason:'critical_decision'});
+  const queued=setupQueued(undefined,s.db);
+  const [decision]=(await queued.call(s.path+'/decisions')).data;
+  expect(decision).toMatchObject({title:'Atraso no transporte',expiresTurn:5,fallbackAction:'complete_partial'});
+  expect(decision.options.map((option:any)=>option.id)).toEqual(['wait_transport','complete_partial']);
+  if(choice){
+   const path=s.path+'/decisions/'+decision.id+'/resolve';
+   if(choice==='wait_transport')await s.advance(1,'last-chance');
+   const current=(await queued.call(s.path)).data;
+   const command={requestId:'choice',expectedVersion:current.stateVersion,choice};
+   expect((await queued.call(path,{...command,requestId:'invalid-choice',choice:'proceed'})).data.code).toBe('INVALID_DECISION_CHOICE');
+   const response=await queued.call(path,command);
+   expect(response.data).toMatchObject({action:'decision',currentTurn:current.currentTurn});
+   expect((await queued.call(path,command)).data).toEqual(response.data);
+   expect((await queued.call(s.path+'/decisions')).data).toHaveLength(0);
+   expect((await queued.call(s.path+'/missions/'+missionId)).data.status).toBe('active');
+  }
+  const current=(await queued.call(s.path)).data;
+  await queued.call(s.path+'/advance',{requestId:'finish',expectedVersion:current.stateVersion,turns:endedTurn-current.currentTurn,stopOnImportant:false});
+  const mission=(await queued.call(s.path+'/missions/'+missionId)).data;
+  expect(mission).toMatchObject({status:'completed',endedTurn,paidCents:partial?Math.round(s.contract.rewardCents/2):s.contract.rewardCents});
+  expect((s.db.prepare("SELECT COUNT(*) AS n FROM online_reservations WHERE source_id=?").get(missionId) as any).n).toBe(0);
+  const reports=(await queued.call(s.path+'/missions/'+missionId+'/reports')).data;
+  expect(reports.some((report:any)=>report.title==='Missão encerrada com sucesso parcial')).toBe(partial);
+  const finalReport=reports.find((report:any)=>report.outcome==='completed');
+  expect(finalReport.evacuationChoice).toEqual({
+   label:partial?'Encerrar com sucesso parcial':'Aguardar mais um turno',
+   turn:choice==='wait_transport'?4:choice?3:5,
+   automatic:choice===null,
+  });
+  expect(finalReport.advanceCents+finalReport.paymentCents).toBe(finalReport.totalPaidCents);
+  expect(finalReport.crewAtReturn).toHaveLength(3);
+  expect(finalReport.crewAtReturn.every((operator:any)=>operator.availability==='available')).toBe(true);
+  const nextContract=(await queued.call(s.path+'/contracts/'+nextOffer.id)).data;
+  expect(nextContract.status).toBe(partial?'available':'expired');
+  const ledger=(await queued.call(s.path+'/finances/ledger')).data;
+  expect(ledger.filter((entry:any)=>entry.entryType==='mission_completion')).toHaveLength(1);
+ }finally{s.db.close()}
+});
+
+
+it('evacuação: partida reaberta preserva decisão e produz o mesmo resultado em lote ou turno a turno',async()=>{
+ const directory=mkdtempSync(join(tmpdir(),'operators-evacuation-'));
+ async function play(mode:'batch'|'single'){
+  const file=join(directory,mode+'.sqlite');
+  const fixtureDb=new DatabaseSync(file);
+  let db=fixtureDb;
+  try{
+   const s=await fixture(undefined,'extraction',db);
+   let api=setupQueued(undefined,db);
+   async function command(path:string,requestId:string,body:Record<string,unknown>={}){
+    const game=(await api.call(s.path)).data;
+    return api.call(s.path+path,{requestId,expectedVersion:game.stateVersion,...body});
+   }
+   const contract='/contracts/'+s.contract.id;
+   expect((await command(contract+'/accept','accept')).status).toBe(200);
+   expect((await api.call(s.path+contract+'/plan',s.plan)).status).toBe(200);
+   const start=await command(contract+'/start','start',s.plan);
+   expect(start.data.queued).toBe(true);
+   const advance=(turns:number,id:string)=>command('/advance',id,{turns,stopOnImportant:false});
+   if(mode==='single'){
+    await advance(1,'stage-1');
+    await advance(1,'stage-2');
+   }
+   expect((await advance(mode==='batch'?8:1,'until-decision')).data).toMatchObject({status:'interrupted',reason:'critical_decision',currentTurn:3});
+   const pending=(await api.call(s.path+'/decisions')).data;
+   expect(pending).toHaveLength(1);
+   db.close();
+   db=new DatabaseSync(file);
+   api=setupQueued(undefined,db);
+   expect((await api.call(s.path+'/decisions')).data).toEqual(pending);
+   const response=await command('/decisions/'+pending[0].id+'/resolve','decision',{choice:'wait_transport'});
+   expect(response.status).toBe(200);
+   const version=response.data.stateVersion;
+   const [mission]=(await api.call(s.path+'/missions')).data;
+   const finishCommand={requestId:'finish',expectedVersion:version,turns:mode==='batch'?3:1,stopOnImportant:false};
+   const completed=await api.call(s.path+'/advance',finishCommand);
+   expect(completed.status).toBe(200);
+   expect((await api.call(s.path+'/advance',finishCommand)).data).toEqual(completed.data);
+   if(mode==='single'){
+    await advance(1,'stage-resumed');
+    await advance(1,'stage-final');
+   }
+   const result=(await api.call(s.path+'/missions/'+mission.id)).data;
+   expect(result).toMatchObject({status:'completed',endedTurn:6});
+   const reports=(await api.call(s.path+'/missions/'+mission.id+'/reports')).data;
+   const ledger=(await api.call(s.path+'/finances/ledger')).data;
+   expect(ledger.filter((entry:any)=>entry.entryType==='mission_completion')).toHaveLength(1);
+   const game=(await api.call(s.path)).data;
+   return {result,reports,ledger,cash:game.cashCents,reputation:game.reputation};
+  }finally{db.close()}
+ }
+ try{expect(await play('batch')).toEqual(await play('single'));}
+ finally{rmSync(directory,{recursive:true,force:true});}
 });

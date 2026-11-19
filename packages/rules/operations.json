@@ -6,6 +6,7 @@
   "offerTurns": 28,
   "mobilizationTurns": 8,
   "decisionTurns": 2,
+  "evacuationPartialMaximum": 0.5,
   "maxDelays": 2,
   "mobilizationPerOperatorCents": 20000,
   "advanceRate": 0.2,
