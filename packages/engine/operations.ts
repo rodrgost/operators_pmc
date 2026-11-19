@@ -4,7 +4,7 @@ import {perceivedRisk,type Intelligence} from './intelligence.ts';
 import {stageEquipment,returnEquipment,type Logistics} from './logistics.ts';
 import config from '../rules/operations.json' with {type:'json'};
 import {countries,organizations} from '../rules/index.ts';
-import {employment,type Personnel,type Digest} from './personnel.ts';
+import {availability,employment,type Personnel,type Digest} from './personnel.ts';
 export {config};
 // Acceptance starts a separate two-day mobilization window. Older saves retain their deadline.
 export const mobilizationTurns=config.mobilizationTurns;
@@ -51,7 +51,17 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
    history.push({id:'mission:'+m.id+':'+id,turn,event_type:'mission_'+status,title:'Missão '+(status==='completed'?'concluída':status==='withdrawn'?'retirada':'fracassada'),data_json:JSON.stringify({operatorId:id,missionId:m.id})});
   }
   for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){let f=p.familiarity.find(f=>f.operator_low===ids[i]&&f.operator_high===ids[j]);if(!f){f={operator_low:ids[i],operator_high:ids[j],score:0};p.familiarity.push(f);}f.score=clamp(f.score+config.missionFamiliarity);}
-  report(m,status,earlyPartial?'Missão encerrada com sucesso parcial':status==='completed'?'Missão concluída':status==='withdrawn'?'Retirada concluída':'Missão fracassada',earlyPartial?'A equipe encerrou a evacuação com parte do objetivo cumprida.':reportNarrative(status,[m.id,turn,'final']),{}, {paymentCents:payment,reputationDelta:delta,totalPaidCents:m.paid_cents});
+  const transportDecision=o.decisions.find(d=>d.mission_id===m.id&&isEvacuationDecision(d)&&d.status==='resolved');
+  const evacuationChoice=transportDecision?{
+   label:evacuationDecision.options.find(option=>option.id===transportDecision.chosen_action)?.label,
+   turn:transportDecision.resolved_turn,
+   automatic:transportDecision.resolved_turn>=transportDecision.expires_turn,
+  }:undefined;
+  const crewAtReturn=p.operators.filter(op=>ids.includes(op.id)).map(op=>({
+   operatorId:op.id,name:JSON.parse(op.profile_json).name,availability:availability(p,op,turn),
+   health:op.health,fatigue:op.fatigue,
+  }));
+  report(m,status,earlyPartial?'Missão encerrada com sucesso parcial':status==='completed'?'Missão concluída':status==='withdrawn'?'Retirada concluída':'Missão fracassada',earlyPartial?'A equipe encerrou a evacuação com parte do objetivo cumprida.':reportNarrative(status,[m.id,turn,'final']),{}, {paymentCents:payment,reputationDelta:delta,totalPaidCents:m.paid_cents,advanceCents:m.advance_cents,crewAtReturn,evacuationChoice});
   event('mission_'+status,status==='completed'?'Missão concluída':status==='withdrawn'?'Equipe retornou':'Missão fracassada',c.title+' · consulte o relatório.',true);
  }
  for(const c of o.contracts)if(['available','accepted'].includes(c.status)&&contractDeadline(c)<=turn){const accepted=c.status==='accepted';c.status='expired';event('contract_expired',accepted?'Prazo de mobilização encerrado':'Oferta expirada',c.title);}

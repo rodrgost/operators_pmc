@@ -178,6 +178,8 @@ it.each([
  const s=await fixture(undefined,'extraction');
  try{
   const {missionId}= (await s.start()).data;
+  const nextOffer=(await s.call(s.path+'/contracts')).data.find((contract:any)=>contract.type==='security');
+  s.db.prepare('UPDATE online_contracts SET expires_turn=6 WHERE id=?').run(nextOffer.id);
   expect((await s.advance(8)).data).toMatchObject({currentTurn:3,reason:'critical_decision'});
   const queued=setupQueued(undefined,s.db);
   const [decision]=(await queued.call(s.path+'/decisions')).data;
@@ -196,12 +198,23 @@ it.each([
    expect((await queued.call(s.path+'/missions/'+missionId)).data.status).toBe('active');
   }
   const current=(await queued.call(s.path)).data;
-  await queued.call(s.path+'/advance',{requestId:'finish',expectedVersion:current.stateVersion,turns:5,stopOnImportant:false});
+  await queued.call(s.path+'/advance',{requestId:'finish',expectedVersion:current.stateVersion,turns:endedTurn-current.currentTurn,stopOnImportant:false});
   const mission=(await queued.call(s.path+'/missions/'+missionId)).data;
   expect(mission).toMatchObject({status:'completed',endedTurn,paidCents:partial?Math.round(s.contract.rewardCents/2):s.contract.rewardCents});
   expect((s.db.prepare("SELECT COUNT(*) AS n FROM online_reservations WHERE source_id=?").get(missionId) as any).n).toBe(0);
   const reports=(await queued.call(s.path+'/missions/'+missionId+'/reports')).data;
   expect(reports.some((report:any)=>report.title==='Missão encerrada com sucesso parcial')).toBe(partial);
+  const finalReport=reports.find((report:any)=>report.outcome==='completed');
+  expect(finalReport.evacuationChoice).toEqual({
+   label:partial?'Encerrar com sucesso parcial':'Aguardar mais um turno',
+   turn:choice==='wait_transport'?4:choice?3:5,
+   automatic:choice===null,
+  });
+  expect(finalReport.advanceCents+finalReport.paymentCents).toBe(finalReport.totalPaidCents);
+  expect(finalReport.crewAtReturn).toHaveLength(3);
+  expect(finalReport.crewAtReturn.every((operator:any)=>operator.availability==='available')).toBe(true);
+  const nextContract=(await queued.call(s.path+'/contracts/'+nextOffer.id)).data;
+  expect(nextContract.status).toBe(partial?'available':'expired');
   const ledger=(await queued.call(s.path+'/finances/ledger')).data;
   expect(ledger.filter((entry:any)=>entry.entryType==='mission_completion')).toHaveLength(1);
  }finally{s.db.close()}
