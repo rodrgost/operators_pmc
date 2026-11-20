@@ -30,6 +30,12 @@ const money=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency
 const statusNames:any={rival_active:'Em execução por rival',rival_completed:'Concluído por rival',rival_failed:'Rival fracassou',available:'Disponível',accepted:'Aceito',active:'Em execução',awaiting_decision:'Aguardando decisão',returning:'Retornando',completed:'Concluído',failed:'Fracassado',expired:'Expirado',cancelled:'Cancelado',withdrawn:'Retirada concluída'}
 const typeNames:any={security:'Segurança',escort:'Escolta',reconnaissance:'Reconhecimento',extraction:'Extração',recovery:'Recuperação',rescue:'Resgate'}
 const outcomeNames:any={success:'Sucesso',partial:'Parcial',delay:'Atraso',failure:'Falha',complication:'Complicação',completed:'Concluída',failed:'Fracassada',withdrawn:'Retirada',decision:'Decisão solicitada'}
+const closingReport=computed(()=>reports.value.find(report=>report.paymentCents!==undefined))
+const progressReports=computed(()=>reports.value.filter(report=>report!==closingReport.value))
+function reportHeading(report:any){
+ return report.title.replace(/ · (sucesso|resultado parcial|atraso|falha|complicação)$/i,'')
+}
+
 const contracts=computed(()=>data.value.contracts.filter((c:any)=>(!filter.value||c.type===filter.value)&&(!props.regionId||c.regionId===props.regionId)&&(statusFilter.value==='all'||statusFilter.value==='actionable'?statusFilter.value==='all'||['available','accepted'].includes(c.status):c.status===statusFilter.value)&&(!search.value||[c.title,c.regionName,c.countryName,c.clientName].join(' ').toLocaleLowerCase('pt-BR').includes(search.value.toLocaleLowerCase('pt-BR')))).sort((a:any,b:any)=>contractRank(a)-contractRank(b)||(a.mobilizationDueTurn??a.expiresTurn??Infinity)-(b.mobilizationDueTurn??b.expiresTurn??Infinity)))
 function contractRank(c:any){return c.status==='accepted'?0:(data.value.pendingOrders??[]).some((o:any)=>o.target===c.id&&o.kind==='accept')?1:c.status==='available'?2:3}
 const permanentOptions=computed(()=>people.value.operators.filter((o:any)=>people.value.squads.find((s:any)=>s.id===squadId.value)?.memberIds.includes(o.id)))
@@ -144,14 +150,66 @@ watch([operationSection,()=>props.mode],()=>{if(data.value?.stateVersion!==undef
   <div class="section-intro"><p>Missões avançam por etapas quando você avança o tempo. Formação e diretrizes enviadas permanecem preservadas.</p></div>
 
 
-  <section v-if="!visibleMissions.length&&(operationSection==='history'||!(data.pendingOrders??[]).some((o:any)=>o.kind==='start'))" class="empty action-empty"><h3>{{operationSection==='history'?'Sua história ainda vai começar':'Prepare sua próxima operação'}}</h3><p>{{operationSection==='history'?'As missões encerradas aparecerão aqui com seus resultados.':'Escolha um contrato e prepare a equipe antes de iniciar a mobilização.'}}</p><button class="primary" :disabled="locked" @click="emit('navigate','contracts')">Encontrar contrato →</button></section><div class="personnel-grid"><article v-for="m in visibleMissions" :key="m.id" data-action-card tabindex="-1" :id="'operations-m-'+m.id" class="panel operator-card"><StateBadge :status="m.status" :label="statusNames[m.status]||m.status" /><h3>{{m.contractTitle||data.contracts.find((c:any)=>c.id===m.contractId)?.title||'Missão registrada'}}</h3><progress class="mission-progress" :value="m.completedStages" :max="m.totalStages" :aria-label="'Etapas concluídas de '+(m.contractTitle||'missão')" /><p>{{m.completedStages}} / {{m.totalStages}} etapas concluídas<br>Etapa: {{m.stageName}}<br>Início turno {{m.startedTurn}}<span v-if="m.endedTurn!==null"> · término turno {{m.endedTurn}}</span></p><ul><li v-for="a in m.crew" :key="a.operatorId">{{a.name}} · {{a.assignmentType==='reinforcement'?'reforço':'permanente'}}<span v-if="a.operatorId===m.leaderId"> · líder</span></li></ul><div class="personnel-actions"><button class="secondary" @click="details(m)">Abrir relatórios</button><button v-if="['active','awaiting_decision'].includes(m.status)" class="secondary" :disabled="locked||!!scheduled(m.id).length" @click="withdrawal=m">Solicitar retirada</button></div>  <PendingOrderNotice :orders="scheduled(m.id)" :disabled="locked" @remove="run('/orders/'+$event+'/cancel')" /><FocusDialog v-if="withdrawal?.id===m.id" title="Solicitar retirada" :busy="busy" :error="error" @close="withdrawal=null"><section class="inline-action decision-card"><h3>Solicitar retirada?</h3><p>Retorno em um turno. Devolução de {{money(withdrawal.advanceCents)}} de adiantamento, custo de mobilização mantido e redução de reputação.</p><div class="personnel-actions"><button class="primary" :disabled="locked" @click="run('/missions/'+withdrawal.id+'/withdraw')">Ordenar retirada agora</button><button class="secondary" :disabled="locked" @click="withdrawal=null">Manter missão</button></div></section></FocusDialog>  <FocusDialog v-if="selectedMission?.id===m.id" title="Relatórios da missão" :busy="busy" :error="error" @close="selectedMission=null"><section class="inline-action mission-reports"><button class="secondary" @click="selectedMission=null">Fechar relatórios</button><h2>Relatórios da missão</h2><details v-if="departure"><summary>Conhecimento registrado na partida · turno {{departure.collectedTurn}}</summary><p v-for="t in departure.contract.topics" :key="t.topic">{{t.topic==='risk'?'Risco':'Dificuldade'}} · {{t.estimate?t.estimate.min+'–'+t.estimate.max:'desconhecido'}} · confiança {{t.confidence}}% · coleta turno {{t.collectedTurn}} · validade turno {{t.validUntilTurn}}</p><p>Registro de partida preservado; novas informações podem orientar a equipe durante a operação.</p></details><p v-if="reportsLoading" role="status">Carregando relatórios…</p><p v-else-if="!reports.length">Nenhum relatório disponível.</p><article v-for="r in reports" :key="r.id" class="mission-report"><span class="eyebrow">turno {{r.turn}} · {{outcomeNames[r.outcome]}}</span><h3>{{r.title}}</h3><p>{{r.description}}</p><p v-for="k in r.equipment||[]" :key="k.id">Kit {{k.name}} · condição {{k.condition}} · suprimentos {{k.supplies}}</p><p v-for="o in r.conditions||[]" :key="o.operatorId">{{o.name}} · saúde {{o.health}} · fadiga {{o.fatigue}} · moral {{o.morale}}</p><p v-if="r.intelligence">Inteligência usada na avaliação: nível {{r.intelligence.level}}<span v-if="r.intelligence.stale"> · desatualizada</span><span v-if="r.intelligence.conflicting"> · fontes conflitantes</span>.</p><p v-if="r.paymentCents!==undefined">Acerto: {{money(r.paymentCents)}} · reputação {{r.reputationDelta>0?'+':''}}{{r.reputationDelta}}</p>
-   <p v-if="r.evacuationChoice">Decisão: {{r.evacuationChoice.label}} · turno {{r.evacuationChoice.turn}}<span v-if="r.evacuationChoice.automatic"> · aplicada automaticamente no vencimento</span></p>
-   <p v-if="r.advanceCents!==undefined">Adiantamento: {{money(r.advanceCents)}} · total recebido: {{money(r.totalPaidCents)}}</p>
-   <div v-if="r.crewAtReturn?.length">
-    <h4>Equipe ao encerrar a missão</h4>
-    <ul><li v-for="operator in r.crewAtReturn" :key="operator.operatorId">{{operator.name}} · {{availabilityLabels[operator.availability]}} · saúde {{operator.health}} · fadiga {{operator.fatigue}}</li></ul>
-    <button class="secondary" @click="emit('clear-region');emit('navigate','contracts')">Ver próximos contratos</button>
-   </div></article></section></FocusDialog></article></div>
+  <section v-if="!visibleMissions.length&&(operationSection==='history'||!(data.pendingOrders??[]).some((o:any)=>o.kind==='start'))" class="empty action-empty"><h3>{{operationSection==='history'?'Sua história ainda vai começar':'Prepare sua próxima operação'}}</h3><p>{{operationSection==='history'?'As missões encerradas aparecerão aqui com seus resultados.':'Escolha um contrato e prepare a equipe antes de iniciar a mobilização.'}}</p><button class="primary" :disabled="locked" @click="emit('navigate','contracts')">Encontrar contrato →</button></section><div class="personnel-grid"><article v-for="m in visibleMissions" :key="m.id" data-action-card tabindex="-1" :id="'operations-m-'+m.id" class="panel operator-card"><StateBadge :status="m.status" :label="statusNames[m.status]||m.status" /><h3>{{m.contractTitle||data.contracts.find((c:any)=>c.id===m.contractId)?.title||'Missão registrada'}}</h3><progress class="mission-progress" :value="m.completedStages" :max="m.totalStages" :aria-label="'Etapas concluídas de '+(m.contractTitle||'missão')" /><p>{{m.completedStages}} / {{m.totalStages}} etapas concluídas<br>Etapa: {{m.stageName}}<br>Início turno {{m.startedTurn}}<span v-if="m.endedTurn!==null"> · término turno {{m.endedTurn}}</span></p><ul><li v-for="a in m.crew" :key="a.operatorId">{{a.name}} · {{a.assignmentType==='reinforcement'?'reforço':'permanente'}}<span v-if="a.operatorId===m.leaderId"> · líder</span></li></ul><div class="personnel-actions"><button class="secondary" @click="details(m)">Abrir relatórios</button><button v-if="['active','awaiting_decision'].includes(m.status)" class="secondary" :disabled="locked||!!scheduled(m.id).length" @click="withdrawal=m">Solicitar retirada</button></div>  <PendingOrderNotice :orders="scheduled(m.id)" :disabled="locked" @remove="run('/orders/'+$event+'/cancel')" /><FocusDialog v-if="withdrawal?.id===m.id" title="Solicitar retirada" :busy="busy" :error="error" @close="withdrawal=null"><section class="inline-action decision-card"><h3>Solicitar retirada?</h3><p>Retorno em um turno. Devolução de {{money(withdrawal.advanceCents)}} de adiantamento, custo de mobilização mantido e redução de reputação.</p><div class="personnel-actions"><button class="primary" :disabled="locked" @click="run('/missions/'+withdrawal.id+'/withdraw')">Ordenar retirada agora</button><button class="secondary" :disabled="locked" @click="withdrawal=null">Manter missão</button></div></section></FocusDialog>  <FocusDialog v-if="selectedMission?.id===m.id" title="Relatórios da missão" :busy="busy" :error="error" @close="selectedMission=null"><section class="inline-action mission-reports">
+ <p v-if="reportsLoading" role="status">Carregando relatórios…</p>
+ <p v-else-if="!reports.length">Nenhum relatório disponível.</p>
+
+ <section v-if="closingReport" class="mission-closing">
+  <h3>{{closingReport.title}}</h3>
+  <p class="report-meta">Turno {{closingReport.turn}} · reputação {{closingReport.reputationDelta>0?'+':''}}{{closingReport.reputationDelta}}</p>
+  <p v-if="closingReport.evacuationChoice">{{closingReport.evacuationChoice.label}} · turno {{closingReport.evacuationChoice.turn}}<span v-if="closingReport.evacuationChoice.automatic"> · decisão automática</span></p>
+  <p><strong>Total recebido {{money(closingReport.totalPaidCents)}}</strong></p>
+  <details class="report-detail">
+   <summary>Acerto e situação da equipe</summary>
+   <div class="report-detail-body">
+    <p v-if="closingReport.advanceCents!==undefined">Adiantamento {{money(closingReport.advanceCents)}}</p>
+    <p>{{closingReport.paymentCents<0?'Devolução':'Acerto final'}} {{money(Math.abs(closingReport.paymentCents))}}</p>
+    <p v-for="operator in closingReport.crewAtReturn||[]" :key="operator.operatorId">{{operator.name}} · {{availabilityLabels[operator.availability]}} · saúde {{operator.health}} · fadiga {{operator.fatigue}}</p>
+   </div>
+  </details>
+  <button v-if="closingReport.crewAtReturn?.length" class="secondary" @click="selectedMission=null;emit('clear-region');emit('navigate','contracts')">Ver próximos contratos</button>
+ </section>
+
+ <h3 v-if="progressReports.length" class="report-section-title">Etapas e ocorrências</h3>
+ <details v-for="report in progressReports" :key="report.id" class="report-detail">
+  <summary>
+   <strong>{{reportHeading(report)}}</strong>
+   <span class="report-meta">T{{report.turn}} · {{outcomeNames[report.outcome]||report.outcome}}</span>
+  </summary>
+  <div class="report-detail-body">
+   <p>{{report.description?.replace(/ Consulte as condições atuais da formação\.$/,'')}}</p>
+   <div v-if="report.conditions?.length">
+    <h4>Equipe</h4>
+    <p v-for="operator in report.conditions" :key="operator.operatorId">{{operator.name}} · saúde {{operator.health}} · fadiga {{operator.fatigue}} · moral {{operator.morale}}</p>
+   </div>
+   <div v-if="report.equipment?.length">
+    <h4>Equipamentos</h4>
+    <p v-for="kit in report.equipment" :key="kit.id">{{kit.name}} · condição {{kit.condition}} · suprimentos {{kit.supplies}}</p>
+   </div>
+   <p v-if="report.intelligence">Inteligência nível {{report.intelligence.level}}<span v-if="report.intelligence.stale"> · desatualizada</span><span v-if="report.intelligence.conflicting"> · fontes conflitantes</span></p>
+  </div>
+ </details>
+ <details v-if="departure" class="report-detail report-departure">
+  <summary>Inteligência inicial <span class="report-meta">T{{departure.collectedTurn}}</span></summary>
+  <div class="report-detail-body">
+   <p v-for="topic in departure.contract.topics" :key="topic.topic">{{topic.topic==='risk'?'Risco':'Dificuldade'}} · {{topic.estimate?topic.estimate.min+'–'+topic.estimate.max:'desconhecido'}} · confiança {{topic.confidence}}% · válida até T{{topic.validUntilTurn}}</p>
+  </div>
+ </details>
+</section></FocusDialog></article></div>
  </template>
 </div>
 </template>
+
+<style scoped>
+.mission-closing { display:grid; gap:.55rem; margin-bottom:1.25rem; }
+.mission-closing > :is(h3,p) { margin:0; }
+.mission-closing > button { justify-self:start; }
+.report-section-title { margin:0 0 .35rem; }
+.report-detail { border-bottom:1px solid var(--command-line,#304047); }
+.report-detail > summary { cursor:pointer; padding:.7rem 0; overflow-wrap:anywhere; }
+.report-detail > summary > strong { margin-right:.45rem; }
+.report-meta { font-size:.875em; opacity:.85; }
+.report-detail-body { padding:0 0 .75rem 1rem; }
+.report-detail-body :is(h4,p) { margin:.4rem 0; }
+.report-departure { margin-top:.8rem; }
+</style>
