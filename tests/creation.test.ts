@@ -39,3 +39,18 @@ for(const failAt of ['create','list','select'] as const){
   expect(campaigns.size).toBe(1);expect(h.pendingCreation.value).toBeNull();expect(h.error.value).toBe('');
  });
 }
+
+it('UI: cada nova companhia recebe uma semente diferente e retries preservam a semente',async()=>{
+ const {h,posted}=setup('create');
+ expect(h.seed.value).toBe('');
+ await h.create();await h.create();await h.create();
+ expect(posted[0].seed).toBeTruthy();
+ expect(posted[1].seed).toBe(posted[0].seed);
+ expect(posted[2].seed).not.toBe(posted[0].seed);
+});
+it('UI: semente informada permite reproduzir uma campanha',async()=>{
+ const {h,posted}=setup('create');
+ h.seed.value=' minha-campanha ';
+ await h.create();await h.create();await h.create();
+ expect(posted.map(command=>command.seed)).toEqual(['minha-campanha','minha-campanha','minha-campanha']);
+});

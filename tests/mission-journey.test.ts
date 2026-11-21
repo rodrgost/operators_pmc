@@ -8,18 +8,19 @@ function fixture(){
  const contract=()=>({id:'c',title:'Escolta',status})
  const staff={operators:[{id:'a',availability:'available'},{id:'b',availability:'available'}],squads:[{id:'s',memberIds:['a','b'],leaderId:'a',directives:{posture:'balanced',priority:'team_safety',riskTolerance:'medium',withdrawalPolicy:'normal'}}]}
  const context:any={useActionFeedback:()=>({feedbackTarget:{value:''},captureAction:()=>{}}),useNavigationNews:()=>({markRead:()=>{}}),defineProps:()=>({game:{id:'g'},mode:'contracts'}),defineEmits:()=>()=>{},ref:(value:any)=>({value}),computed:(fn:any)=>typeof fn==='function'?{get value(){return fn()}}:{get value(){return fn.get()},set value(v){fn.set(v)}},useState:(key:string,init:any)=>store[key]??(store[key]={value:init()}),watch:()=>{},onMounted:()=>{},crypto:{randomUUID:()=> 'request'},$fetch:async(path:string,options:any={})=>{
+  if(path.endsWith('/plan'))return {valid:true}
   if(options.method){status='accepted';return {action:'accept'}}
   if(path.endsWith('/personnel'))return staff
   return {contracts:[contract()],missions:[],decisions:[],stateVersion:1}
  }}
  const source=readFileSync('apps/web/components/OperationsPanel.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0]
- runInNewContext(ts.transpileModule(source+';globalThis.h={refresh,plan,run,planBody,equipmentIds,selectedContract,missionContext,preparationStep};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,context)
+ runInNewContext(ts.transpileModule(source+';globalThis.h={refresh,plan,run,planBody,equipmentIds,selectedContract,missionContext,preparationStep,preview};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,context)
  return {h:context.h,contract,setStatus:(value:string)=>status=value}
 }
-it('jornada: aceitar e atualizar a companhia preserva equipe, kits e etapa do plano',async()=>{
+it('jornada: aceitar preserva equipe e kits e revisa o plano para confirmar a mobilização',async()=>{
  const {h,contract}=fixture();await h.refresh();h.plan(contract());h.equipmentIds.value=['kit'];h.preparationStep.value='plan'
  const before=JSON.parse(JSON.stringify(h.planBody()));await h.run('/contracts/c/accept');await h.refresh()
- expect(JSON.parse(JSON.stringify(h.planBody()))).toEqual(before);expect(h.selectedContract.value.status).toBe('accepted');expect(h.preparationStep.value).toBe('plan');expect(h.missionContext.value.contractId).toBe('c')
+ expect(JSON.parse(JSON.stringify(h.planBody()))).toEqual(before);expect(h.selectedContract.value.status).toBe('accepted');expect(h.preparationStep.value).toBe('launch');expect(JSON.parse(JSON.stringify(h.preview.value.body))).toEqual(before);expect(h.missionContext.value.contractId).toBe('c')
 })
 it('jornada: contrato expirado encerra o rascunho e remove o atalho de retorno',async()=>{
  const {h,contract,setStatus}=fixture();await h.refresh();h.plan(contract());setStatus('expired');await h.refresh()
