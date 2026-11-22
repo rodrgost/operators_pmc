@@ -120,7 +120,7 @@ watch([operationSection,()=>props.mode],()=>{if(data.value?.stateVersion!==undef
 </script>
 <template>
 <div ref="panelElement" class="operations-panel" :aria-busy="busy" @click.capture="captureAction($event)">
- <ActionFeedback :target="feedbackTarget" :error="error" :notice="notice" />
+ <ActionFeedback :target="feedbackTarget" :section="operationSection" :turn="game.currentTurn" v-model:error="error" v-model:notice="notice" />
  <section v-if="pending&&!busy" class="panel"><p>Comando aguardando confirmação. A repetição não duplica efeitos.</p><button class="primary" @click="run(pending.path,pending.body)">Repetir comando</button></section>
  <section v-if="launchContract&&mode==='contracts'&&(scheduled(launchContract,'start').length||data.missions.some((m:any)=>m.contractId===launchContract))" class="panel mission-handoff"><h2>{{scheduled(launchContract,'start').length?'Início agendado':'Acompanhe sua missão'}}</h2><p>{{scheduled(launchContract,'start').length?'O início agendado será confirmado no próximo avanço. Confira as ordens e os custos antes de passar o turno.':'O início foi confirmado. Consulte o andamento e os relatórios em Operações.'}}</p><button class="primary" :disabled="locked" @click="emit('navigate','operations','missions')">Acompanhar operações →</button></section>
  <section v-if="mode==='operations'&&(data.pendingOrders??[]).some((o:any)=>o.kind==='start')" class="panel mission-handoff"><h2>Mobilização aguardando confirmação</h2><p>Avance o tempo para confirmar o início. A equipe e os kits ainda não estão reservados.</p><button class="secondary" :disabled="locked" @click="emit('navigate','contracts')">Revisar contratos →</button></section>

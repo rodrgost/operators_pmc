@@ -80,3 +80,8 @@
 ## Exclusão de companhias
 
 Botão na lista inicial com confirmação pelo nome exato. Exclusão imediata, atômica, restrita ao proprietário, incluindo dados dependentes e origem legada. Proteção contra versão desatualizada e avanço em andamento.
+
+## Avisos de ação — 2026-11-22
+
+- Os avisos podem ser fechados e são limpos ao trocar de aba, submenu ou turno.
+- Para integrar a correção na pasta principal, foram recuperados do commit `25b7f2e` os componentes `ActionFeedback.vue`, `IntelligencePanel.vue`, `LogisticsPanel.vue` e `OperationsPanel.vue`, que apareciam como excluídos localmente. As demais exclusões locais foram preservadas.

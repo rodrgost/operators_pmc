@@ -14,9 +14,12 @@ async function fixture(logistics=true){
 for(const logistics of [true,false])it(`descanso progressivo conta o primeiro avanço e termina ao zerar (logística=${logistics})`,async()=>{
  const s=await fixture(logistics);try{
   s.db.prepare('UPDATE online_operators SET fatigue=12 WHERE game_id=?').run(s.g.id);
-  const planned=await s.action('/operators/'+s.operatorId+'/activities','rest',{type:'rest'});
-  expect(planned.data).toMatchObject({queued:true});expect(planned.data.previewText).toContain('12 → 7');expect(planned.data.previewText).toContain('T4');
-  expect((await s.people()).operators[0]).toMatchObject({fatigue:12,reservation:null,restTurns:3});
+  const started=await s.action('/operators/'+s.operatorId+'/activities','rest',{type:'rest'});
+  expect(started.data).toMatchObject({action:'activity',currentTurn:1,dueTurn:4});
+  expect((await s.people()).operators[0]).toMatchObject({fatigue:12,reservation:{start_turn:1,end_turn:4},restTurns:3});
+  const center=(await s.call(s.path+'/command-center')).data;
+  expect(center.pendingOrders).toHaveLength(0);
+  expect(center.agenda).toContainEqual(expect.objectContaining({id:'activity-'+s.operatorId,dueTurn:4,firstPeriodPending:true}));
   await s.pass('first');expect((await s.people()).operators[0]).toMatchObject({fatigue:7,availability:'rest',reservation:{end_turn:4}});
   await s.pass('second');expect((await s.people()).operators[0].fatigue).toBe(2);
   await s.pass('third');expect((await s.people()).operators[0]).toMatchObject({fatigue:0,availability:'available',reservation:null});
@@ -33,7 +36,7 @@ it('descanso interrompe imediatamente, preserva recuperação e permite nova ord
   expect((await s.call(s.path+'/operators/'+s.operatorId+'/activities/cancel',body)).data).toEqual(stopped.data);
   expect((await s.people()).operators[0]).toMatchObject({fatigue:35,reservation:null});
   expect((await s.call(s.path+'/orders')).data.orders).toHaveLength(0);
-  expect((await s.action('/operators/'+s.operatorId+'/activities','train',{type:'training'})).data.queued).toBe(true);
+  expect((await s.action('/operators/'+s.operatorId+'/activities','train',{type:'training'})).data).toMatchObject({action:'activity',currentTurn:2});
  }finally{s.db.close()}
 });
 it('descanso desnecessário é recusado e descanso curto termina no primeiro avanço',async()=>{
@@ -43,6 +46,17 @@ it('descanso desnecessário é recusado e descanso curto termina no primeiro ava
   s.db.prepare('UPDATE online_operators SET fatigue=3 WHERE game_id=?').run(s.g.id);
   await s.action('/operators/'+s.operatorId+'/activities','short',{type:'rest'});await s.pass('short-turn');
   expect((await s.people()).operators[0]).toMatchObject({fatigue:0,reservation:null});
+ }finally{s.db.close()}
+});
+it('desfazer descanso antes de avançar libera o operador sem reduzir a fadiga',async()=>{
+ const s=await fixture(false);try{
+  s.db.prepare('UPDATE online_operators SET fatigue=12 WHERE game_id=?').run(s.g.id);
+  const url='/operators/'+s.operatorId+'/activities';
+  const started=await s.action(url,'rest',{type:'rest'});
+  const undone=await s.action(url+'/cancel','undo');
+  expect(undone.data).toMatchObject({activityUndone:true,refundedCents:0,cashCents:started.data.cashCents,currentTurn:1});
+  await s.pass('after-undo');
+  expect((await s.people()).operators[0]).toMatchObject({fatigue:12,reservation:null});
  }finally{s.db.close()}
 });
 it('descanso antigo estende a previsão até zerar sem perder progresso',async()=>{

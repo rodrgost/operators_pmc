@@ -23,7 +23,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
 
 watch(mode,()=>{if(data.value?.stateVersion!==undefined)navigationNews.markRead(props.game.id,'infrastructure.'+mode.value)})
 </script>
-<template><div class="logistics-panel" :aria-busy="busy" @click.capture="captureAction($event)"><ActionFeedback :target="feedbackTarget" :error="error" :notice="notice" />
+<template><div class="logistics-panel" :aria-busy="busy" @click.capture="captureAction($event)"><ActionFeedback :target="feedbackTarget" :section="mode" :turn="game.currentTurn" v-model:error="error" v-model:notice="notice" />
  <section v-if="pending&&!busy" class="panel"><p>Comando aguardando confirmação. Repetir não duplica compras ou débitos.</p><button class="primary" @click="run">Repetir comando</button></section>
  <template v-if="data">
  <div class="stats finance-stats logistics-summary"><section class="stat"><span>MANUTENÇÃO SEMANAL</span><strong>{{money(data.headquarters.weeklyMaintenanceCents)}}</strong><small>Fechamento a cada 28 turnos, após salários</small></section><section class="stat"><span>ARMAZENAGEM</span><strong>{{data.load}} / {{data.loadCapacity}}</strong><small>Inclui kits em entrega, serviço e missão</small></section></div>

@@ -42,7 +42,9 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
    const total=Math.round(c.reward_cents*Math.max(config.minimumCompletionFactor,Math.min(earlyPartial?config.evacuationPartialMaximum:1,m.success_points/(config.stages.length*2))));payment=total-m.advance_cents;m.paid_cents=total;delta=config.successReputation;
    ledger.push({sourceId:'mission:'+m.id+':completion',entryType:'mission_completion',turn,amountCents:payment});
   }else {payment=-m.advance_cents;m.paid_cents=0;if(payment)ledger.push({sourceId:'mission:'+m.id+':refund',entryType:'advance_refund',turn,amountCents:payment});}
-  cash+=payment;reputation=clamp(reputation+delta);
+  cash+=payment;
+  const previousReputation=reputation;
+  reputation=clamp(reputation+delta);
   const crew=o.assignments.filter(a=>a.mission_id===m.id);const ids=crew.map(a=>a.operator_id).sort();
   p.reservations=p.reservations.filter(r=>!(r.kind==='mission'&&r.source_id===m.id));
   for(const d of o.decisions.filter(d=>d.mission_id===m.id&&d.status==='pending')){d.status='cancelled';d.resolved_turn=turn;}
@@ -59,9 +61,9 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
   }:undefined;
   const crewAtReturn=p.operators.filter(op=>ids.includes(op.id)).map(op=>({
    operatorId:op.id,name:JSON.parse(op.profile_json).name,availability:availability(p,op,turn),
-   health:op.health,fatigue:op.fatigue,
+   health:op.health,fatigue:op.fatigue,morale:op.morale,
   }));
-  report(m,status,earlyPartial?'Missão encerrada com sucesso parcial':status==='completed'?'Missão concluída':status==='withdrawn'?'Retirada concluída':'Missão fracassada',earlyPartial?'A equipe encerrou a evacuação com parte do objetivo cumprida.':reportNarrative(status,[m.id,turn,'final']),{}, {paymentCents:payment,reputationDelta:delta,totalPaidCents:m.paid_cents,advanceCents:m.advance_cents,crewAtReturn,evacuationChoice});
+  report(m,status,earlyPartial?'Missão encerrada com sucesso parcial':status==='completed'?'Missão concluída':status==='withdrawn'?'Retirada concluída':'Missão fracassada',earlyPartial?'A equipe encerrou a evacuação com parte do objetivo cumprida.':reportNarrative(status,[m.id,turn,'final']),{}, {paymentCents:payment,reputationDelta:reputation-previousReputation,reputationAfter:reputation,totalPaidCents:m.paid_cents,advanceCents:m.advance_cents,crewAtReturn,evacuationChoice});
   event('mission_'+status,status==='completed'?'Missão concluída':status==='withdrawn'?'Equipe retornou':'Missão fracassada',c.title+' · consulte o relatório.',true);
  }
  for(const c of o.contracts)if(['available','accepted'].includes(c.status)&&contractDeadline(c)<=turn){const accepted=c.status==='accepted';c.status='expired';event('contract_expired',accepted?'Prazo de mobilização encerrado':'Oferta expirada',c.title);}
@@ -71,13 +73,18 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
   const c=o.contracts.find(c=>c.id===m.contract_id),crew=o.assignments.filter(a=>a.mission_id===m.id),directives=JSON.parse(m.directives_json);
   const operators=crew.map(a=>({assignment:a,op:p.operators.find(o=>o.id===a.operator_id)}));
   const apt=(id:string)=>operators.some(({op})=>op?.id===id&&op.health>=config.leaderMinimumHealth&&op.fatigue<config.maximumMissionFatigue&&employment(p,id,turn));
-  if(!apt(m.leader_id)&&m.deputy_id&&apt(m.deputy_id)){m.leader_id=m.deputy_id;event('leader_replaced','Substituto assumiu a missão',c.title);}
-  if(!apt(m.leader_id)||operators.some(({op})=>!op||op.health<(directives.withdrawalPolicy==='conservative'?config.leaderMinimumHealth:config.withdrawalMinimumHealth)||!employment(p,op.id,turn))){m.status='returning';m.stage_due_turn=turn+1;event('automatic_withdrawal','Retorno de segurança',c.title+' · formação sem condições de continuar.',true);continue;}
+  if(!apt(m.leader_id)&&m.deputy_id&&apt(m.deputy_id)){
+   m.leader_id=m.deputy_id;
+   const deputy=operators.find(({op})=>op.id===m.leader_id)!;
+   event('leader_replaced','Substituto assumiu a missão',c.title);
+   report(m,'leadership_change','Substituto assumiu a missão',JSON.parse(deputy.assignment.snapshot_json).name+' assumiu a liderança porque o líder anterior ficou inapto.');
+  }
+  if(!apt(m.leader_id)||operators.some(({op})=>!op||op.health<(directives.withdrawalPolicy==='conservative'?config.leaderMinimumHealth:config.withdrawalMinimumHealth)||!employment(p,op.id,turn))){m.status='returning';m.stage_due_turn=turn+1;event('automatic_withdrawal','Retorno de segurança',c.title+' · formação sem condições de continuar.',true);report(m,'returning','Retorno de segurança',!apt(m.leader_id)?'A formação ficou sem um líder apto para continuar.':'Ao menos um integrante deixou de cumprir os requisitos de saúde ou vínculo.');continue;}
   let decision=o.decisions.find(d=>d.mission_id===m.id&&d.stage_index===m.stage_index);
   if(m.status==='awaiting_decision'){
    if(decision?.status==='pending'&&decision.expires_turn<=turn){decision.status='resolved';decision.chosen_action=decision.fallback_action;decision.resolved_turn=turn;event('decision_fallback','Prazo da decisão encerrado','Política automática aplicada à missão.',true);}
    if(decision?.status==='pending')continue;
-   if(decision?.chosen_action==='withdraw'){m.status='returning';m.stage_due_turn=turn+1;continue;}
+   if(decision?.chosen_action==='withdraw'){m.status='returning';m.stage_due_turn=turn+1;report(m,'returning','Retirada iniciada','A política de retirada foi aplicada após o prazo da decisão.');continue;}
    m.status='active';m.stage_due_turn=turn;
   }
   if(m.stage_due_turn>turn)continue;
@@ -87,18 +94,34 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
   const transportDelay=c.type==='extraction'&&m.success_points>=2;
   if(m.stage_index===2&&!decision&&(transportDelay||decisionRisk>config.riskThresholds[directives.riskTolerance as keyof typeof config.riskThresholds]||m.success_points<2)){
    decision={id:'decision-'+m.id+'-'+m.stage_index,mission_id:m.id,stage_index:m.stage_index,created_turn:turn,expires_turn:turn+config.decisionTurns,fallback_action:transportDelay?'complete_partial':directives.withdrawalPolicy==='persistent'?'safer':'withdraw',chosen_action:null,resolved_turn:null,status:'pending'};
-   o.decisions.push(decision);m.status='awaiting_decision';critical=true;event('critical_decision','Decisão do comandante necessária',c.title+' · escolha uma ação até T'+decision.expires_turn+'.',true);report(m,'decision',transportDelay?evacuationDecision.title:'Situação excepcional',transportDelay?evacuationDecision.description:reportNarrative('decision',[m.id,turn,m.stage_index]),{},knowledge?{intelligence:{level:knowledge.level,stale:knowledge.stale,conflicting:knowledge.conflicting}}:{});continue;
+   const reason=transportDelay?evacuationDecision.description:decisionRisk>config.riskThresholds[directives.riskTolerance as keyof typeof config.riskThresholds]?'A exposição avaliada ultrapassou a tolerância definida no plano.':'Os resultados das etapas anteriores ficaram abaixo do necessário para prosseguir automaticamente.';
+   o.decisions.push(decision);m.status='awaiting_decision';critical=true;event('critical_decision','Decisão do comandante necessária',c.title+' · escolha uma ação até T'+decision.expires_turn+'.',true);report(m,'decision',transportDelay?evacuationDecision.title:'Situação excepcional',reason,{},knowledge?{intelligence:{level:knowledge.level,stale:knowledge.stale,conflicting:knowledge.conflicting}}:{});continue;
   }
   const equipment=logistics?stageEquipment(logistics,m.id,m.stage_index,c.type,crew):{capacity:0,injuryReduction:0,fatigueReduction:0,used:[]};
-  const t=config.templates.find(t=>t.type===c.type)!;let capacity=0;
+  const t=config.templates.find(t=>t.type===c.type)!;
+  let capacity=0,fullConditionScore=0;
+  const specialists=operators.map(({assignment,op})=>({profile:JSON.parse(assignment.snapshot_json),op}));
+  const specialistScore=([best,second=best]:number[])=>best*config.bestSpecialistWeight+second*config.secondSpecialistWeight;
+  const skillSpecialists:Record<string,string[]>={};
   for(const [attribute,weight] of Object.entries(t.weights)){
-   const scores=operators.map(({assignment,op})=>JSON.parse(assignment.snapshot_json).attributes[attribute]*(Math.max(config.minimumConditionFactor,op.health/100)*(1-op.fatigue/config.fatigueDivisor))*(config.moraleBase+op.morale/config.moraleDivisor)).sort((a,b)=>b-a);
-   capacity+=(scores[0]*config.bestSpecialistWeight+(scores[1]??scores[0])*config.secondSpecialistWeight)*(weight??0);
+   const ranked=specialists.map(({profile,op})=>({
+    name:profile.name,
+    score:profile.attributes[attribute]*(Math.max(config.minimumConditionFactor,op.health/100)*(1-op.fatigue/config.fatigueDivisor))*(config.moraleBase+op.morale/config.moraleDivisor),
+   })).sort((a,b)=>b.score-a.score);
+   const top=ranked.slice(0,2);
+   skillSpecialists[attribute]=top.map(({name})=>name);
+   capacity+=specialistScore(top.map(({score})=>score))*(weight??0);
+   const freshScores=specialists.map(({profile})=>Number(profile.attributes[attribute])).sort((a,b)=>b-a);
+   fullConditionScore+=specialistScore(freshScores)*(weight??0);
   }
+  const conditionImpact=capacity-fullConditionScore;
   const leader=operators.find(({op})=>op.id===m.leader_id)!;const profile=JSON.parse(leader.assignment.snapshot_json);
-  capacity+=profile.attributes.leadership*config.leaderWeight;
+  const leadershipImpact=profile.attributes.leadership*config.leaderWeight;
+  capacity+=leadershipImpact;
   const ids=crew.map(a=>a.operator_id).sort(),familiarity=p.familiarity.filter(f=>ids.includes(f.operator_low)&&ids.includes(f.operator_high));
+  const scoreBeforeFamiliarity=capacity;
   capacity*=1+Math.min(config.familiarityMaximum,familiarity.reduce((n,f)=>n+f.score,0)/Math.max(1,familiarity.length)/config.familiarityDivisor);
+  const familiarityImpact=capacity-scoreBeforeFamiliarity;
   const successWeight=directives.priority==='objective'?config.objectiveWeight:directives.priority==='team_safety'?config.safetyWeight:config.deadlineWeight;
   const safetyWeight=config.riskWeights[directives.riskTolerance as keyof typeof config.riskWeights];
   const alternatives=config.autonomy.map(action=>({...action,utility:action.capacity*successWeight-evaluatedRisk*action.risk*safetyWeight*(0.5+profile.attributes.leadership/100)+(directives.posture===action.id?config.postureBias:0)+(profile.traits.includes('cautious')&&action.id==='cautious'?config.traitBias:0)+(profile.traits.includes('impulsive')&&action.id==='aggressive'?config.traitBias:0)+(directives.priority==='deadline'&&action.id==='aggressive'?config.deadlineBias:0)}));
@@ -107,13 +130,17 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
   const h=await digest([seed,config.version,turn,'mission',m.id,m.stage_index,m.delays]);
   const draw=parseInt(h.slice(0,8),16)/0x100000000,complicationDraw=parseInt(h.slice(8,16),16)/0x100000000;
   const margin=capacity-c.difficulty+(draw-0.5)*config.randomSpread;
-  let outcome=margin>=config.successMargin?'success':margin>=config.partialMargin?'partial':margin>=config.delayMargin&&m.delays<config.maxDelays?'delay':'failure';
+  const stageOutcome=(value:number)=>value>=config.successMargin?'success':value>=config.partialMargin?'partial':value>=config.delayMargin&&m.delays<config.maxDelays?'delay':'failure';
+  const baseOutcome=stageOutcome(capacity-c.difficulty);
+  const rolledOutcome=stageOutcome(margin);
+  let outcome=rolledOutcome;
   const effectiveRisk=c.risk*action.risk*(profile.traits.includes('cautious')?config.cautiousTraitRisk:profile.traits.includes('impulsive')?config.impulsiveTraitRisk:1);
   const complication=complicationDraw<probability(effectiveRisk/config.riskDivisor,difficultyProfile.missionComplications);
   for(const {op} of operators){op.fatigue=clamp(op.fatigue+config.stageFatigue-equipment.fatigueReduction);const profile=JSON.parse(op.profile_json);profile.xp+=outcome==='success'?config.xpSuccess:outcome==='partial'?config.xpPartial:0;op.profile_json=JSON.stringify(profile);}
   if(complication){const victim=operators[parseInt(h.slice(16,20),16)%operators.length].op;victim.health=Math.max(5,victim.health-Math.max(1,Math.round((config.injuryMin+parseInt(h.slice(20,24),16)%(config.injuryMax-config.injuryMin+1))*(1-equipment.injuryReduction))));if(outcome==='success')outcome='complication';}
   const name=config.stages[m.stage_index];
-  report(m,outcome,name+' · '+({success:'sucesso',partial:'resultado parcial',delay:'atraso',failure:'falha',complication:'complicação'}[outcome]),action.label+'. '+reportNarrative(outcome,[m.id,turn,m.stage_index,m.delays],name)+(complication&&outcome!=='complication'?' Uma complicação também afetou a saúde de um integrante.':'')+' Consulte as condições atuais da formação.',{capacity,difficulty:c.difficulty,risk:c.risk,draw,complicationDraw,utility:action.utility},{equipment:equipment.used,conditions:operators.map(({op})=>({operatorId:op.id,name:JSON.parse(op.profile_json).name,health:op.health,fatigue:op.fatigue,morale:op.morale}))});
+  const assessment={skillSpecialists,conditionImpact,leaderName:profile.name,leadershipImpact,familiarityImpact,approach:action.label,approachImpact:action.capacity,kitImpact:equipment.capacity,baseOutcome,rolledOutcome,complication};
+  report(m,outcome,name+' · '+({success:'sucesso',partial:'resultado parcial',delay:'atraso',failure:'falha',complication:'complicação'}[outcome]),action.label+'. '+reportNarrative(outcome,[m.id,turn,m.stage_index,m.delays],name)+(complication&&outcome!=='complication'?' Uma complicação também afetou a saúde de um integrante.':'')+' Consulte as condições atuais da formação.',{capacity,difficulty:c.difficulty,risk:c.risk,draw,complicationDraw,utility:action.utility},{assessment,equipment:equipment.used,conditions:operators.map(({op})=>({operatorId:op.id,name:JSON.parse(op.profile_json).name,health:op.health,fatigue:op.fatigue,morale:op.morale}))});
   event('mission_stage','Etapa processada · '+name,c.title+' · relatório disponível.');
   if(outcome==='delay'){m.delays++;m.stage_due_turn=turn+1;continue;}
   m.success_points+=outcome==='success'||outcome==='complication'?2:outcome==='partial'?1:0;m.completed_stages++;m.stage_index++;m.stage_due_turn=turn+1;

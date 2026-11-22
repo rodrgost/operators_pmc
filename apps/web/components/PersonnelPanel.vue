@@ -79,7 +79,7 @@ watch(section,()=>{if(data.value?.stateVersion!==undefined)navigationNews.markRe
 </script>
 <template>
 <div class="personnel" :aria-busy="busy" @click.capture="captureAction($event)">
- <ActionFeedback :target="feedbackTarget" :error="error" :notice="notice" />
+ <ActionFeedback :target="feedbackTarget" :section="section" :turn="game.currentTurn" v-model:error="error" v-model:notice="notice" />
  <div v-if="pending&&!busy" class="panel"><p>Há um comando aguardando confirmação. Repetir consulta a mesma solicitação.</p><button class="primary" @click="run(pending.path,pending.body,pending.method)">Repetir comando</button></div>
  <SectionNav :game-id="game.id" scope="operators" v-model="section" label="Seções de operadores" :disabled="locked" :items="[['roster','Efetivo'],['recruitment','Recrutamento'],['squads','Equipes']]" />
  <div class="personnel-summary"><span>{{data.employed||0}} / {{data.capacity||12}} vínculos ativos</span><span>{{money(data.weeklySalaryCents||0)}} / semana</span><span v-if="data.arrearsCents" class="debit">Em atraso: {{money(data.arrearsCents)}}</span></div>

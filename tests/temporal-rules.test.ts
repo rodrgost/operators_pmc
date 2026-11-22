@@ -53,7 +53,7 @@ for(const logistics of [true,false])it(`tratamento termina assim que cura e iní
  const s=await fixture(logistics);try{
   expect((await s.action('/operators/'+s.ids[0]+'/activities','healthy',{type:'recovery'})).data.code).toBe('TREATMENT_UNNECESSARY');
   s.db.prepare('UPDATE online_operators SET health=98 WHERE id=?').run(s.ids[0]);
-  expect((await s.action('/operators/'+s.ids[0]+'/activities','treat',{type:'recovery'})).data).toMatchObject({queued:true,dueTurn:5});
+  expect((await s.action('/operators/'+s.ids[0]+'/activities','treat',{type:'recovery'})).data).toMatchObject({action:'activity',currentTurn:4,dueTurn:5});
   const center=(await s.call(s.path+'/command-center')).data;expect(nextTurnCount(4,center)).toBe(1);
   await s.pass('healed');expect((await s.people()).operators[0]).toMatchObject({health:100,reservation:null,availability:'available'});
  }finally{s.db.close()}
@@ -69,19 +69,50 @@ it('ferimento grave exige oito períodos, permite interromper depois do mínimo 
   expect((await s.people()).operators[0]).toMatchObject({health:50,reservation:null});
  }finally{s.db.close()}
 });
+it('desfazer tratamento grave antes do primeiro período libera a vaga e estorna uma única vez',async()=>{
+ const s=await fixture();try{
+  s.db.prepare('UPDATE online_operators SET health=10').run();
+  const before=await s.state(),url='/operators/'+s.ids[0]+'/activities';
+  const started=await s.action(url,'treatment',{type:'recovery'});
+  expect(started.data).toMatchObject({currentTurn:4,cashCents:before.cashCents-3000});
+  expect((await s.people()).operators[0]).toMatchObject({health:10,availability:'recovery',minimumTreatmentEndTurn:12});
+  expect((await s.action('/operators/'+s.ids[1]+'/activities','wait',{type:'recovery'})).data.code).toBe('FACILITY_CAPACITY');
+  const body={requestId:'undo-treatment',expectedVersion:started.data.stateVersion};
+  const undone=await s.call(s.path+url+'/cancel',body);
+  expect(undone.data).toMatchObject({activityUndone:true,refundedCents:3000,cashCents:before.cashCents,currentTurn:4});
+  expect((await s.call(s.path+url+'/cancel',body)).data).toEqual(undone.data);
+  expect((await s.people()).operators[0]).toMatchObject({health:10,reservation:null,minimumTreatmentEndTurn:null});
+  expect((await s.call(s.path+'/finances/ledger')).data).toContainEqual(expect.objectContaining({entryType:'operator_activity_refund',amountCents:3000,turn:4}));
+  expect((await s.action('/operators/'+s.ids[1]+'/activities','next',{type:'recovery'})).status).toBe(200);
+ }finally{s.db.close()}
+});
+it('desfazer treino conjunto estorna a sessão inteira e libera todos os participantes',async()=>{
+ const s=await fixture();try{
+  s.db.prepare("UPDATE online_hq_modules SET level=2 WHERE type='training'").run();
+  const before=await s.state();
+  const started=await s.action('/squads/squad-team/training','joint');
+  expect(started.data).toMatchObject({action:'squad_training',currentTurn:4,dueTurn:8,cashCents:before.cashCents-4000});
+  expect((await s.people()).operators.map((o:any)=>o.reservation?.source_id)).toEqual(['joint','joint']);
+  const undone=await s.action('/operators/'+s.ids[0]+'/activities/cancel','undo-joint');
+  expect(undone.data).toMatchObject({activityUndone:true,refundedCents:4000,cashCents:before.cashCents});
+  expect((await s.people()).operators.map((o:any)=>o.reservation)).toEqual([null,null]);
+  await s.pass('after-undo');expect((await s.people()).trainingProgress).toEqual([]);
+ }finally{s.db.close()}
+});
 it('treino preserva progresso ao interromper imediatamente e mostra resultado estimado da sessão',async()=>{
  const s=await fixture();try{
   const op=(await s.people()).operators[0],stored=s.db.prepare('SELECT profile_json FROM online_operators WHERE id=?').get(op.id) as any,profile=JSON.parse(stored.profile_json);profile.attributes.combat=50;
   s.db.prepare('UPDATE online_operators SET profile_json=? WHERE id=?').run(JSON.stringify(profile),op.id);
-  const planned=await s.action('/operators/'+op.id+'/activities','train',{type:'training',attribute:'combat'});
-  expect(planned.data.previewText).toContain('50 → 50');expect(planned.data.previewText).toContain('64/100');
+  expect((await s.people()).operators[0].trainingEstimates.combat).toMatchObject({attributeBefore:50,attributeAfter:50,progressAfter:64});
+  const started=await s.action('/operators/'+op.id+'/activities','train',{type:'training',attribute:'combat'});
+  expect(started.data).toMatchObject({action:'activity',currentTurn:4,dueTurn:8});
   await s.pass('progress');const progress=(await s.people()).trainingProgress[0].progress;expect(progress).toBe(16);
   const stopBody={requestId:'stop',expectedVersion:(await s.state()).stateVersion};
   const stopped=await s.call(s.path+'/operators/'+op.id+'/activities/cancel',stopBody);
-  expect(stopped.data).toMatchObject({action:'activity_cancel',currentTurn:5});
+  expect(stopped.data).toMatchObject({action:'activity_cancel',currentTurn:5,activityUndone:false,refundedCents:0,cashCents:started.data.cashCents});
   expect((await s.call(s.path+'/operators/'+op.id+'/activities/cancel',stopBody)).data).toEqual(stopped.data);
   expect((await s.people()).trainingProgress[0].progress).toBe(progress);
-  expect((await s.action('/operators/'+op.id+'/activities','again',{type:'training'})).data.queued).toBe(true);
+  expect((await s.action('/operators/'+op.id+'/activities','again',{type:'training'})).data).toMatchObject({action:'activity',currentTurn:5});
  }finally{s.db.close()}
 });
 it('resposta e retirada são registradas agora; execução e devolução do adiantamento exigem tempo',async()=>{

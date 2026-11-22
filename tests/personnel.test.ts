@@ -1,9 +1,33 @@
 import { it,expect } from 'vitest';
+import { market } from '../packages/engine/personnel.ts';
 import { setupImmediate as setup } from './online-helpers.ts';
 async function campaign(onRun?:(sql:string,args:any[])=>void){const s=setup(onRun);const g=(await s.call('/games',{requestId:'create',name:'Personnel PMC',seed:'personnel'})).data;const path='/games/'+g.id;return {...s,g,path};}
 async function view(s:any){return (await s.call(s.path+'/personnel')).data;}
 async function hire(s:any,index=0,weeks=4,requestId='hire-'+index){const p=await view(s);return s.call(s.path+'/recruitment/hire',{requestId,expectedVersion:p.stateVersion,candidateId:p.candidates[index].id,weeks});}
 async function advance(s:any,turns:number,requestId='advance'){const g=(await s.call(s.path)).data;return s.call(s.path+'/advance',{requestId,expectedVersion:g.stateVersion,turns,stopOnImportant:false});}
+it('pessoal: especialidade diferencia atributos e a qualidade principal influencia o salário da faixa',async()=>{
+ const recruit=async(level:number,specialty:number,rolls:number[]=[])=>{
+  const parts=[level-1,specialty,...rolls];
+  const [row]=await market('balance',0,100,async()=>parts.map(n=>n.toString(16).padStart(4,'0')).join('').padEnd(64,'0'));
+  return {attributes:JSON.parse(row.profile_json).attributes,salary:row.salary_cents,bonus:row.bonus_cents};
+ };
+ const profiles=[['stealth','perception'],['combat','endurance'],['technical','perception'],['technical','stealth'],['leadership','perception']];
+ for(const [specialty,[primary,secondary]] of profiles.entries()){
+  const {attributes}=await recruit(1,specialty);
+  const strongest=Object.keys(attributes).sort((a,b)=>attributes[b]-attributes[a]).slice(0,2);
+  expect(strongest).toEqual([primary,secondary]);
+ }
+ const first=await recruit(1,0),second=await recruit(2,0);
+ expect(second.attributes.stealth-first.attributes.stealth).toBe(3);
+ expect([first.salary,second.salary]).toEqual([40_000,55_000]);
+ const higherSecondary=await recruit(1,0,[0,0,0,20]);
+ const higherPrimary=await recruit(1,0,[0,20]);
+ expect(higherSecondary.salary).toBe(first.salary);
+ expect(higherPrimary.salary).toBe(55_000);
+ expect(higherPrimary.bonus).toBe(higherPrimary.salary);
+ const strongestVeteran=await recruit(8,0,[0,20,0,0,0,0,0,100]);
+ expect(strongestVeteran.salary).toBe(270_000);
+});
 it('pessoal: mercado determinístico, contratação idempotente e projeção sem seed',async()=>{
  const a=await campaign(),b=await campaign();try{
   const av=await view(a),bv=await view(b);expect(av.candidates).toEqual(bv.candidates);expect(av.candidates).toHaveLength(6);

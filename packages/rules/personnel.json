@@ -17,19 +17,22 @@
   "familiarityGain": 2,
   "missedPayMorale": 10,
   "missedPayLoyalty": 5,
+  "recruitmentAttributes": {
+    "levelOneBase": 29,
+    "spread": 20,
+    "primaryBonus": 12,
+    "secondaryBonus": 6
+  },
+  "primaryAttributeSalaryWeight": 0.75,
   "salaryBands": [
-    [
-      400,
-      900
-    ],
-    [
-      1200,
-      3000
-    ],
-    [
-      3200,
-      6000
-    ]
+    [400, 600],
+    [550, 850],
+    [800, 1150],
+    [1050, 1450],
+    [1350, 1750],
+    [1600, 2050],
+    [1850, 2350],
+    [2100, 2700]
   ],
   "initialHealth": 100,
   "initialFatigue": 0,

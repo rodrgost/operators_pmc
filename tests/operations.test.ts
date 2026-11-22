@@ -29,6 +29,13 @@ it('operações: seis tipos, estimativas estáveis e projeções sem segredos',a
 it('operações: aceitar, planejar sem reservar e executar gera relatório e ledger único',async()=>{
  const s=await fixture();try{
   const initial=(await s.call(s.path)).data.cashCents;
+  const {operators:before}=(await s.call(s.path+'/personnel')).data;
+  for(const operator of before){
+   const row=s.db.prepare('SELECT profile_json FROM online_operators WHERE game_id=? AND id=?').get(s.g.id,operator.id);
+   const profile=JSON.parse(String(row?.profile_json));
+   profile.xp=profile.level*100-1;
+   s.db.prepare('UPDATE online_operators SET profile_json=? WHERE game_id=? AND id=?').run(JSON.stringify(profile),s.g.id,operator.id);
+  }
   await s.action('/contracts/'+s.contract.id+'/accept','accept');
   const preview=await s.call(s.path+'/contracts/'+s.contract.id+'/plan',s.plan);expect(preview.status).toBe(200);expect(preview.data.operatorIds).toHaveLength(3);
   expect((s.db.prepare('SELECT count(*) AS n FROM online_reservations').get() as any).n).toBe(0);
@@ -41,8 +48,21 @@ it('operações: aceitar, planejar sem reservar e executar gera relatório e led
   const ledger=(await s.call(s.path+'/finances/ledger')).data;expect(ledger.reduce((n:number,e:any)=>n+e.amountCents,0)).toBe((await s.call(s.path)).data.cashCents);
   expect((await s.call(s.path)).data.cashCents).toBe(initial+s.contract.rewardCents-60000);
   expect((await s.call(s.path)).data.reputation).toBe(12);
+  const {operators:after}=(await s.call(s.path+'/personnel')).data;
+  for(const operator of before){
+   const promoted=after.find((o:any)=>o.id===operator.id);
+   expect(promoted.level).toBe(operator.level+1);
+   expect(promoted.attributes).toEqual(Object.fromEntries(Object.entries<number>(operator.attributes).map(([attribute,value])=>[attribute,value+3])));
+  }
   expect((s.db.prepare('SELECT count(*) AS n FROM online_reservations').get() as any).n).toBe(0);
-  await s.advance(1,'after');expect((await s.call(s.path+'/finances/ledger')).data.filter((e:any)=>e.entryType==='mission_completion')).toHaveLength(1);
+  await s.advance(1,'after');
+  const operation=(await s.call(s.path+'/operations')).data.missions.find((m:any)=>m.id===mission.id);
+  expect(operation.recentReports.map((r:any)=>r.turn)).toEqual([4,4,3]);
+  expect(operation.recentReports[0]).toMatchObject({totalPaidCents:s.contract.rewardCents,reputationDelta:2,reputationAfter:12});
+  expect(operation.recentReports[1].assessment).toMatchObject({baseOutcome:'success',rolledOutcome:'success'});
+  expect(Object.values(operation.recentReports[1].assessment.skillSpecialists)).toHaveLength(3);
+  expect(JSON.stringify(operation.recentReports)).not.toMatch(/difficulty|complicationDraw|capacity|audit_json/);
+  expect((await s.call(s.path+'/finances/ledger')).data.filter((e:any)=>e.entryType==='mission_completion')).toHaveLength(1);
  }finally{s.db.close()}
 });
 it('operações: decisão crítica interrompe mesmo sem preferência e fallback ocorre uma vez',async()=>{

@@ -1,11 +1,20 @@
 import {operatorIdentity,uniqueOperatorName,operatorAppearance} from './content.ts';
 import balance from '../rules/personnel.json' with { type:'json' };
+import operationsRules from '../rules/operations.json' with { type:'json' };
 export { balance };
 export const restFatiguePerTurn=balance.restFatigue/balance.activityTurns;
 export const restTurns=(fatigue:number)=>Math.max(1,Math.ceil(fatigue/restFatiguePerTurn));
 export const recoveryHealthPerTurn=balance.recoveryHealth/balance.activityTurns;
 export const attributes=['combat','stealth','technical','perception','endurance','leadership'] as const;
 export const specializations=['recon','assault','medic','technical','leader'] as const;
+type Attribute=(typeof attributes)[number];
+const specializationAttributes={
+ recon:['stealth','perception'],
+ assault:['combat','endurance'],
+ medic:['technical','perception'],
+ technical:['technical','stealth'],
+ leader:['leadership','perception'],
+} satisfies Record<(typeof specializations)[number],readonly [Attribute,Attribute]>;
 export type Digest=(value:unknown)=>Promise<string>;
 export interface Personnel {operators:any[];contracts:any[];candidates:any[];squads:any[];members:any[];familiarity:any[];reservations:any[]}
 export const emptyPersonnel=():Personnel=>({operators:[],contracts:[],candidates:[],squads:[],members:[],familiarity:[],reservations:[]});
@@ -24,11 +33,21 @@ export async function market(seed:string,week:number,reputation:number,digest:Di
  const candidates=await Promise.all(Array.from({length:balance.candidatesPerWeek},async(_,i)=>{
   const hash=await digest([seed,balance.version,week,'recruitment',i]);
   const n=(offset:number,max:number)=>parseInt(hash.slice(offset,offset+4),16)%max;
-  const level=1+n(0,Math.min(10,2+Math.floor(reputation/15)));
+  const level=1+n(0,Math.min(balance.salaryBands.length,2+Math.floor(reputation/15)));
   const specialization=specializations[n(4,specializations.length)];
-  const stats=Object.fromEntries(attributes.map((a,j)=>[a,Math.min(95,25+level*5+n(8+j*4,21))]));
-  const band=balance.salaryBands[level<=2?0:level<=6?1:2];
-  const salary=(band[0]+n(36,band[1]-band[0]+1))*100;
+  const [primary,secondary]=specializationAttributes[specialization];
+  const {levelOneBase,spread,primaryBonus,secondaryBonus}=balance.recruitmentAttributes;
+  const base=levelOneBase+(level-1)*operationsRules.levelAttributeGain;
+  const stats=Object.fromEntries(attributes.map((attribute,index)=>{
+   const bonus=attribute===primary?primaryBonus:attribute===secondary?secondaryBonus:0;
+   return [attribute,base+bonus+n(8+index*4,spread+1)] as const;
+  }));
+  const [minimumSalary,maximumSalary]=balance.salaryBands[level-1];
+  const primaryQuality=(stats[primary]-base-primaryBonus)/spread;
+  const marketVariation=n(36,101)/100;
+  const weight=balance.primaryAttributeSalaryWeight;
+  const salaryPosition=primaryQuality*weight+marketVariation*(1-weight);
+  const salary=Math.round(minimumSalary+(maximumSalary-minimumSalary)*salaryPosition)*100;
   const profile={...operatorIdentity('candidate-'+hash.slice(0,24),specialization),level,xp:0,specialization,attributes:stats,traits:[traits[n(48,6)],traits[(n(48,6)+1+n(52,5))%6]]};
   return {id:'candidate-'+hash.slice(0,24),week,profile_json:JSON.stringify(profile),salary_cents:salary,bonus_cents:salary*balance.signingSalaryFactor,hired:0};
  }));

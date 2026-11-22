@@ -13,7 +13,19 @@ async function campaign(chunk:number){const s=await fixture();let sequence=0;con
  for(const category of ['combat','recon','medical','technical','communication','logistics'])expect((await s.action('/equipment/purchases','buy-'+category,{catalogId:category+'-1',quantity:1})).status).toBe(201);
  for(const type of ['operations','training','infirmary','depot','administration'])expect((await s.action('/headquarters/modules/'+type+'/upgrade','upgrade-'+type)).status).toBe(200);
  async function invariant(){const g=await s.state(),ledger=(await s.call(s.path+'/finances/ledger')).data;expect(ledger.reduce((n:number,e:any)=>n+e.amountCents,0)).toBe(g.cashCents);expect(s.db.prepare('PRAGMA foreign_key_check').all()).toHaveLength(0);expect((s.db.prepare('SELECT count(*) n FROM online_equipment WHERE condition<0 OR condition>100 OR supplies<0 OR supplies>100').get() as any).n).toBe(0);expect((s.db.prepare('SELECT count(*) n FROM (SELECT region_id,sum(score) total FROM online_world_influences GROUP BY region_id HAVING total!=100)').get() as any).n).toBe(0);}
- async function drive(target:number){while((await s.state()).currentTurn<target){const g=await s.state(),r=await s.action('/advance','advance-'+sequence++,{turns:Math.min(chunk,target-g.currentTurn),stopOnImportant:false});expect(r.status).toBe(200);expect(r.data.status).not.toBe('failed');const ds=(await s.call(s.path+'/decisions')).data;for(const d of ds){decisions.add(d.id);expect((await s.action('/decisions/'+d.id+'/resolve','resolve-'+d.id,{choice:'safer'})).status).toBe(200)}await invariant();}}
+ async function drive(target:number){
+  while((await s.state()).currentTurn<target){
+   const g=await s.state(),r=await s.action('/advance','advance-'+sequence++,{turns:Math.min(chunk,target-g.currentTurn),stopOnImportant:false});
+   expect(r.status).toBe(200);expect(r.data.status).not.toBe('failed');
+   const pending=(await s.call(s.path+'/decisions')).data;
+   for(const decision of pending){
+    decisions.add(decision.id);
+    const choice=decision.fallbackAction==='complete_partial'?'complete_partial':'safer';
+    expect((await s.action('/decisions/'+decision.id+'/resolve','resolve-'+decision.id,{choice})).status).toBe(200);
+   }
+   await invariant();
+  }
+ }
  await drive(4);
  for(let week=0;week<12;week++){
   const turn=(await s.state()).currentTurn;p=(await s.call(s.path+'/personnel')).data;

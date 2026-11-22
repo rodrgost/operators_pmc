@@ -125,7 +125,7 @@
   "withdrawalMinimumHealth": 15,
   "maximumMissionFatigue": 95,
   "levelXpStep": 100,
-  "levelAttributeGain": 1,
+  "levelAttributeGain": 3,
   "maximumLevel": 10,
   "cautiousTraitRisk": 0.9,
   "impulsiveTraitRisk": 1.1,

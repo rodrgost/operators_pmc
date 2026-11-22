@@ -86,6 +86,7 @@ export async function personnelAction(db:Database,id:string,owner:string,kind:st
   if(g.activeRequest)throw new ApiError(409,'LOCKED','Existe um lote em andamento.');
   if(g.stateVersion!==command.expectedVersion)throw new ApiError(409,'VERSION_CONFLICT','A partida mudou. Atualize os dados.');
   const next={...g,state:{...g.state},stateVersion:g.stateVersion+1};const ledger:any[]=[],history:any[]=[];let entityId=target;
+  let activityUndone=false,refundedCents=0,dueTurn:number|undefined;
   const op=(operatorId:string)=>{const found=p.operators.find(o=>o.id===operatorId);assert(found,'OPERATOR_NOT_FOUND','Operador não encontrado nesta campanha.');return found;};
   const active=(operatorId:string)=>{op(operatorId);assert(employment(p,operatorId,g.state.turn),'EMPLOYMENT_REQUIRED','Operador sem vínculo ativo.');};
   if(kind==='hire'){
@@ -143,7 +144,25 @@ export async function personnelAction(db:Database,id:string,owner:string,kind:st
    p.members=p.members.filter(m=>m.squad_id!==s.id);
    for(const operatorId of ids)p.members.push(previous.find(m=>m.operator_id===operatorId)??{squad_id:s.id,operator_id:operatorId,joined_version:next.stateVersion,joined_turn:g.state.turn,left_turn:null});
   }else if(kind==='activity_cancel'){
-   const r=p.reservations.find(r=>r.operator_id===target);assert(r&&r.kind!=='mission','ACTIVITY_UNAVAILABLE','Nenhuma atividade cancelável para este operador.');const a=l?.activities.find(a=>a.operator_id===target&&a.status==='active');assert(!a||a.kind!=='recovery'||a.minimum_end_turn<=g.state.turn,'MINIMUM_TREATMENT','Ferimento grave exige o período mínimo de tratamento.');if(a)a.status='cancelled';p.reservations=p.reservations.filter(x=>x!==r);
+   const r=p.reservations.find(r=>r.operator_id===target);
+   assert(r&&r.kind!=='mission','ACTIVITY_UNAVAILABLE','Nenhuma atividade cancelável para este operador.');
+   activityUndone=!db.planning&&r.start_turn===g.state.turn;
+   const a=l?.activities.find(a=>a.operator_id===target&&a.status==='active');
+   assert(activityUndone||!a||a.kind!=='recovery'||a.minimum_end_turn<=g.state.turn,'MINIMUM_TREATMENT','Ferimento grave exige o período mínimo de tratamento.');
+   // A joint session is billed once and is undone for every original participant.
+   const cancelled=activityUndone?p.reservations.filter(x=>x.source_id===r.source_id&&x.kind===r.kind&&x.start_turn===r.start_turn):[r];
+   for(const activity of l?.activities??[]){
+    if(activity.status==='active'&&cancelled.some(x=>x.operator_id===activity.operator_id))activity.status='cancelled';
+   }
+   p.reservations=p.reservations.filter(x=>!cancelled.includes(x));
+   if(activityUndone&&r.kind!=='rest'){
+    const charge=await db.prepare("SELECT amount_cents FROM online_ledger WHERE game_id=? AND source_id=? AND entry_type IN ('operator_training','operator_treatment')").bind(id,'facility:'+r.source_id).first();
+    refundedCents=-(charge?.amount_cents??0);
+    if(refundedCents){
+     next.state.cashCents+=refundedCents;
+     ledger.push({sourceId:'facility:'+r.source_id,entryType:'operator_activity_refund',turn:g.state.turn,amountCents:refundedCents});
+    }
+   }
   }else if(kind==='activity'||kind==='squad_training'){
    let ids=[target!],type=command.type;
    if(kind==='squad_training'){const s=p.squads.find(s=>s.id===target);assert(s,'SQUAD_NOT_FOUND','Equipe não encontrada.');ids=p.members.filter(m=>m.squad_id===target).map(m=>m.operator_id);assert(ids.length>=2,'SQUAD_TOO_SMALL','Treino conjunto requer pelo menos dois membros.');type='training';}
@@ -158,11 +177,13 @@ export async function personnelAction(db:Database,id:string,owner:string,kind:st
     const duration=type==='rest'?restTurns(o.fatigue):type==='recovery'?Math.max(minimum,Math.ceil((100-o.health)/healing)):l?logisticsConfig.trainingTurns:balance.activityTurns;
     const c=employment(p,operatorId,g.state.turn);assert(c.end_turn>=g.state.turn+duration,'CONTRACT_TOO_SHORT','Renove o vínculo antes de iniciar esta atividade.');
     p.reservations.push({operator_id:operatorId,kind:type,source_id:command.requestId,start_turn:g.state.turn,end_turn:g.state.turn+duration});
+    dueTurn=g.state.turn+duration;
     if(l){const previous=l.activities.find(a=>a.operator_id===operatorId);const activity={operator_id:operatorId,request_id:command.requestId,kind:type,attribute:command.attribute??'combat',started_turn:g.state.turn,minimum_end_turn:g.state.turn+minimum,status:'active'};if(previous)Object.assign(previous,activity);else l.activities.push(activity);}
    }
   }else throw new ApiError(404,'NOT_FOUND','Comando não encontrado.');
-  const actionResult={...projection(next),action:kind,operatorId:['hire','renew','activity','activity_cancel'].includes(kind)?entityId:undefined,squadId:kind.startsWith('squad_')?entityId:undefined};
-  history.push({id:'action:'+command.requestId,turn:g.state.turn,event_type:kind,title:kind==='hire'?'Operador contratado':kind==='renew'?'Vínculo renovado':kind.startsWith('squad_')?'Equipe atualizada':kind==='activity_cancel'?'Atividade interrompida':'Atividade iniciada',data_json:JSON.stringify({operatorId:actionResult.operatorId,squadId:actionResult.squadId,command})});
+  const actionResult={...projection(next),action:kind,operatorId:['hire','renew','activity','activity_cancel'].includes(kind)?entityId:undefined,squadId:kind.startsWith('squad_')?entityId:undefined,dueTurn,...(kind==='activity_cancel'?{activityUndone,refundedCents}:{})};
+  const title=kind==='hire'?'Operador contratado':kind==='renew'?'Vínculo renovado':kind==='squad_training'?'Treino conjunto iniciado':kind.startsWith('squad_')?'Equipe atualizada':kind==='activity_cancel'?(activityUndone?'Atividade desfeita':'Atividade interrompida'):'Atividade iniciada';
+  history.push({id:'action:'+command.requestId,turn:g.state.turn,event_type:kind,title,data_json:JSON.stringify({operatorId:actionResult.operatorId,squadId:actionResult.squadId,command})});
   if(await mutate(db,g,next,(guard,args)=>[
    ...personnelWrites(db,g,p,guard,args,ledger,history),...(l?logisticsWrites(db,g,l,guard,args):[]),
    db.prepare(`INSERT INTO online_actions SELECT ?,?,?,? WHERE ${guard}`).bind(id,command.requestId,payload,JSON.stringify(actionResult),...args),

@@ -29,6 +29,26 @@ it('planejamento: reserva integrantes para uma equipe e confirma transferências
  }finally{s.db.close()}
 });
 async function fixture(hook?:(sql:string,args:any[])=>void){const s=setup(hook),g=(await s.call('/games',{requestId:'create',name:'Planning PMC',seed:'planning'})).data,path='/games/'+g.id;await s.call(path+'/logistics');await s.call(path+'/intelligence');async function action(url:string,id:string,body:any={}){const current=(await s.call(path)).data;return s.call(path+url,{requestId:id,expectedVersion:current.stateVersion,...body});}const pass=(id='turn',turns=1)=>action('/advance',id,{turns,stopOnImportant:false});return {...s,path,g,action,pass};}
+it('planejamento: dossiê distingue análise agendada, em andamento, cancelada e concluída',async()=>{
+ const s=await fixture();
+ try{
+  const [contract,other]=(await s.call(s.path+'/contracts')).data;
+  const view=async(id=contract.id)=>(await s.call(s.path+'/intelligence?targetType=contract&targetId='+id)).data.analyses;
+  const schedule=(id:string,topic:string)=>s.action('/intelligence/analyses',id,{targetType:'contract',targetId:contract.id,topic});
+
+  expect((await schedule('study-risk','risk')).status).toBe(201);
+  expect(await view()).toEqual([expect.objectContaining({topic:'risk',status:'scheduled',dueTurn:2})]);
+  expect(await view(other.id)).toEqual([]);
+  expect((await schedule('study-difficulty','difficulty')).status).toBe(201);
+  expect((await s.action('/orders/study-difficulty/cancel','cancel-study')).status).toBe(200);
+  expect(await view()).toEqual([expect.objectContaining({topic:'risk',status:'scheduled'})]);
+  expect((await s.pass('start-study')).data.status).toBe('completed');
+  expect(await view()).toEqual([expect.objectContaining({topic:'risk',status:'pending',dueTurn:2})]);
+  expect((await s.pass('finish-study')).data.status).toBe('completed');
+  expect(await view()).toEqual([expect.objectContaining({topic:'risk',status:'completed',completedTurn:2})]);
+  expect((await schedule('study-risk-again','risk')).status).toBe(201);
+ }finally{s.db.close()}
+});
 it('planejamento: compra não debita nem cria kit; remoção é livre e idempotente',async()=>{const s=await fixture();try{const before=(await s.call(s.path)).data;const queued=await s.action('/equipment/purchases','buy',{catalogId:'combat-1',quantity:1});expect(queued.status).toBe(201);expect(queued.data).toMatchObject({queued:true,costCents:180000,cashCents:before.cashCents});expect((await s.call(s.path+'/logistics')).data.inventory).toHaveLength(0);const center=(await s.call(s.path+'/command-center')).data;expect(center.pendingOrders).toHaveLength(1);expect(center.projectedCashCents).toBe(before.cashCents-180000);const cancelled=await s.action('/orders/buy/cancel','cancel');expect(cancelled.status).toBe(200);expect((await s.call(s.path+'/orders')).data.orders).toHaveLength(0);await s.pass();expect((await s.call(s.path)).data.cashCents).toBe(before.cashCents);expect((await s.call(s.path+'/logistics')).data.inventory).toHaveLength(0);}finally{s.db.close()}});
 it('planejamento: primeiro turno cobra uma vez, inicia entrega e lote/retry não repetem',async()=>{const s=await fixture();try{const g=(await s.call(s.path)).data;await s.action('/equipment/purchases','buy',{catalogId:'combat-1',quantity:2});const command={requestId:'advance',expectedVersion:(await s.call(s.path)).data.stateVersion,turns:4,stopOnImportant:false};const a=await s.call(s.path+'/advance',command);expect(a.data).toMatchObject({processedTurns:4,status:'completed'});expect((await s.call(s.path+'/advance',command)).data).toEqual(a.data);expect((await s.call(s.path)).data.cashCents).toBe(g.cashCents-360000);expect((await s.call(s.path+'/logistics')).data.inventory.every((k:any)=>k.ready)).toBe(true);const ledger=(await s.call(s.path+'/finances/ledger')).data.filter((e:any)=>e.entryType==='equipment_purchase');expect(ledger).toHaveLength(1);expect(ledger[0].turn).toBe(1);expect((await s.call(s.path+'/orders')).data.orders).toHaveLength(0);expect((await s.action('/orders/buy/cancel','late-cancel')).data.code).toBe('ORDER_NOT_PENDING');}finally{s.db.close()}});
 it('planejamento: conjunto inválido não confirma nenhuma ordem nem avança',async()=>{const s=await fixture();try{await s.action('/equipment/purchases','buy',{catalogId:'combat-1',quantity:1});await s.action('/headquarters/modules/depot/upgrade','upgrade');s.db.prepare('UPDATE online_games SET cash_cents=1').run();const a=await s.pass();expect(a.status).toBe(422);expect(a.data.code).toBe('PENDING_ORDER_INVALID');expect((await s.call(s.path)).data.currentTurn).toBe(0);const l=(await s.call(s.path+'/logistics')).data;expect(l.inventory).toHaveLength(0);expect(l.modules.every((m:any)=>m.targetLevel===null)).toBe(true);expect((await s.call(s.path+'/orders')).data.orders).toHaveLength(2);expect((await s.call(s.path+'/finances/ledger')).data).toHaveLength(1);}finally{s.db.close()}});

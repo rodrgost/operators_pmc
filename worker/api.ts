@@ -143,14 +143,15 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
     return json(await enqueue(db,id,owner,{scope:'personnel',kind,target:path[3]??'',schema},schema.parse(body),digest),201);
    }
   }
-  if(route&&['renew','activity_cancel','accept','cancel','decision','withdraw'].includes(route.kind)){
+  if(route&&['renew','activity','activity_cancel','squad_training','accept','cancel','decision','withdraw'].includes(route.kind)){
    const body=route.schema.parse(await request.clone().json());
    // Existing queued commands retain their original protocol, including retries after commit.
    const queued=await db.prepare('SELECT id FROM online_pending_orders WHERE game_id=? AND id=?').bind(id,body.requestId).first();
    const previous=await db.prepare('SELECT request_id FROM online_actions WHERE game_id=? AND request_id=?').bind(id,body.requestId).first();
    const pending=await orders(db,id);
-   const futureHire=route.kind==='renew'&&pending.some(o=>o.kind==='hire'&&'operator-'+o.command.candidateId===route.target);
-   if(!queued&&!futureHire){
+   const futureHire=['renew','activity'].includes(route.kind)&&pending.some(o=>o.kind==='hire'&&'operator-'+o.command.candidateId===route.target);
+   const futureSquad=route.kind==='squad_training'&&pending.some(o=>o.kind==='squad_create'&&'squad-'+o.id===route.target);
+   if(!queued&&!futureHire&&!futureSquad){
     if(!previous&&pending.some(o=>o.target===route.target&&(route.kind==='renew'?o.kind==='renew':true)))throw new ApiError(422,'PENDING_ORDER_CONFLICT','Remova a ordem planejada deste alvo antes de confirmar esta ação.');
     return json(route.scope==='personnel'?await personnelAction(db,id,owner,route.kind,route.target,body,digest):await operationAction(db,id,owner,route.kind,route.target,body,digest));
    }
@@ -160,7 +161,20 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
   if(path[2]==='intelligence'){
    await ensureIntelligence(db,id,owner,digest);const current=await getGame(db,id,owner);
    if(request.method==='POST'&&path[3]==='analyses')return json(await analysisAction(db,id,owner,analysisSchema.parse(await request.json()),digest),201);
-   if(request.method==='GET'){const {offset,limit}=paginationSchema.parse(Object.fromEntries(url.searchParams));const type=url.searchParams.get('targetType'),target=url.searchParams.get('targetId'),topic=url.searchParams.get('topic')??undefined;if(type&&target)return json(await intelligenceView(db,current,type,target,offset,limit,topic));if(type||target||topic)throw new ApiError(400,'INVALID_TARGET','Informe tipo e identificador do alvo.');const rows=await db.prepare('SELECT id,target_type AS targetType,target_id AS targetId,topic,requested_turn AS requestedTurn,due_turn AS dueTurn,cost_cents AS costCents,status,completed_turn AS completedTurn FROM online_intel_analyses WHERE game_id=? ORDER BY requested_turn DESC,id LIMIT ? OFFSET ?').bind(id,limit,offset).all();return json({currentTurn:current.state.turn,stateVersion:current.stateVersion,analyses:rows.results,analysis:{costCents:intelligenceConfig.analysisCostCents,turns:intelligenceConfig.analysisTurns,capacity:intelligenceConfig.analysisCapacity}});}
+   if(request.method==='GET'){
+    const {offset,limit}=paginationSchema.parse(Object.fromEntries(url.searchParams));
+    const type=url.searchParams.get('targetType'),target=url.searchParams.get('targetId'),topic=url.searchParams.get('topic')??undefined;
+    if(type&&target){
+     const scheduledAnalyses=(await orders(db,id))
+      .filter(order=>order.kind==='analysis'&&order.command.targetType===type&&order.command.targetId===target)
+      .map(order=>({id:order.id,topic:order.command.topic,dueTurn:order.dueTurn,status:'scheduled'}));
+     const view=await intelligenceView(db,current,type,target,offset,limit,topic);
+     return json({...view,analyses:[...view.analyses,...scheduledAnalyses]});
+    }
+    if(type||target||topic)throw new ApiError(400,'INVALID_TARGET','Informe tipo e identificador do alvo.');
+    const rows=await db.prepare('SELECT id,target_type AS targetType,target_id AS targetId,topic,requested_turn AS requestedTurn,due_turn AS dueTurn,cost_cents AS costCents,status,completed_turn AS completedTurn FROM online_intel_analyses WHERE game_id=? ORDER BY requested_turn DESC,id LIMIT ? OFFSET ?').bind(id,limit,offset).all();
+    return json({currentTurn:current.state.turn,stateVersion:current.stateVersion,analyses:rows.results,analysis:{costCents:intelligenceConfig.analysisCostCents,turns:intelligenceConfig.analysisTurns,capacity:intelligenceConfig.analysisCapacity}});
+   }
   }
   if(path[2]==='world'&&request.method==='GET'){await ensureWorld(db,id,owner,digest);const current=await getGame(db,id,owner);const {offset,limit}=paginationSchema.parse(Object.fromEntries(url.searchParams));return json(await worldRoute(db,current,path,url,offset,limit));}
   if(['logistics','equipment','headquarters'].includes(path[2])){

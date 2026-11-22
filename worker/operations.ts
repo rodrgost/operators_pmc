@@ -115,12 +115,27 @@ export async function operationAction(db:Database,id:string,owner:string,kind:st
  }throw new ApiError(409,'BUSY','Tente novamente com o mesmo comando.');
 }
 export async function operationsView(db:Database,g:Campaign){
+ const recentMissions='SELECT id FROM online_missions WHERE game_id=? ORDER BY started_turn DESC,rowid DESC LIMIT 30';
  const rows=await db.batch([
   db.prepare("SELECT * FROM online_contracts WHERE game_id=? AND (expires_turn>? OR status IN ('accepted','active','rival_active')) ORDER BY offered_turn DESC,id LIMIT 50").bind(g.id,g.state.turn),
   db.prepare('SELECT m.*,(SELECT title FROM online_contracts c WHERE c.game_id=m.game_id AND c.id=m.contract_id) AS contract_title FROM online_missions m WHERE m.game_id=? ORDER BY m.started_turn DESC,m.rowid DESC LIMIT 30').bind(g.id),
   db.prepare("SELECT * FROM online_decisions WHERE game_id=? AND status='pending' ORDER BY expires_turn,id LIMIT 30").bind(g.id),
-  db.prepare('SELECT a.* FROM online_mission_assignments a WHERE a.game_id=? AND a.mission_id IN(SELECT id FROM online_missions WHERE game_id=? ORDER BY started_turn DESC,rowid DESC LIMIT 30) ORDER BY operator_id').bind(g.id,g.id),
+  db.prepare(`SELECT a.* FROM online_mission_assignments a WHERE a.game_id=? AND a.mission_id IN(${recentMissions}) ORDER BY operator_id`).bind(g.id,g.id),
+  db.prepare(`WITH recent_reports AS (
+   SELECT id,mission_id,turn,summary_json,
+    CAST(substr(id,length(mission_id)+length(CAST(turn AS TEXT))+3) AS INTEGER) AS report_order,
+    DENSE_RANK() OVER (PARTITION BY mission_id ORDER BY turn DESC) AS turn_rank
+   FROM online_mission_reports WHERE game_id=? AND mission_id IN(${recentMissions})
+  )
+  SELECT id,mission_id,turn,summary_json FROM recent_reports
+  WHERE turn_rank<=2 ORDER BY turn DESC,report_order DESC`).bind(g.id,g.id),
  ]);
+ const updatesByMission=new Map<string,any[]>();
+ for(const row of rows[4].results){
+  const updates=updatesByMission.get(row.mission_id)??[];
+  updates.push({id:row.id,turn:row.turn,...JSON.parse(row.summary_json)});
+  updatesByMission.set(row.mission_id,updates);
+ }
  const logistics=g.logisticsInitialized?await readLogistics(db,g.id):undefined,intelligence=g.intelligenceInitialized?await readIntelligence(db,g):undefined;const logisticsData=logistics?logisticsView(g,logistics):null;
- return {logistics:logisticsData,stateVersion:g.stateVersion,currentTurn:g.state.turn,capacity:logistics?moduleCapacity(logistics,'operations'):config.capacity,contracts:rows[0].results.map(c=>contractProjection(c,!!logistics,intelligence?dossier(intelligence,'contract',c.id,g.state.turn):undefined)),missions:rows[1].results.map(m=>missionProjection(m,rows[3].results)),decisions:rows[2].results.map(decisionProjection),logisticsNote:logistics?'Selecione kits obrigatórios, em condição e suprimentos suficientes. Reserva somente ao iniciar.':'Abra Sede e logística para ativar equipamentos e infraestrutura nesta campanha.'};
+ return {logistics:logisticsData,stateVersion:g.stateVersion,currentTurn:g.state.turn,capacity:logistics?moduleCapacity(logistics,'operations'):config.capacity,contracts:rows[0].results.map(c=>contractProjection(c,!!logistics,intelligence?dossier(intelligence,'contract',c.id,g.state.turn):undefined)),missions:rows[1].results.map(m=>({...missionProjection(m,rows[3].results),recentReports:updatesByMission.get(m.id)??[]})),decisions:rows[2].results.map(decisionProjection),logisticsNote:logistics?'Selecione kits obrigatórios, em condição e suprimentos suficientes. Reserva somente ao iniciar.':'Abra Sede e logística para ativar equipamentos e infraestrutura nesta campanha.'};
 }

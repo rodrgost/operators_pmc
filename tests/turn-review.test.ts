@@ -24,6 +24,14 @@ it('tempo: prazo de ação e saldo negativo também exigem revisão de um turno'
  expect(deadline.requiresReview).toBe(true);expect(deadline.milestones.map((i:any)=>i.id)).toEqual(['d'])
  expect(turnReview(3,1,{advanceForecasts:[{turns:1,cashAfterObligationsCents:-1}]}).requiresReview).toBe(true)
 })
+it('a revisão mostra a atividade antes do primeiro período, mesmo com conclusão fora do intervalo',()=>{
+ const activity={id:'training',dueTurn:4,firstPeriodPending:true}
+ const command={agenda:[activity]}
+ const f=fixture({command});f.h.requestAdvance()
+ expect(f.h.reviewOpen.value).toBe(true);expect(f.events).toHaveLength(0)
+ expect(turnReview(0,1,command).startingActivities).toEqual([activity])
+ f.h.confirmAdvance();expect(f.events).toEqual([['advance']])
+})
 it('tempo: recuperação consulta o mesmo avanço sem uma nova confirmação',()=>{
  const pending=fixture({pending:true,turns:28});pending.h.requestAdvance();expect(pending.events).toEqual([['advance']]);expect(pending.h.reviewOpen.value).toBe(false)
  const failed=fixture({result:{status:'failed'}});failed.h.requestAdvance();expect(failed.events).toEqual([['resume']])
