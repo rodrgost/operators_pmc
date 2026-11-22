@@ -1,5 +1,33 @@
 import {it,expect} from 'vitest';
 import {setup} from './online-helpers.ts';
+
+it('planejamento: reserva integrantes para uma equipe e confirma transferências na ordem planejada',async()=>{
+ const s=await fixture();try{
+  const people=(await s.call(s.path+'/personnel')).data;
+  const candidates:string[]=people.candidates.slice(0,4).map((c:any)=>c.id);
+  const [original,free,nextHire,otherHire]=candidates.map(id=>'operator-'+id);
+  for(const candidateId of candidates.slice(0,2))await s.action('/recruitment/hire','hire-'+candidateId,{candidateId,weeks:4});
+  expect((await s.pass('initial-hires')).data.status).toBe('completed');
+  const alpha=(await s.action('/squads','alpha',{name:'Alfa',memberIds:[original]})).data.squadId;
+  const charlie=(await s.action('/squads','charlie',{name:'Charlie'})).data.squadId;
+  for(const candidateId of candidates.slice(2))await s.action('/recruitment/hire','hire-'+candidateId,{candidateId,weeks:4});
+  const current=(await s.call(s.path)).data;
+  const edit=await s.call(s.path+'/squads/'+alpha,{requestId:'edit-alpha',expectedVersion:current.stateVersion,name:'Alfa',memberIds:[free,nextHire]},'owner','PATCH');
+  expect(edit.data.queued).toBe(true);
+  expect((await s.action('/squads','immediate-conflict',{name:'Conflito imediato',memberIds:[free]})).data.code).toBe('ALREADY_ASSIGNED');
+  expect((await s.action('/squads/'+charlie+'/members','add-conflict',{operatorId:free})).data.code).toBe('ALREADY_ASSIGNED');
+  expect((await s.action('/squads','planned-conflict',{name:'Conflito planejado',memberIds:[free,otherHire]})).data.code).toBe('ALREADY_ASSIGNED');
+  const bravo=await s.action('/squads','bravo',{name:'Bravo',memberIds:[original,otherHire]});
+  expect(bravo.data.queued).toBe(true);
+  expect((await s.pass('confirm-transfer')).data.status).toBe('completed');
+  const confirmed=(await s.call(s.path+'/personnel')).data.squads;
+  expect(confirmed.find((team:any)=>team.id===alpha).memberIds).toEqual(expect.arrayContaining([free,nextHire]));
+  expect(confirmed.find((team:any)=>team.id===bravo.data.squadId).memberIds).toEqual(expect.arrayContaining([original,otherHire]));
+  expect(confirmed.flatMap((team:any)=>team.memberIds)).toHaveLength(4);
+  const history=s.db.prepare('SELECT squad_id,left_turn FROM online_squad_members WHERE game_id=? AND operator_id=? ORDER BY joined_version').all(s.g.id,original);
+  expect(history).toEqual([{squad_id:alpha,left_turn:expect.any(Number)},{squad_id:bravo.data.squadId,left_turn:null}]);
+ }finally{s.db.close()}
+});
 async function fixture(hook?:(sql:string,args:any[])=>void){const s=setup(hook),g=(await s.call('/games',{requestId:'create',name:'Planning PMC',seed:'planning'})).data,path='/games/'+g.id;await s.call(path+'/logistics');await s.call(path+'/intelligence');async function action(url:string,id:string,body:any={}){const current=(await s.call(path)).data;return s.call(path+url,{requestId:id,expectedVersion:current.stateVersion,...body});}const pass=(id='turn',turns=1)=>action('/advance',id,{turns,stopOnImportant:false});return {...s,path,g,action,pass};}
 it('planejamento: compra não debita nem cria kit; remoção é livre e idempotente',async()=>{const s=await fixture();try{const before=(await s.call(s.path)).data;const queued=await s.action('/equipment/purchases','buy',{catalogId:'combat-1',quantity:1});expect(queued.status).toBe(201);expect(queued.data).toMatchObject({queued:true,costCents:180000,cashCents:before.cashCents});expect((await s.call(s.path+'/logistics')).data.inventory).toHaveLength(0);const center=(await s.call(s.path+'/command-center')).data;expect(center.pendingOrders).toHaveLength(1);expect(center.projectedCashCents).toBe(before.cashCents-180000);const cancelled=await s.action('/orders/buy/cancel','cancel');expect(cancelled.status).toBe(200);expect((await s.call(s.path+'/orders')).data.orders).toHaveLength(0);await s.pass();expect((await s.call(s.path)).data.cashCents).toBe(before.cashCents);expect((await s.call(s.path+'/logistics')).data.inventory).toHaveLength(0);}finally{s.db.close()}});
 it('planejamento: primeiro turno cobra uma vez, inicia entrega e lote/retry não repetem',async()=>{const s=await fixture();try{const g=(await s.call(s.path)).data;await s.action('/equipment/purchases','buy',{catalogId:'combat-1',quantity:2});const command={requestId:'advance',expectedVersion:(await s.call(s.path)).data.stateVersion,turns:4,stopOnImportant:false};const a=await s.call(s.path+'/advance',command);expect(a.data).toMatchObject({processedTurns:4,status:'completed'});expect((await s.call(s.path+'/advance',command)).data).toEqual(a.data);expect((await s.call(s.path)).data.cashCents).toBe(g.cashCents-360000);expect((await s.call(s.path+'/logistics')).data.inventory.every((k:any)=>k.ready)).toBe(true);const ledger=(await s.call(s.path+'/finances/ledger')).data.filter((e:any)=>e.entryType==='equipment_purchase');expect(ledger).toHaveLength(1);expect(ledger[0].turn).toBe(1);expect((await s.call(s.path+'/orders')).data.orders).toHaveLength(0);expect((await s.action('/orders/buy/cancel','late-cancel')).data.code).toBe('ORDER_NOT_PENDING');}finally{s.db.close()}});

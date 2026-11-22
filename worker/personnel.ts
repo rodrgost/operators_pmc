@@ -47,7 +47,12 @@ export function personnelWrites(db:Database,g:Campaign,p:Personnel,guard:string,
   bulk('online_employment',['id','operator_id','salary_cents','start_turn','end_turn','next_pay_turn','arrears_cents','status'],['id'],p.contracts),
   bulk('online_recruitment',['id','week','profile_json','salary_cents','bonus_cents','hired'],['id'],p.candidates),
   bulk('online_squads',['id','name','specialization','leader_id','deputy_id','directives_json'],['id'],p.squads),
-  db.prepare(`UPDATE online_squad_members SET left_turn=? WHERE game_id=? AND left_turn IS NULL AND operator_id NOT IN(SELECT json_extract(value,'$.operator_id') FROM json_each(?)) AND ${guard}`).bind(g.state.turn,g.id,JSON.stringify(p.members),...args),
+  db.prepare(`UPDATE online_squad_members SET left_turn=? WHERE game_id=? AND left_turn IS NULL
+   AND NOT EXISTS (SELECT 1 FROM json_each(?) AS member
+    WHERE json_extract(member.value,'$.squad_id')=online_squad_members.squad_id
+    AND json_extract(member.value,'$.operator_id')=online_squad_members.operator_id
+    AND json_extract(member.value,'$.joined_version')=online_squad_members.joined_version)
+   AND ${guard}`).bind(g.state.turn,g.id,JSON.stringify(p.members),...args),
   bulk('online_squad_members',['squad_id','operator_id','joined_version','joined_turn','left_turn'],['squad_id','operator_id','joined_version'],p.members),
   bulk('online_familiarity',['operator_low','operator_high','score'],['operator_low','operator_high'],p.familiarity),
   db.prepare(`DELETE FROM online_reservations WHERE game_id=? AND operator_id NOT IN(SELECT json_extract(value,'$.operator_id') FROM json_each(?)) AND ${guard}`).bind(g.id,JSON.stringify(p.reservations),...args),
@@ -119,6 +124,16 @@ export async function personnelAction(db:Database,id:string,owner:string,kind:st
    }
    const ids=command.memberIds as string[];assert(ids.length<=balance.squadMax,'SQUAD_CAPACITY','Equipe aceita no máximo seis membros.');assert(new Set(ids).size===ids.length,'DUPLICATE_MEMBER','Operadores repetidos na equipe.');
    for(const operatorId of ids){active(operatorId);assert(!p.reservations.some(r=>r.operator_id===operatorId&&r.kind==='mission'),'OPERATOR_BUSY','Operador comprometido com uma missão.');assert(!p.members.some(m=>m.operator_id===operatorId&&m.squad_id!==s.id),'ALREADY_ASSIGNED','Operador já pertence a outra equipe.');}
+   if(!db.planning&&ids.length){
+    const plannedMembership=await db.prepare(`SELECT 1 FROM online_pending_orders AS pending
+     WHERE pending.game_id=? AND pending.status='pending'
+     AND EXISTS (SELECT 1 FROM json_each(?) AS member WHERE
+      (pending.kind IN ('squad_create','squad_update') AND member.value IN
+       (SELECT value FROM json_each(pending.command_json,'$.memberIds')))
+      OR (pending.kind='squad_member_add' AND member.value=json_extract(pending.command_json,'$.operatorId')))
+     LIMIT 1`).bind(id,JSON.stringify(ids)).first();
+    assert(!plannedMembership,'ALREADY_ASSIGNED','Operador já está na formação planejada de outra equipe.');
+   }
    assert(!command.leaderId||ids.includes(command.leaderId),'INVALID_LEADER','O líder precisa integrar a equipe.');
    assert(!command.deputyId||ids.includes(command.deputyId),'INVALID_DEPUTY','O substituto precisa integrar a equipe.');
    assert(!command.leaderId||command.leaderId!==command.deputyId,'INVALID_DEPUTY','Líder e substituto devem ser diferentes.');
