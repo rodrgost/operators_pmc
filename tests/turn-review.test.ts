@@ -6,23 +6,42 @@ import {turnDuration,turnReview} from '../apps/web/utils/turnReview.ts'
 import {nextAdvance} from '../apps/web/utils/turnSelection.ts'
 import * as campaignTime from '../packages/rules/campaign-time.ts'
 import {formatCampaignEvent,formatCampaignReport,formatCampaignTurn} from '../apps/web/utils/campaignTime.ts'
-function fixture(overrides:any={}){
+function fixture(overrides:any={},storage=new Map<string,string>()){
  const props:any={game:{id:'g',date:'2030-01-31T18:00:00Z',currentTurn:0,stateVersion:1},command:{pendingOrders:[],agenda:[],advanceForecasts:[]},turns:1,busy:false,locked:false,pending:false,result:null,...overrides}
- const events:any[]=[],watchers:any[]=[]
- const ctx:any={...campaignTime,formatCampaignTurn,rules:{hoursPerTurn:6,turnsPerWeek:28},turnReview,nextAdvance,defineProps:()=>props,defineEmits:()=> (...args:any[])=>events.push(args),ref:(value:any)=>({value}),computed:(fn:any)=>({get value(){return fn()}}),watch:(...args:any[])=>watchers.push(args),nextTick:async()=>{},onMounted:()=>{},onBeforeUnmount:()=>{}}
+ const events:any[]=[],watchers:any[]=[],mounts:(()=>void)[]=[]
+ const localStorage={getItem:(key:string)=>storage.get(key)??null,setItem:(key:string,value:string)=>storage.set(key,value)}
+ const ctx:any={...campaignTime,formatCampaignTurn,rules:{hoursPerTurn:6,turnsPerWeek:28},turnReview,nextAdvance,defineProps:()=>props,defineEmits:()=> (...args:any[])=>events.push(args),ref:(value:any)=>({value}),computed:(fn:any)=>({get value(){return fn()}}),watch:(...args:any[])=>watchers.push(args),nextTick:async()=>{},localStorage,ResizeObserver:class {},onMounted:(fn:()=>void)=>mounts.push(fn),onBeforeUnmount:()=>{}}
  const source=readFileSync('apps/web/components/TurnDock.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0].replace(/^import .*$/gm,'')
- runInNewContext(ts.transpileModule(source+';globalThis.h={requestAdvance,confirmAdvance,reviewOpen,agendaDays,eventTiming,dateAt,advanceReason};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,ctx)
+ runInNewContext(ts.transpileModule(source+';globalThis.h={requestAdvance,confirmAdvance,reviewOpen,agenda,agendaDays,eventTiming,dateAt,advanceReason,setShowFinancialEvents,suggestion};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,ctx)
+ mounts.forEach(mount=>mount())
  return {h:ctx.h,props,events,watchers}
 }
 it('tempo: duração e rótulo distinguem avanço de confirmação de ordens',()=>{
  expect(turnDuration(1)).toBe('6h');expect(turnDuration(4)).toBe('1 dia');expect(turnDuration(5)).toBe('1 dia e 6h');expect(turnDuration(8)).toBe('2 dias');expect(turnDuration(28)).toBe('1 semana')
  expect(turnReview(0,1,{pendingOrders:[{id:'a'}]}).label).toBe('Confirmar 1 ordem · +6h')
 })
+it('filtra compromissos financeiros e restaura a preferência ao abrir outra campanha',()=>{
+ const salary={id:'salary-a',dueTurn:2,tab:'finance',title:'Salários'}
+ const mission={id:'mission-a',dueTurn:5,tab:'operations',title:'Retorno'}
+ const command={agenda:[salary,mission]}
+ const storage=new Map<string,string>()
+ const first=fixture({command,turns:2},storage)
+ expect(first.h.agenda.value).toEqual([mission])
+ expect(first.h.suggestion.value.item).toEqual(salary)
+ expect(first.h.advanceReason.value).toBe('Até sex, 1 fev · 6h')
+ first.h.setShowFinancialEvents(true)
+ expect(first.h.agenda.value).toEqual([salary,mission])
+ const reopened=fixture({command,game:{...first.props.game,id:'g2'}},storage)
+ expect(reopened.h.agenda.value).toEqual([salary,mission])
+ reopened.h.setShowFinancialEvents(false)
+ expect(fixture({command},storage).h.agendaDays.value.flatMap((day:any)=>day.items)).toEqual([mission])
+})
 it('agenda cruza o mês e reúne etapa, prazo de ação e compromisso financeiro',()=>{
  const salary={id:'salary-a',dueTurn:5,tab:'finance',title:'Salários'}
  const deadline={id:'mobilization-a',dueTurn:3,tab:'contracts',title:'Mobilizar contrato',requiresAction:true}
  const mission={id:'mission-a',dueTurn:2,tab:'operations',title:'Retorno'}
  const f=fixture({command:{agenda:[salary,deadline,mission]},turns:2})
+ f.h.setShowFinancialEvents(true)
  expect(f.h.agendaDays.value).toEqual([
   {title:'Amanhã',items:[mission,deadline]},
   {title:'sáb, 2 fev',items:[salary]},

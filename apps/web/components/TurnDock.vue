@@ -8,10 +8,22 @@ const props=defineProps<{game:any;command:any;busy:boolean;locked:boolean;turns:
 const emit=defineEmits(['advance','resume','cancel','navigate','open-decision','update:turns','update:stop','height'])
 const reviewOpen=ref(false),reviewDialog=ref<HTMLDialogElement|null>(null)
 const expanded=ref(false),element=ref<HTMLElement|null>(null)
+const showFinancialEvents=ref(false)
+const agendaPreferenceKey='operators-agenda-show-financial-events'
 const money=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'USD'}).format(n/100)
 type AgendaItem={id:string;title:string;dueTurn:number;tab:string;requiresAction?:boolean}
 const orders=computed(()=>props.command?.pendingOrders??[])
-const agenda=computed<AgendaItem[]>(()=>props.command?.agenda??[])
+const agenda=computed<AgendaItem[]>(()=>{
+ const items:AgendaItem[]=props.command?.agenda??[]
+ return showFinancialEvents.value?items:items.filter(item=>item.tab!=='finance')
+})
+onMounted(()=>{
+ try{showFinancialEvents.value=localStorage.getItem(agendaPreferenceKey)==='true'}catch{}
+})
+function setShowFinancialEvents(show:boolean){
+ showFinancialEvents.value=show
+ try{localStorage.setItem(agendaPreferenceKey,String(show))}catch{}
+}
 const decisions=computed(()=>props.command?.alerts?.filter((a:any)=>a.id==='decisions')??[])
 const suggestion=computed(()=>nextAdvance(props.game.currentTurn,props.command))
 const review=computed(()=>turnReview(props.game.currentTurn,props.turns,props.command))
@@ -63,6 +75,7 @@ const advanceReason=computed(()=>{
  const next=suggestion.value
  if(next.turns!==props.turns||!next.item?.title)return ''
  const destination='Até '+dateAt(props.game.currentTurn+next.turns)
+ if(!showFinancialEvents.value&&next.item.tab==='finance')return destination
  if(next.beforeDeadline)return destination+' · Você terá '+campaignDuration(1)+' para agir · '+next.item.title
  if(next.item.requiresAction)return destination+' · Prazo para agir · '+next.item.title
  if(orders.value.includes(next.item))return destination+' · Se confirmar a ordem · '+next.item.title
@@ -76,13 +89,13 @@ onBeforeUnmount(()=>observer?.disconnect())
 <template>
 <section ref="element" class="turn-dock" aria-label="Planejamento e avanço do tempo">
  <div class="turn-dock-inner">
-  <button class="agenda-toggle" :aria-expanded="expanded" aria-controls="turn-agenda" @click="expanded=!expanded"><span><strong>Agenda e previsão</strong><small>{{[orders.length?orders.length+' para confirmar':'',agenda.length?agenda.length+' '+(agenda.length===1?'compromisso':'compromissos'):''].filter(Boolean).join(' · ')||'Sem ordens pendentes'}}</small></span><span aria-hidden="true">{{expanded?'⌄':'⌃'}}</span></button>
+  <button class="agenda-toggle" :aria-expanded="expanded" aria-controls="turn-agenda" @click="expanded=!expanded"><span><strong>Agenda e previsão</strong><small>{{[orders.length?orders.length+' para confirmar':'',agenda.length?agenda.length+' '+(agenda.length===1?'compromisso':'compromissos'):''].filter(Boolean).join(' · ')||'Sem compromissos visíveis'}}</small></span><span aria-hidden="true">{{expanded?'⌄':'⌃'}}</span></button>
   <div v-if="expanded" id="turn-agenda" class="turn-agenda">
    <section class="order-group"><h2>Para confirmar <span>{{orders.length}}</span></h2><p v-if="!orders.length" class="agenda-empty">Nenhuma ordem planejada.</p><p v-else class="agenda-help">As ordens entram em execução no início do avanço. As primeiras 6h já contam para os prazos. Nada foi cobrado. Remova uma ordem para desfazer; para alterá-la, remova e agende novamente.</p><article v-for="order in orders" :key="order.id" class="queued-order"><div><strong>{{order.title}}</strong><small>{{order.costCents>0?money(order.costCents)+' ao confirmar':order.costCents<0?money(-order.costCents)+' de saldo líquido previsto':'Sem custo imediato'}}</small><small>{{order.previewText||'O primeiro avanço já conta para a execução.'}}</small></div><button class="secondary" :disabled="busy||locked||pending" :aria-label="'Remover ordem: '+order.title" @click="emit('cancel',order.id)">Remover</button></article></section>
    <section v-if="decisions.length" class="order-group requires-action"><h2>Requer ação</h2><button v-for="decision in decisions" :key="decision.id" class="agenda-link" :disabled="busy||locked" @click="openDestination(decision.tab)">{{decision.title}} →</button><p>Respostas são registradas imediatamente. A execução ocorre no próximo período.</p></section>
    <section class="order-group">
     <h2>Próximos compromissos</h2>
-    <p v-if="!agenda.length" class="agenda-empty">Nenhum compromisso na agenda.</p>
+    <p v-if="!agenda.length" class="agenda-empty">Nenhum compromisso visível.</p>
     <div v-for="day in agendaDays" :key="day.title" class="agenda-day">
      <h3>{{day.title}}</h3>
      <button v-for="item in day.items" :key="item.id" class="agenda-link" :disabled="busy||locked" @click="openDestination(item.tab)">
@@ -90,7 +103,10 @@ onBeforeUnmount(()=>observer?.disconnect())
      </button>
     </div>
    </section>
-   <label class="check"><input type="checkbox" :checked="stop" :disabled="busy||locked||pending" @change="emit('update:stop',($event.target as HTMLInputElement).checked)"> Interromper lote em evento importante</label>
+   <div class="agenda-options">
+    <label class="check"><input type="checkbox" :checked="showFinancialEvents" @change="setShowFinancialEvents(($event.target as HTMLInputElement).checked)"> Exibir eventos financeiros</label>
+    <label class="check"><input type="checkbox" :checked="stop" :disabled="busy||locked||pending" @change="emit('update:stop',($event.target as HTMLInputElement).checked)"> Interromper lote em evento importante</label>
+   </div>
   </div>
   <div v-if="result?.reason==='critical_decision'" class="dock-interruption">
    <p role="status">Avanço interrompido em {{dateAt(result.currentTurn)}} por uma decisão da equipe.</p>
@@ -120,6 +136,13 @@ onBeforeUnmount(()=>observer?.disconnect())
 </template>
 
 <style scoped>
+.agenda-options {
+ display: grid;
+ margin-top: 8px;
+}
+.agenda-options .check {
+ margin-top: 0;
+}
 .dock-interruption {
  display: flex;
  flex-wrap: wrap;
