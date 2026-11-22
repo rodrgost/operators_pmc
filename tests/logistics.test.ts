@@ -1,6 +1,39 @@
 import {it,expect} from 'vitest';
-import {setupImmediate as setup} from './online-helpers.ts';
+import {setupImmediate as setup,setup as setupQueued} from './online-helpers.ts';
 import {seedLogistics,stageEquipment,missionLoadCapacity,facilitiesFinance,config,catalog} from '../packages/engine/logistics.ts';
+it('logística: agendamento reserva a vaga do Depósito até a conclusão ou remoção da ordem',async()=>{
+ const s=setupQueued();
+ try{
+  const game=(await s.call('/games',{requestId:'create',name:'Logistics PMC',seed:'logistics-qa'})).data;
+  const path='/games/'+game.id;
+  const view=async()=>(await s.call(path+'/logistics')).data;
+  const action=async(route:string,requestId:string,body={})=>{
+   const {stateVersion}=await view();
+   return s.call(path+route,{requestId,expectedVersion:stateVersion,...body});
+  };
+  const advance=(turns:number,id:string)=>action('/advance',id,{turns,stopOnImportant:false});
+  expect(await view()).toMatchObject({preparationCapacity:1,nextPreparationCapacity:2});
+  await action('/equipment/purchases','purchase',{catalogId:'medical-1',quantity:2});
+  await advance(4,'delivery');
+  const [a,b]=(await view()).inventory;
+  s.db.prepare('UPDATE online_equipment SET supplies=50').run();
+  expect((await action('/equipment/'+a.id+'/resupply','first')).data).toMatchObject({queued:true,dueTurn:8});
+  expect((await view()).pendingOrders).toMatchObject([{scope:'logistics',kind:'resupply',target:a.id,dueTurn:8}]);
+  expect((await action('/equipment/'+b.id+'/resupply','full')).data).toMatchObject({code:'PREPARATION_CAPACITY',message:expect.stringContaining('Depósito')});
+  await action('/orders/first/cancel','cancel');
+  expect((await action('/equipment/'+b.id+'/resupply','second')).data).toMatchObject({queued:true});
+  await advance(1,'start');
+  expect((await view()).inventory[1]).toMatchObject({status:'maintenance',dueTurn:8});
+  expect((await view()).pendingOrders).toHaveLength(0);
+  await advance(3,'finish');
+  expect((await action('/equipment/'+a.id+'/resupply','after')).data).toMatchObject({queued:true});
+  expect((await action('/headquarters/modules/depot/upgrade','upgrade')).data).toMatchObject({queued:true});
+  await advance(1,'begin-upgrade');
+  expect(await view()).toMatchObject({preparationCapacity:1,nextPreparationCapacity:2});
+  await advance(5,'finish-upgrade');
+  expect(await view()).toMatchObject({preparationCapacity:2,nextPreparationCapacity:3});
+ }finally{s.db.close()}
+});
 async function fixture(hook?: (sql:string,args:any[])=>void,activate=true){const s=setup(hook),g=(await s.call('/games',{requestId:'create',name:'Logistics PMC',seed:'logistics-qa'})).data,path='/games/'+g.id;if(activate)expect((await s.call(path+'/logistics')).status).toBe(200);async function action(url:string,id:string,extra:any={}){const g=(await s.call(path)).data;return s.call(path+url,{requestId:id,expectedVersion:g.stateVersion,...extra})}const advance=(turns:number,id='advance')=>action('/advance',id,{turns,stopOnImportant:false});const view=async()=>(await s.call(path+'/logistics')).data;return {...s,g,path,action,advance,view};}
 async function crew(s:Awaited<ReturnType<typeof fixture>>){for(let i=0;i<2;i++){const p=(await s.call(s.path+'/personnel')).data;expect((await s.action('/recruitment/hire','hire-'+i,{candidateId:p.candidates[0].id,weeks:4})).status).toBe(201)}const p=(await s.call(s.path+'/personnel')).data,ids=p.operators.map((o:any)=>o.id);const squad=(await s.action('/squads','squad',{name:'Alfa',memberIds:ids,leaderId:ids[0],deputyId:ids[1]})).data.squadId;return {ids,squad,plan:{squadId:squad,memberIds:ids,reinforcementIds:[],leaderId:ids[0],deputyId:ids[1]}};}
 async function mission(s:Awaited<ReturnType<typeof fixture>>){const formation=await crew(s);await s.action('/equipment/purchases','buy',{catalogId:'combat-1',quantity:1});await s.advance(4,'delivery');const kit=(await s.view()).inventory[0],c=(await s.call(s.path+'/contracts')).data.find((c:any)=>c.type==='security');s.db.prepare('UPDATE online_contracts SET difficulty=1,risk=1 WHERE id=?').run(c.id);await s.action('/contracts/'+c.id+'/accept','accept');return {...formation,c,kit,plan:{...formation.plan,equipmentIds:[kit.id]}};}
