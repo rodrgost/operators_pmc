@@ -45,6 +45,9 @@ const pendingCreation=ref<any>(null)
 const personnelSummary=ref<any>({}),personnelWorking=ref(false),operationsSummary=ref<any>({missions:[],decisions:[]})
 const operationTarget=ref<{id:string}|null>(null)
 const activeOperations=computed(()=>(operationsSummary.value.missions??[]).filter((mission:any)=>['active','awaiting_decision','returning'].includes(mission.status)))
+const recentOperations=computed(()=>(operationsSummary.value.missions??[]).filter((mission:any)=>isRecentMissionEnd(mission.endedTurn,game.value?.currentTurn)))
+const operationsToShow=computed(()=>[...activeOperations.value,...recentOperations.value])
+const operationEndLabels:Record<string,string>={completed:'Concluído',failed:'Fracassado',withdrawn:'Retirada concluída'}
 const operationDecisions=computed(()=>[...operationsSummary.value.decisions].sort((a:any,b:any)=>a.expiresTurn-b.expiresTurn))
 const companyAlerts=computed(()=>(command.value?.alerts??[]).filter((alert:any)=>alert.id!=='decisions'))
 const availableContracts=computed(()=>(operationsSummary.value.contracts??[]).filter((contract:any)=>contract.status==='available').length)
@@ -56,7 +59,7 @@ function openOperationCard(section:string,id:string){
  navigate('operations',section)
 }
 function openInterruptedDecision(){
- if(interruptedDecision.value)openOperationCard('decisions','operations-d-'+interruptedDecision.value.id)
+ if(interruptedDecision.value)openOperationCard('missions','operations-m-'+interruptedDecision.value.missionId)
 }
 
 const entryName=(type:string)=>(({intelligence_analysis:'Análise de inteligência',equipment_purchase:'Compra de kits',equipment_maintenance:'Reparo de kit',equipment_resupply:'Reposição de suprimentos',headquarters_upgrade:'Melhoria da sede',headquarters_maintenance:'Manutenção da sede',operator_training:'Treinamento',operator_treatment:'Tratamento',initial_capital:'Capital inicial',signing_bonus:'Bônus de assinatura',salary_payment:'Pagamento salarial',mission_mobilization:'Mobilização',mission_advance:'Adiantamento de missão',mission_completion:'Acerto de missão',advance_refund:'Devolução de adiantamento'} as Record<string,string>)[type]||'Movimentação financeira')
@@ -137,13 +140,18 @@ onMounted(async()=>{const restoreRoute=useCampaignRoutes({game,tab,sections:sect
   <h2 id="operations-overview-title">Operações</h2>
   <article v-for="decision in operationDecisions" :key="decision.id" class="command-alert">
    <div><h3>{{operationsSummary.missions.find((mission:any)=>mission.id===decision.missionId)?.contractTitle || 'Operação'}}</h3><p>Decisão pendente · prazo no turno {{decision.expiresTurn}}</p></div>
-   <button class="secondary" :disabled="busy||personnelWorking" @click="openOperationCard('decisions','operations-d-'+decision.id)">Ver decisão</button>
+   <button class="secondary" :disabled="busy||personnelWorking" @click="openOperationCard('missions','operations-m-'+decision.missionId)">Ver decisão</button>
   </article>
-  <article v-for="mission in activeOperations" :key="mission.id" class="command-alert">
-   <div><h3>{{mission.contractTitle || 'Operação'}}</h3><p>{{mission.status==='awaiting_decision'?'Aguardando decisão':mission.status==='returning'?'Equipe retornando':mission.stageName}}</p></div>
-   <button class="secondary" :disabled="busy||personnelWorking" @click="openOperationCard('missions','operations-m-'+mission.id)">Acompanhar</button>
+  <article v-for="mission in operationsToShow" :key="mission.id" class="command-alert">
+   <div>
+    <h3>{{mission.contractTitle || 'Operação'}}</h3>
+    <StateBadge v-if="mission.endedTurn!=null" :status="mission.status" :label="operationEndLabels[mission.status]??'Encerrado'" />
+    <p v-else>{{mission.status==='awaiting_decision'?'Aguardando decisão':mission.status==='returning'?'Equipe retornando':'Em execução · '+mission.stageName}}</p>
+    <MissionTurnBrief :mission="mission" :current-turn="game.currentTurn" compact />
+   </div>
+   <button class="secondary" :disabled="busy||personnelWorking" @click="openOperationCard('missions','operations-m-'+mission.id)">{{mission.endedTurn==null?'Acompanhar':'Ver resultado'}}</button>
   </article>
-  <p v-if="!activeOperations.length">Nenhuma operação em andamento.</p>
+  <p v-if="!operationsToShow.length">Nenhuma operação em andamento.</p>
   <button class="secondary" :disabled="busy||personnelWorking" @click="contractRegion='';navigate('contracts')">Ver contratos ({{availableContracts}} disponíveis)</button>
  </section>
  <section v-if="companyAlerts.length" class="panel command-alerts"><div class="panel-heading"><h2>Atenção do comandante</h2><span class="tag">{{companyAlerts.length}} PENDÊNCIAS</span></div><article v-for="a in companyAlerts" :key="a.id" class="command-alert" :class="a.severity"><div><h3>{{a.title}}</h3><p>{{a.description}}</p></div><button class="secondary" :disabled="busy||personnelWorking" @click="navigate(a.tab)">Resolver →</button></article></section>

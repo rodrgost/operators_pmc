@@ -5,9 +5,11 @@ export function turnDuration(turns:number){
 export function turnReview(currentTurn:number,turns:number,command:any){
  const orders=command?.pendingOrders??[]
  const throughTurn=currentTurn+turns
- const milestones=(command?.agenda??[]).filter((item:any)=>item.dueTurn<=throughTurn)
+ const agenda=command?.agenda??[]
+ const startingActivities=agenda.filter((item:any)=>item.firstPeriodPending)
+ const milestones=agenda.filter((item:any)=>!item.firstPeriodPending&&item.dueTurn<=throughTurn)
  const forecast=command?.advanceForecasts?.find((f:any)=>f.turns===turns)??null
- const requiresReview=orders.length>0||turns>=4||milestones.some((item:any)=>item.requiresAction)||(forecast?.cashAfterObligationsCents??0)<0
+ const requiresReview=orders.length>0||startingActivities.length>0||turns>=4||milestones.some((item:any)=>item.requiresAction)||(forecast?.cashAfterObligationsCents??0)<0
  const duration=turnDuration(turns)
- return {orders,throughTurn,milestones,forecast,requiresReview,duration,label:orders.length?'Confirmar '+orders.length+' '+(orders.length===1?'ordem':'ordens')+' · +'+duration:'Avançar '+duration}
+ return {orders,throughTurn,startingActivities,milestones,forecast,requiresReview,duration,label:orders.length?'Confirmar '+orders.length+' '+(orders.length===1?'ordem':'ordens')+' · +'+duration:'Avançar '+duration}
 }
