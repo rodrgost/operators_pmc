@@ -117,7 +117,7 @@ export async function financialLedger(db:Database,id:string){
 export async function deleteGame(db:Database,g:Campaign,confirmationName:string,expectedVersion:number){
  if(confirmationName!==g.name)throw new ApiError(422,'NAME_MISMATCH','Digite o nome exato da companhia para confirmar.');
  if(g.stateVersion!==expectedVersion)throw new ApiError(409,'STALE_VERSION','A companhia mudou. Atualize a lista antes de excluir.');
- if(g.activeRequest)throw new ApiError(409,'ADVANCE_IN_PROGRESS','Conclua a passagem de turno antes de excluir a companhia.');
+ if(g.activeRequest)throw new ApiError(409,'ADVANCE_IN_PROGRESS','Conclua o avanço em andamento antes de excluir a companhia.');
  const dependentTables=['online_commands','online_events','online_ledger','online_turn_summaries','online_actions','online_employment','online_familiarity','online_squad_members','online_personnel_history','online_recruitment','online_reservations','online_mission_assignments','online_decisions','online_mission_reports','online_world_influences','online_world_rival_jobs','online_world_conflict_participants','online_world_relations','online_facility_activities','online_headquarters','online_hq_modules','online_mission_equipment','online_training_progress','online_intel_analyses','online_intel_current','online_mission_intelligence','online_pending_orders','online_operators','online_world_conflicts','online_world_rivals','online_equipment','online_intel_records','online_missions','online_world_events','online_squads','online_contracts','online_world_regions','online_world_organizations'];
  // Child-first deletes share the revision guard and one atomic transaction.
  const rows=await db.batch([

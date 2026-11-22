@@ -8,6 +8,7 @@ import {type Database,type Statement,type Campaign,ApiError,mutate,getGame,proje
 import {ensurePersonnel,readPersonnel,personnelWrites,directives,commandSchema} from './personnel.ts';
 import {availability,employment,type Personnel,type Digest} from '../packages/engine/personnel.ts';
 import {config,contractDeadline,mobilizationTurns,offers,emptyOperations,liveStatuses,evacuationDecision,isEvacuationDecision,type Operations} from '../packages/engine/operations.ts';
+import {campaignDuration} from '../packages/rules/campaign-time.ts';
 const id=z.string().min(1).max(180);
 export const planSchema=z.object({squadId:id,memberIds:z.array(id).min(2).max(6),reinforcementIds:z.array(id).max(config.maxReinforcements).default([]),leaderId:id.optional(),deputyId:id.nullable().optional(),directives:directives.optional(),equipmentIds:z.array(id).max(12).default([])}).strict();
 export const startSchema=planSchema.extend(commandSchema.shape).strict();
@@ -53,14 +54,19 @@ const standardDecision={
  options:[
   {id:'proceed',label:'Prosseguir',consequence:'Mantém as diretrizes e a exposição atual.'},
   {id:'safer',label:'Reduzir exposição',consequence:'Abordagem cautelosa, com menor capacidade ofensiva.'},
-  {id:'withdraw',label:'Retirar equipe',consequence:'Retorno em um turno, devolução do adiantamento e perda de reputação.'},
+  {id:'withdraw',label:'Retirar equipe',consequence:`Retorno em ${campaignDuration(1)}, devolução do adiantamento e perda de reputação.`},
  ],
 };
 export function decisionProjection(d:any){
  const context=isEvacuationDecision(d)?evacuationDecision:standardDecision;
+ const options=context.options.map(option=>{
+  if(option.id==='wait_transport')return {...option,label:`Aguardar mais ${campaignDuration(1)}`,consequence:`A equipe continua reservada por mais ${campaignDuration(1)}. A missão pode atingir o pagamento integral.`};
+  if(option.id==='complete_partial')return {...option,consequence:'A missão termina quando a ordem é aplicada, com pagamento proporcional. A disponibilidade segue as condições dos operadores.'};
+  return option;
+ });
  return {
   id:d.id,missionId:d.mission_id,stageIndex:d.stage_index,createdTurn:d.created_turn,expiresTurn:d.expires_turn,
-  fallbackAction:d.fallback_action,chosenAction:d.chosen_action,resolvedTurn:d.resolved_turn,status:d.status,...context,
+  fallbackAction:d.fallback_action,chosenAction:d.chosen_action,resolvedTurn:d.resolved_turn,status:d.status,...context,options,
  };
 }
 export function missionProjection(m:any,assignments:any[]=[]){return {id:m.id,contractTitle:m.contract_title??null,contractId:m.contract_id,squadId:m.squad_id,leaderId:m.leader_id,deputyId:m.deputy_id,status:m.status,startedTurn:m.started_turn,endedTurn:m.ended_turn,stageIndex:m.stage_index,stageName:config.stages[m.stage_index]??'Finalizada',stageDueTurn:m.stage_due_turn,totalStages:config.stages.length,completedStages:m.completed_stages,directives:JSON.parse(m.directives_json),advanceCents:m.advance_cents,paidCents:m.paid_cents,crew:assignments.filter(a=>a.mission_id===m.id).map(a=>({operatorId:a.operator_id,name:JSON.parse(a.snapshot_json).name,assignmentType:a.assignment_type,role:a.role}))};}

@@ -273,6 +273,6 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
   if(e instanceof ZodError)return json({code:'INVALID_REQUEST',message:'Dados inválidos.',issues:e.issues},400);
   if(e instanceof ApiError)return json({code:e.code,message:e.message},e.status);
   if(e instanceof SyntaxError)return json({code:'INVALID_JSON',message:'JSON inválido.'},400);
-  console.error('API failure',e);return json({code:'INTERNAL_ERROR',message:'Não foi possível concluir a operação. Seus turnos confirmados permanecem salvos.'},500);
+  console.error('API failure',e);return json({code:'INTERNAL_ERROR',message:'Não foi possível concluir a operação. Os avanços confirmados permanecem salvos.'},500);
  }
 }

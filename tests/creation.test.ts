@@ -2,11 +2,12 @@ import { it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
+import * as campaignTime from '../packages/rules/campaign-time.ts';
 // Exercise the actual Vue setup handlers with a transport that loses responses.
 function setup(failAt:'create'|'list'|'select'){
  let fail=true,ids=0;const campaigns=new Map<string,any>();const posted:any[]=[];
- const source=readFileSync('apps/web/pages/index.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0];
- const context:any={useRuntimeConfig:()=>({public:{storageMode:"server"}}),watch:()=>{},useNavigationNews:()=>({sync:()=>{}}),useHead:()=>{},useState:(_key:string,init:any)=>({value:init()}),ref:(value:any)=>({value}),computed:(fn:any)=>({get value(){return fn()}}),onMounted:()=>{},localStorage:{setItem:()=>{}},crypto:{randomUUID:()=>`creation-${++ids}`},$fetch:async(path:string,options:any={})=>{
+ const source=readFileSync('apps/web/pages/index.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0].replace(/^import .*$/gm,'');
+ const context:any={...campaignTime,useRuntimeConfig:()=>({public:{storageMode:"server"}}),watch:()=>{},useNavigationNews:()=>({sync:()=>{}}),useHead:()=>{},useState:(_key:string,init:any)=>({value:init()}),ref:(value:any)=>({value}),computed:(fn:any)=>({get value(){return fn()}}),onMounted:()=>{},localStorage:{setItem:()=>{}},crypto:{randomUUID:()=>`creation-${++ids}`},$fetch:async(path:string,options:any={})=>{
   if(path==='/api/v1/session')return {authenticated:true};
   if(path==='/api/v1/difficulties')return [{id:'normal'}];
   if(path==='/api/v1/registration-countries')return [{id:'valdoria'}];

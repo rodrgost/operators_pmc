@@ -5,6 +5,8 @@ import {readOperations,operationAction,ensureOperations,startSchema,decisionSche
 import {readIntelligence,analysisAction,ensureIntelligence,analysisSchema} from './intelligence.ts';
 import {catalog,trainingEstimate,config as logisticsConfig} from '../packages/engine/logistics.ts';
 import type {Digest} from '../packages/engine/personnel.ts';
+import {gameDate} from '../packages/engine/core.ts';
+import {campaignDateTime,campaignDuration} from '../packages/rules/campaign-time.ts';
 export interface Order {id:string;scope:string;kind:string;target:string;command:any;title:string;costCents:number;previewText?:string;dueTurn?:number|null}
 export function orderRoute(path:string[],method:string){
  const [,,area,target,action,sub]=path;let scope='',kind='',id='',schema:any;
@@ -31,17 +33,19 @@ function dueTurn(order:Order,context:any){
 }
 function preview(order:Order,context:any){
  const turn=context.g.state.turn,due=dueTurn(order,context);
+ if(due==null)return 'Executada no início do próximo avanço.';
+ const timing=campaignDateTime(new Date(gameDate(context.g.startDate,due)));
+ const duration=campaignDuration(due-turn);
  if(order.kind==='activity'&&order.command.type==='rest'){
   const op=context.p.operators.find((o:any)=>o.id===order.target);
-  return `Descansa já no primeiro avanço: fadiga ${op.fatigue} → ${Math.max(0,op.fatigue-logisticsConfig.restFatiguePerTurn)}. Sem fadiga em T${due} (${due-turn} turno(s), incluindo o primeiro).`;
+  return `Fadiga no primeiro avanço: ${op.fatigue} → ${Math.max(0,op.fatigue-logisticsConfig.restFatiguePerTurn)}. Recuperação prevista para ${timing} (${duration}) se confirmar.`;
  }
- if(order.kind==='activity'&&order.command.type==='recovery')return `Tratamento desde o primeiro avanço, até saúde 100. Conclusão prevista no turno ${due}; ferimentos graves exigem pelo menos ${logisticsConfig.seriousRecoveryTurns} turnos.`;
+ if(order.kind==='activity'&&order.command.type==='recovery')return `Tratamento até saúde 100. Conclusão prevista para ${timing} se confirmar. Ferimentos graves exigem pelo menos ${campaignDuration(logisticsConfig.seriousRecoveryTurns)}.`;
  if(order.kind==='activity'&&order.command.type==='training'&&context.l){
   const op=context.p.operators.find((o:any)=>o.id===order.target),estimate=trainingEstimate(context.l,op,order.command.attribute??'combat',turn);
-  return `Sessão de ${estimate.turns} turnos, até o turno ${due}. Atributo ${estimate.attributeBefore} → ${estimate.attributeAfter}; progresso ${estimate.progressBefore}/100 → ${estimate.progressAfter}/100. O progresso é preservado ao interromper.`;
+  return `Sessão de ${campaignDuration(estimate.turns)}, até ${timing} se confirmar. Atributo ${estimate.attributeBefore} → ${estimate.attributeAfter}. Progresso ${estimate.progressBefore}/100 → ${estimate.progressAfter}/100. O progresso é preservado ao interromper.`;
  }
- if(due!=null)return `${order.kind==='start'?'Próxima etapa':'Conclusão prevista'}: turno ${due} · ${due-turn} turno(s), incluindo o primeiro avanço.`;
- return 'Aplicada no início do próximo avanço, sem turno extra de confirmação.';
+ return `${order.kind==='start'?'Próxima etapa prevista':'Conclusão prevista'} para ${timing} (${duration}) se confirmar.`;
 }
 export async function planContext(db:Database,g:Campaign){
  const context:any={g:structuredClone({...g,activeRequest:null}),p:g.personnelInitialized?(await readPersonnel(db,g.id,g.owner)).p:null,l:g.logisticsInitialized?await readLogistics(db,g.id):undefined,o:g.operationsInitialized?await readOperations(db,g.id):undefined,i:g.intelligenceInitialized?await readIntelligence(db,g):undefined,builders:[]};
@@ -75,7 +79,7 @@ export async function enqueue(db:Database,id:string,owner:string,route:any,comma
  const pending=await orders(db,id);
  const duplicate=pending.some(o=>o.kind===route.kind&&o.target===route.target&&(route.kind==='hire'?o.command.candidateId===command.candidateId:route.kind==='analysis'?o.command.targetType===command.targetType&&o.command.targetId===command.targetId&&o.command.topic===command.topic:true));
  if(!['purchase','squad_create'].includes(route.kind)&&duplicate)throw new ApiError(422,'ORDER_ALREADY_PENDING','Esta ação já está agendada. Remova a ordem existente para alterá-la.');
- if(pending.length>=20)throw new ApiError(422,'ORDER_LIMIT','Confirme ou remova ordens: limite de 20 por turno.');
+ if(pending.length>=20)throw new ApiError(422,'ORDER_LIMIT','O plano comporta até 20 ordens. Confirme ou remova uma ordem para liberar espaço.');
  const {context}=await prepareOrders(db,g,digest,pending);const order:Order={id:command.requestId,scope:route.scope,kind:route.kind,target:route.target,command,title:'',costCents:0};order.title=label(order,context);const cash=context.g.state.cashCents;const details=await applyOrder(context,order,digest);order.costCents=cash-context.g.state.cashCents;
  const next={...g,stateVersion:g.stateVersion+1};const response={...details,...projection(next),queued:true,orderId:order.id,title:order.title,costCents:order.costCents,dueTurn:dueTurn(order,context),previewText:preview(order,context),message:'Ordem planejada. O primeiro avanço já conta para a execução.'};
  if(await mutate(db,g,next,(guard,args)=>[db.prepare(`INSERT INTO online_pending_orders SELECT ?,?,?,?,?,?,?,?,?,?,'pending',NULL,? WHERE ${guard}`).bind(id,order.id,order.scope,order.kind,order.target,JSON.stringify(command),payload,order.title,order.costCents,g.state.turn,JSON.stringify(response),...args)]))return response;

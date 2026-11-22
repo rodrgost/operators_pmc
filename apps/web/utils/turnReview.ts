@@ -1,7 +1,5 @@
-export function turnDuration(turns:number){
- const hours=turns*6
- return hours===168?'1 semana':hours%24===0?(hours/24)+' '+(hours===24?'dia':'dias'):hours+'h'
-}
+import {campaignDuration as turnDuration} from '../../../packages/rules/campaign-time.ts'
+export {turnDuration}
 export function turnReview(currentTurn:number,turns:number,command:any){
  const orders=command?.pendingOrders??[]
  const throughTurn=currentTurn+turns

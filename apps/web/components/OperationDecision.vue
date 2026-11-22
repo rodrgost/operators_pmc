@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const props=defineProps<{
+ game:{date:string;currentTurn:number}
  decision:{
   title:string
   description:string
@@ -19,7 +20,7 @@ const fallback=computed(()=>props.decision.options.find(option=>option.id===prop
  <section :class="['panel','decision-card',{'decision-inline':inline}]">
   <div class="decision-header">
    <span class="eyebrow">Decisão pendente</span>
-   <strong>Prazo · T{{decision.expiresTurn}}</strong>
+   <strong>Prazo até {{formatCampaignTurn(game,decision.expiresTurn)}}</strong>
   </div>
   <component :is="inline?'h4':'h2'">{{decision.title}}</component>
   <p class="decision-description">{{decision.description}}</p>

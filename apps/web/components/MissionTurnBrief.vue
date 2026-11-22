@@ -10,6 +10,7 @@ interface TurnReport {
  paymentCents?:number
 }
 const props=defineProps<{
+ game:{date:string;currentTurn:number}
  mission:{startedTurn:number;endedTurn:number|null;paidCents:number;recentReports?:TurnReport[]}
  currentTurn:number
  compact?:boolean
@@ -18,8 +19,8 @@ const reports=computed(()=>props.mission.recentReports??[])
 const turn=computed(()=>props.mission.endedTurn??props.currentTurn)
 const closing=computed(()=>reports.value.find(report=>report.paymentCents!==undefined))
 const turnRows=computed(()=>{
- const rows=[{turn:turn.value,label:props.mission.endedTurn===null?'Último turno':'Encerramento'}]
- if(turn.value>0)rows.push({turn:turn.value-1,label:'Turno anterior'})
+ const rows=[{turn:turn.value,label:props.mission.endedTurn===null?'Período atual':'Encerramento'}]
+ if(turn.value>0)rows.push({turn:turn.value-1,label:'Período anterior'})
  const latest=reports.value[0]
  if(latest&&latest.turn<turn.value-1)rows.push({turn:latest.turn,label:'Último registro'})
  return rows.map(row=>({...row,reports:reports.value.filter(report=>report.turn===row.turn).map(report=>({
@@ -36,7 +37,7 @@ const reputation=new Intl.NumberFormat('pt-BR',{signDisplay:'exceptZero'})
 </script>
 
 <template>
- <section :class="['turn-brief',{'compact-brief':compact}]" aria-label="Boletim de turnos">
+ <section :class="['turn-brief',{'compact-brief':compact}]" aria-label="Boletim da missão">
   <dl v-if="!compact&&mission.endedTurn!==null" class="mission-settlement">
    <div>
     <dt>Total recebido</dt>
@@ -51,7 +52,7 @@ const reputation=new Intl.NumberFormat('pt-BR',{signDisplay:'exceptZero'})
   </dl>
   <ol class="brief-timeline">
    <li v-for="row in turnRows" :key="row.turn" class="brief-turn">
-    <span class="turn-marker" :aria-label="'Turno '+row.turn">T{{row.turn}}</span>
+    <span class="turn-marker">{{formatCampaignTurn(game,row.turn)}}</span>
     <div class="brief-events">
      <small>{{row.label}}</small>
      <span v-if="!row.reports.length">{{emptyTurn(row.turn)}}</span>
