@@ -161,6 +161,11 @@ small,.eyebrow,.tag,.state-badge,.form-hint,.ledger-detail{font-size:var(--text-
 .panel-heading{gap:var(--space-3);margin-bottom:var(--space-4);padding-bottom:var(--space-4)}
 .personnel-grid,.dashboard-grid,.command-grid,.world-layout{gap:var(--space-6)}
 .operator-card,.compact-candidates .operator-card,.compact-contracts .operator-card{gap:var(--space-3)}
+.shell .panel.contract-rival-active{background:#29231b;border-color:#806443}
+.contract-rival-active .state-badge{background:#382b1c;border-color:#806443;color:var(--command-warning)}
+.contract-rival-company{display:flex;align-items:center;gap:8px;color:var(--command-warning)}
+.contract-rival-company .organization-emblem{width:36px;height:27px;flex-shrink:0;margin:0}
+.contract-reopened{color:var(--command-accent);font-size:var(--text-caption)}
 .operator-card>p,.compact-candidates .operator-card>p,.compact-contracts .operator-card>.contract-location,.compact-contracts .operator-card>.contract-equipment{margin:0}
 .personnel-label{gap:var(--space-2);margin-bottom:var(--space-4)}
 .personnel-actions{gap:var(--space-3)}

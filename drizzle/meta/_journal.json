@@ -71,6 +71,13 @@
       "when": 1794329494405,
       "tag": "0009_familiar_blue_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1795472848967,
+      "tag": "0010_rival_contract_reoffers",
+      "breakpoints": true
     }
   ]
 }

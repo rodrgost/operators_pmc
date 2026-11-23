@@ -135,13 +135,23 @@ export async function worldTurn(original:World,operations:Operations,turn:number
 
   const success=random(await digest([seed,config.version,turn,'rival-result',job.id]))<chance;
 
-  job.status=success?'completed':'failed';c.status=success?'rival_completed':'rival_failed';rival.reputation=clamp(rival.reputation+(success?2:-2));rival[success?'completed':'failed']++;
+  job.status=success?'completed':'failed';c.status=success?'rival_completed':'available';rival.reputation=clamp(rival.reputation+(success?2:-2));rival[success?'completed':'failed']++;
 
   if(success){rival.budget_cents=Math.min(config.rivalBudgetCapCents,rival.budget_cents+c.reward_cents);change(r,{security:rival.id==='pmc-aegis'?4:rival.id==='pmc-wolf'?1:3,tension:rival.id==='pmc-wolf'?2:-3,economy:rival.id==='pmc-iron'?2:0});shiftInfluence(w,r.id,rival.id,config.rivalInfluenceGain);}
 
-  else change(r,{security:-2,tension:3});
+  else {
+   const intel=JSON.parse(c.intel_json);
+   intel.previousRewardCents=c.reward_cents;
+   c.intel_json=JSON.stringify(intel);
+   c.reward_cents+=Math.max(1,Math.round(c.reward_cents*config.rivalFailureRewardIncrease));
+   c.offered_turn=turn;
+   c.expires_turn=turn+config.rivalReofferTurns;
+   change(r,{security:-2,tension:3});
+  }
 
-  worldEvent(w,r,turn,'rival_result','security',w.organizations.find(x=>x.id===rival.id)!.name+(success?' concluiu ':' falhou em ')+c.title+'.',job.origin_id,c.id,{success,rivalId:rival.id});
+  const resultId='result-'+job.id;
+  const resultSummary=w.organizations.find(x=>x.id===rival.id)!.name+(success?' concluiu ':' falhou em ')+c.title+'.';
+  worldEvent(w,r,turn,'rival_result','security',resultSummary+(success?'':' O contrato foi reaberto com remuneração maior.'),job.origin_id,c.id,{success,rivalId:rival.id},0,resultId);
 
   if(success&&c.origin_event_id){const origin=w.events.find(e=>e.id===c.origin_event_id);if(origin){origin.status='resolved';origin.end_turn=turn;}}
 
@@ -225,7 +235,9 @@ export async function worldTurn(original:World,operations:Operations,turn:number
 
    const c=available[0];if(!c)continue;const r=w.regions.find(r=>r.id===c.region_id)!;
 
-   const id='rival-job-'+c.id,e=worldEvent(w,r,turn,'rival_claimed','corporate',w.organizations.find(o=>o.id===rival.id)!.name+' assumiu '+c.title+'.',c.origin_event_id,c.id,{},0,'claim-'+id);
+   const reoffered=JSON.parse(c.intel_json).previousRewardCents!=null;
+   const id='rival-job-'+c.id+(reoffered?':'+turn:'');
+   const e=worldEvent(w,r,turn,'rival_claimed','corporate',w.organizations.find(o=>o.id===rival.id)!.name+' assumiu '+c.title+'.',c.origin_event_id,c.id,{},0,'claim-'+id);
 
    c.status='rival_active';rival.budget_cents-=config.rivalCostCents;w.jobs.push({id,rival_id:rival.id,contract_id:c.id,region_id:c.region_id,started_turn:turn,completes_turn:turn+config.rivalJobTurns,status:'active',origin_id:e.id});break;
 
@@ -286,11 +298,13 @@ export async function publishWorldContracts(w:World,o:Operations,seed:string,tur
 
  for(const c of o.contracts.filter(c=>c.source==='commercial'&&c.offered_turn===turn&&c.status==='available')){
 
+  const intel=JSON.parse(c.intel_json);
+  if(intel.previousRewardCents!=null)continue;
   const r=w.regions.find(r=>r.id===c.region_id);if(!r)continue;
 
   c.risk=Math.max(1,clamp(c.risk+(r.tension-50)/8));c.difficulty=Math.max(1,clamp(c.difficulty+(50-r.security)/10));
 
-  const intel=JSON.parse(c.intel_json),h=await digest([seed,config.version,c.id,'commercial-intel']);const estimate=(v:number,i:number)=>{const center=clamp(v+parseInt(h.slice(i,i+4),16)%9-4);return {min:Math.max(1,center-12),max:Math.min(100,center+12)}};intel.estimatedRisk=estimate(c.risk,0);intel.estimatedDifficulty=estimate(c.difficulty,4);c.intel_json=JSON.stringify(intel);
+  const h=await digest([seed,config.version,c.id,'commercial-intel']);const estimate=(v:number,i:number)=>{const center=clamp(v+parseInt(h.slice(i,i+4),16)%9-4);return {min:Math.max(1,center-12),max:Math.min(100,center+12)}};intel.estimatedRisk=estimate(c.risk,0);intel.estimatedDifficulty=estimate(c.difficulty,4);c.intel_json=JSON.stringify(intel);
 
  }
 

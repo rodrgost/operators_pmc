@@ -28,9 +28,57 @@ it('mundo: crise gera demanda e conflito encadeado com participantes',async()=>{
  const crisis=w.events.find(e=>e.region_id==='karsen'&&e.type==='industrial_crisis');expect(crisis).toBeTruthy();expect(o.contracts.find(c=>c.id===crisis.contract_id)).toMatchObject({source:'world_event',origin_event_id:crisis.id});
  ({world:w,operations:o}=await worldTurn(w,o,13,'cause',zero));await publishWorldContracts(w,o,'cause',13,zero);const conflict=w.conflicts.find(c=>c.region_id==='karsen');expect(conflict).toBeTruthy();expect(w.events.find(e=>e.id===conflict.cause_id)?.origin_id).toBe(crisis.id);expect(w.participants.filter(p=>p.conflict_id===conflict.id)).toHaveLength(2);
 });
+it('mundo: falhas reabrem o mesmo contrato e cada nova tentativa preserva o histórico',async()=>{
+ const seed='rival-reoffer',w=await seedWorld(seed,0,digest);
+ const o=emptyOperations();o.contracts=[(await offers(seed,0,digest))[0]];
+ const original=o.contracts[0];
+ const fail=async (input:unknown)=>Array.isArray(input)&&input.includes('rival-result')?'f'.repeat(64):digest(input);
+ const claimed=await worldTurn(w,o,4,seed,fail);
+ const firstJob=claimed.world.jobs[0];
+ expect(claimed.operations.contracts[0].status).toBe('rival_active');
+ claimed.operations.contracts[0].expires_turn=7;
+
+ const reopened=await worldTurn(claimed.world,claimed.operations,8,seed,fail);
+ const firstReward=Math.round(original.reward_cents*1.2);
+ expect(reopened.operations.contracts).toHaveLength(1);
+ expect(reopened.operations.contracts[0]).toMatchObject({id:original.id,status:'available',reward_cents:firstReward,offered_turn:8,expires_turn:36});
+ expect(reopened.world.jobs).toMatchObject([{id:firstJob.id,status:'failed'}]);
+
+ const claimedAgain=await worldTurn(reopened.world,reopened.operations,12,seed,fail);
+ expect(claimedAgain.world.jobs[1]).toMatchObject({contract_id:original.id,status:'active'});
+ expect(claimedAgain.world.jobs[1].id).not.toBe(firstJob.id);
+ const reopenedAgain=await worldTurn(claimedAgain.world,claimedAgain.operations,16,seed,fail);
+ expect(reopenedAgain.operations.contracts[0]).toMatchObject({status:'available',reward_cents:Math.round(firstReward*1.2),expires_turn:44});
+ expect(reopenedAgain.world.events.filter(e=>e.type==='rival_result'&&e.contract_id===original.id)).toHaveLength(2);
+
+ const claimedLast=await worldTurn(reopenedAgain.world,reopenedAgain.operations,20,seed,fail);
+ const succeed=async (input:unknown)=>Array.isArray(input)&&input.includes('rival-result')?'0'.repeat(64):digest(input);
+ const completed=await worldTurn(claimedLast.world,claimedLast.operations,24,seed,succeed);
+ expect(completed.operations.contracts[0]).toMatchObject({status:'rival_completed',reward_cents:Math.round(firstReward*1.2)});
+});
 it('mundo: rivais respeitam aceite e usam seu próprio orçamento',async()=>{const s=await fixture();try{
  const c=(await s.call(s.path+'/contracts')).data[0];const g=(await s.call(s.path)).data;expect((await s.call(s.path+'/contracts/'+c.id+'/accept',{requestId:'accept',expectedVersion:g.stateVersion})).status).toBe(200);
- const cash=(await s.call(s.path)).data.cashCents;expect((await s.advance(7)).data).toMatchObject({status:'completed',currentTurn:7});expect((await s.call(s.path+'/contracts/'+c.id)).data.status).toBe('accepted');await s.advance(1,'mobilization-deadline');expect((await s.call(s.path+'/contracts/'+c.id)).data.status).toBe('expired');expect((await s.call(s.path)).data.cashCents).toBe(cash);
+ const cash=(await s.call(s.path)).data.cashCents;
+ expect((await s.advance(4)).data).toMatchObject({status:'completed',currentTurn:4});
+ const board=(await s.call(s.path+'/operations')).data;
+ const claimed=board.contracts.find((offer:any)=>offer.status==='rival_active');
+ const job=s.db.prepare("SELECT * FROM online_world_rival_jobs WHERE status='active'").get() as any;
+ const rival=s.view.rivals.find((entry:any)=>entry.id===job.rival_id);
+ expect(claimed).toMatchObject({id:job.contract_id,rival:{id:rival.id,name:rival.name}});
+ expect((await s.call(s.path+'/contracts/'+claimed.id)).data.rival).toEqual(claimed.rival);
+ expect((await s.call(s.path+'/world/regions/'+claimed.regionId+'/contracts')).data.find((offer:any)=>offer.id===claimed.id).rival).toEqual(claimed.rival);
+ expect((await s.call(s.path+'/contracts/'+claimed.id+'/accept',{requestId:'rival-accept',expectedVersion:board.stateVersion})).status).toBe(422);
+ // The fixture's result roll is 0.173. These values reduce the chance of success to 0.15.
+ s.db.prepare('UPDATE online_contracts SET risk=100,difficulty=100 WHERE id=?').run(claimed.id);
+ s.db.prepare('UPDATE online_world_rivals SET reputation=0,specialization=? WHERE id=?').run(claimed.type==='security'?'escort':'security',rival.id);
+ expect((await s.advance(3,'before-deadline')).data).toMatchObject({status:'completed',currentTurn:7});
+ expect((await s.call(s.path+'/contracts/'+c.id)).data.status).toBe('accepted');
+ expect((await s.advance(1,'mobilization-deadline')).data).toMatchObject({status:'completed',currentTurn:8});
+ const reopened=(await s.call(s.path+'/contracts/'+claimed.id)).data;
+ expect(reopened).toMatchObject({id:claimed.id,status:'available',rival:null,previousRewardCents:claimed.rewardCents,
+  rewardCents:Math.round(claimed.rewardCents*1.2),expiresTurn:36});
+ expect((await s.call(s.path+'/contracts/'+c.id)).data.status).toBe('expired');
+ expect((await s.call(s.path)).data.cashCents).toBe(cash);
  const jobs=s.db.prepare('SELECT * FROM online_world_rival_jobs').all() as any[];expect(jobs.length).toBeGreaterThan(0);expect(jobs.some(j=>j.status!=='active')).toBe(true);expect(jobs.some(j=>j.contract_id===c.id)).toBe(false);
  expect((await s.call(s.path+'/finances/ledger')).data).toHaveLength(1);
  }finally{s.db.close()}});

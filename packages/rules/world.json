@@ -6,6 +6,8 @@
   "rivalCadence": 4,
   "offerGraceTurns": 4,
   "rivalJobTurns": 4,
+  "rivalFailureRewardIncrease": 0.20,
+  "rivalReofferTurns": 28,
   "rivalCostCents": 50000,
   "rivalWeeklyCents": 200000,
   "rivalBudgetCapCents": 50000000,

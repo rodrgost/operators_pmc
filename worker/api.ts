@@ -11,7 +11,7 @@ import { createGameSchema, advanceSchema, resumeSchema, paginationSchema } from 
 import { countries, RULES_VERSION } from '../packages/rules/index.ts';
 import { ZodError } from 'zod';
 import {operationsTurn,opsCanonical,config as opsConfig} from '../packages/engine/operations.ts';
-import {ensureOperations,readOperations,operationsWrites,operationsView,operationAction,validatePlan,contractProjection,missionProjection,decisionProjection,planSchema,startSchema,decisionSchema} from './operations.ts';
+import {ensureOperations,readOperations,operationsWrites,operationsView,operationAction,validatePlan,contractProjection,contractViewSelect,missionProjection,decisionProjection,planSchema,startSchema,decisionSchema} from './operations.ts';
 import { canonical,personnelTurn,balance } from '../packages/engine/personnel.ts';
 import { ensurePersonnel,readPersonnel,personnelProjection,personnelAction,personnelWrites,hireSchema,renewSchema,squadSchema,activitySchema,commandSchema,memberSchema } from './personnel.ts';
 import { drawInput, stateInput, drawFromHash, resolveTurn } from '../packages/engine/core.ts';
@@ -188,7 +188,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
     if(path[2]==='operations')return json({...await operationsView(db,current),pendingOrders:await orders(db,id)});
     if(path[2]==='contracts'){
      if(!path[3]){const view=await operationsView(db,current);const status=url.searchParams.get('status'),type=url.searchParams.get('type'),region=url.searchParams.get('region');return json(view.contracts.filter(c=>(!status||c.status===status)&&(!type||c.type===type)&&(!region||c.regionId===region)));}
-     const c=await db.prepare('SELECT * FROM online_contracts WHERE game_id=? AND id=?').bind(id,path[3]).first();if(!c)throw new ApiError(404,'NOT_FOUND','Contrato não encontrado.');return json(contractProjection(c,current.logisticsInitialized,current.intelligenceInitialized?dossier(await readIntelligence(db,current),'contract',c.id,current.state.turn):undefined));
+     const c=await db.prepare(`${contractViewSelect} WHERE game_id=? AND id=?`).bind(id,path[3]).first();if(!c)throw new ApiError(404,'NOT_FOUND','Contrato não encontrado.');return json(contractProjection(c,current.logisticsInitialized,current.intelligenceInitialized?dossier(await readIntelligence(db,current),'contract',c.id,current.state.turn):undefined));
     }
     if(path[2]==='decisions')return json((await operationsView(db,current)).decisions);
     if(path[2]==='missions'){
