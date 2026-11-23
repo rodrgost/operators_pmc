@@ -193,7 +193,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
     if(path[2]==='decisions')return json((await operationsView(db,current)).decisions);
     if(path[2]==='missions'){
      if(!path[3])return json((await operationsView(db,current)).missions);
-     const m=await db.prepare('SELECT * FROM online_missions WHERE game_id=? AND id=?').bind(id,path[3]).first();if(!m)throw new ApiError(404,'NOT_FOUND','Missão não encontrada.');
+     const m=await db.prepare('SELECT m.*,c.title AS contract_title,c.type AS contract_type FROM online_missions m LEFT JOIN online_contracts c ON c.game_id=m.game_id AND c.id=m.contract_id WHERE m.game_id=? AND m.id=?').bind(id,path[3]).first();if(!m)throw new ApiError(404,'NOT_FOUND','Missão não encontrada.');
      if(path[4]==='reports'){const {offset,limit}=paginationSchema.parse(Object.fromEntries(url.searchParams));const r=await db.prepare('SELECT id,turn,summary_json FROM online_mission_reports WHERE game_id=? AND mission_id=? ORDER BY turn,id LIMIT ? OFFSET ?').bind(id,m.id,limit,offset).all();return json(r.results.map(r=>({id:r.id,turn:r.turn,...JSON.parse(r.summary_json)})));}
      const a=await db.prepare('SELECT * FROM online_mission_assignments WHERE game_id=? AND mission_id=? ORDER BY operator_id').bind(id,m.id).all();const snapshot=await db.prepare('SELECT snapshot_json FROM online_mission_intelligence WHERE game_id=? AND mission_id=?').bind(id,m.id).first();return json({...missionProjection(m,a.results),intelligenceAtDeparture:snapshot?JSON.parse(snapshot.snapshot_json):null});
     }

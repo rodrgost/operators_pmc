@@ -28,7 +28,7 @@ export function stageEquipment(l:Logistics,missionId:string,stage:number,type:st
    if(item.category==='medical')injuryReduction+=0.15*factor;
    if(item.category==='logistics')fatigueReduction+=factor;
   }
-  k.condition=Math.max(0,k.condition-config.stageWear);k.supplies=Math.max(0,k.supplies-config.stageConsumption);used.push({id:k.id,name:item.name,condition:k.condition,supplies:k.supplies});
+  k.condition=Math.max(0,k.condition-config.stageWear);k.supplies=Math.max(0,k.supplies-config.stageConsumption);used.push({id:k.id,name:item.name,category:item.category,condition:k.condition,supplies:k.supplies});
  }
  return {capacity,injuryReduction:Math.min(0.6,injuryReduction),fatigueReduction:Math.min(3,Math.floor(fatigueReduction)),used};
 }

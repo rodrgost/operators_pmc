@@ -1,10 +1,10 @@
 <script setup lang="ts">
-defineProps<{name:string;caption?:string;metrics:{label:string;value?:number}[]}>()
+defineProps<{name:string;kitCategory?:string;caption?:string;metrics:{label:string;value?:number}[]}>()
 </script>
 
 <template>
  <div class="mission-snapshot">
-  <div class="snapshot-name"><strong>{{name}}</strong><small v-if="caption">{{caption}}</small></div>
+  <div class="snapshot-name"><strong><GameLabel v-if="kitCategory!==undefined" kind="kit" :code="kitCategory" :label="name" /><template v-else>{{name}}</template></strong><small v-if="caption">{{caption}}</small></div>
   <dl v-if="metrics.some(metric=>metric.value!==undefined)">
    <template v-for="metric in metrics" :key="metric.label">
     <div v-if="metric.value!==undefined">

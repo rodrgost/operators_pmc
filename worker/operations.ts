@@ -69,7 +69,7 @@ export function decisionProjection(d:any){
   fallbackAction:d.fallback_action,chosenAction:d.chosen_action,resolvedTurn:d.resolved_turn,status:d.status,...context,options,
  };
 }
-export function missionProjection(m:any,assignments:any[]=[]){return {id:m.id,contractTitle:m.contract_title??null,contractId:m.contract_id,squadId:m.squad_id,leaderId:m.leader_id,deputyId:m.deputy_id,status:m.status,startedTurn:m.started_turn,endedTurn:m.ended_turn,stageIndex:m.stage_index,stageName:config.stages[m.stage_index]??'Finalizada',stageDueTurn:m.stage_due_turn,totalStages:config.stages.length,completedStages:m.completed_stages,directives:JSON.parse(m.directives_json),advanceCents:m.advance_cents,paidCents:m.paid_cents,crew:assignments.filter(a=>a.mission_id===m.id).map(a=>({operatorId:a.operator_id,name:JSON.parse(a.snapshot_json).name,assignmentType:a.assignment_type,role:a.role}))};}
+export function missionProjection(m:any,assignments:any[]=[]){return {id:m.id,contractTitle:m.contract_title??null,contractType:m.contract_type??null,contractId:m.contract_id,squadId:m.squad_id,leaderId:m.leader_id,deputyId:m.deputy_id,status:m.status,startedTurn:m.started_turn,endedTurn:m.ended_turn,stageIndex:m.stage_index,stageName:config.stages[m.stage_index]??'Finalizada',stageDueTurn:m.stage_due_turn,totalStages:config.stages.length,completedStages:m.completed_stages,directives:JSON.parse(m.directives_json),advanceCents:m.advance_cents,paidCents:m.paid_cents,crew:assignments.filter(a=>a.mission_id===m.id).map(a=>({operatorId:a.operator_id,name:JSON.parse(a.snapshot_json).name,assignmentType:a.assignment_type,role:a.role}))};}
 export function validatePlan(g:Campaign,p:Personnel,o:Operations,c:any,command:any,logistics?:Logistics,intelligence?:Intelligence){
  assert(c?.status==='accepted','CONTRACT_NOT_ACCEPTED','Aceite o contrato antes de iniciar ou planejar.');assert(contractDeadline(c)>g.state.turn,'CONTRACT_EXPIRED','O prazo de mobilização terminou.');
  const squad=p.squads.find(s=>s.id===command.squadId);assert(squad,'SQUAD_NOT_FOUND','Equipe não encontrada.');
@@ -124,7 +124,7 @@ export async function operationsView(db:Database,g:Campaign){
  const recentMissions='SELECT id FROM online_missions WHERE game_id=? ORDER BY started_turn DESC,rowid DESC LIMIT 30';
  const rows=await db.batch([
   db.prepare("SELECT * FROM online_contracts WHERE game_id=? AND (expires_turn>? OR status IN ('accepted','active','rival_active')) ORDER BY offered_turn DESC,id LIMIT 50").bind(g.id,g.state.turn),
-  db.prepare('SELECT m.*,(SELECT title FROM online_contracts c WHERE c.game_id=m.game_id AND c.id=m.contract_id) AS contract_title FROM online_missions m WHERE m.game_id=? ORDER BY m.started_turn DESC,m.rowid DESC LIMIT 30').bind(g.id),
+  db.prepare('SELECT m.*,c.title AS contract_title,c.type AS contract_type FROM online_missions m LEFT JOIN online_contracts c ON c.game_id=m.game_id AND c.id=m.contract_id WHERE m.game_id=? ORDER BY m.started_turn DESC,m.rowid DESC LIMIT 30').bind(g.id),
   db.prepare("SELECT * FROM online_decisions WHERE game_id=? AND status='pending' ORDER BY expires_turn,id LIMIT 30").bind(g.id),
   db.prepare(`SELECT a.* FROM online_mission_assignments a WHERE a.game_id=? AND a.mission_id IN(${recentMissions}) ORDER BY operator_id`).bind(g.id,g.id),
   db.prepare(`WITH recent_reports AS (

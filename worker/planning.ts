@@ -7,7 +7,7 @@ import {catalog,trainingEstimate,config as logisticsConfig} from '../packages/en
 import type {Digest} from '../packages/engine/personnel.ts';
 import {gameDate} from '../packages/engine/core.ts';
 import {campaignDateTime,campaignDuration} from '../packages/rules/campaign-time.ts';
-export interface Order {id:string;scope:string;kind:string;target:string;command:any;title:string;costCents:number;previewText?:string;dueTurn?:number|null}
+export interface Order {id:string;scope:string;kind:string;target:string;command:any;title:string;costCents:number;previewText?:string;dueTurn?:number|null;labelIcon?:{kind:'kit';code:string}}
 export function orderRoute(path:string[],method:string){
  const [,,area,target,action,sub]=path;let scope='',kind='',id='',schema:any;
  if(method==='POST'&&area==='equipment'&&target==='purchases'){scope='logistics';kind='purchase';schema=purchaseSchema;}
@@ -22,7 +22,11 @@ export function orderRoute(path:string[],method:string){
  else if(area==='decisions'&&method==='POST'&&action==='resolve'){scope='operations';kind='decision';id=target;schema=decisionSchema;}
  return kind&&schema?{scope,kind,target:id,schema}:null;
 }
-export async function orders(db:Database,id:string):Promise<Order[]>{const rows=await db.prepare("SELECT * FROM online_pending_orders WHERE game_id=? AND status='pending' ORDER BY rowid").bind(id).all();return rows.results.map(r=>({id:r.id,scope:r.scope,kind:r.kind,target:r.target??'',command:JSON.parse(r.command_json),title:r.title,costCents:r.cost_cents,previewText:JSON.parse(r.result_json).previewText,dueTurn:JSON.parse(r.result_json).dueTurn}));}
+export async function orders(db:Database,id:string):Promise<Order[]>{const rows=await db.prepare("SELECT * FROM online_pending_orders WHERE game_id=? AND status='pending' ORDER BY rowid").bind(id).all();return rows.results.map(r=>{
+ const command=JSON.parse(r.command_json),result=JSON.parse(r.result_json);
+ const kit=r.kind==='purchase'?catalog.find(item=>item.id===command.catalogId):undefined;
+ return {id:r.id,scope:r.scope,kind:r.kind,target:r.target??'',command,title:r.title,costCents:r.cost_cents,previewText:result.previewText,dueTurn:result.dueTurn,...(kit?{labelIcon:{kind:'kit' as const,code:kit.category}}:{})};
+});}
 function dueTurn(order:Order,context:any){
  const reservation=context.p?.reservations.find((r:any)=>r.source_id===order.id);
  const kit=context.l?.equipment.find((k:any)=>k.id==='kit-'+order.id+'-0'||k.id===order.target);
