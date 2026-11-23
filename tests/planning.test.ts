@@ -1,5 +1,6 @@
 import {it,expect} from 'vitest';
 import {setup} from './online-helpers.ts';
+import {config as logisticsConfig} from '../packages/engine/logistics.ts';
 
 it('planejamento: reserva integrantes para uma equipe e confirma transferências na ordem planejada',async()=>{
  const s=await fixture();try{
@@ -47,6 +48,60 @@ it('planejamento: dossiê distingue análise agendada, em andamento, cancelada e
   expect((await s.pass('finish-study')).data.status).toBe('completed');
   expect(await view()).toEqual([expect.objectContaining({topic:'risk',status:'completed',completedTurn:2})]);
   expect((await schedule('study-risk-again','risk')).status).toBe(201);
+ }finally{s.db.close()}
+});
+it('planejamento: reparo e reposição juntos exigem duas vagas e cobram uma vez',async()=>{
+ const s=await fixture();
+ try{
+  expect((await s.action('/equipment/purchases','buy-kits',{catalogId:'medical-1',quantity:2})).status).toBe(201);
+  expect((await s.pass('deliver-kits',logisticsConfig.deliveryTurns)).data.status).toBe('completed');
+  s.db.prepare('UPDATE online_equipment SET condition=50,supplies=20').run();
+  const view=async()=>(await s.call(s.path+'/logistics')).data;
+  const [kit,other]=(await view()).inventory;
+  const cost=kit.maintenanceCostCents+kit.resupplyCostCents;
+  const route='/equipment/'+kit.id+'/refurbish';
+  const capacityError={code:'PREPARATION_CAPACITY',message:'Todas as vagas do Depósito para reparo e reposição de kits estão ocupadas.'};
+  expect((await view()).preparationCapacity).toBe(1);
+  expect((await s.action(route,'only-one-slot')).data).toMatchObject(capacityError);
+  expect((await view()).pendingOrders).toEqual([]);
+
+  const depot=(await view()).modules.find((m:any)=>m.type==='depot');
+  expect((await s.action('/headquarters/modules/depot/upgrade','upgrade-depot')).status).toBe(201);
+  expect((await s.pass('upgrade-finish',depot.upgradeTurns)).data.status).toBe('completed');
+  expect((await view()).preparationCapacity).toBe(2);
+  const otherRepair='/equipment/'+other.id+'/maintenance';
+  expect((await s.action(otherRepair,'single-service')).status).toBe(201);
+  expect((await s.action(route,'one-slot-left')).data).toMatchObject(capacityError);
+  expect((await s.action('/orders/single-service/cancel','cancel-single')).status).toBe(200);
+
+  const before=(await s.call(s.path)).data;
+  const dueTurn=before.currentTurn+logisticsConfig.serviceTurns;
+  const command={requestId:'combined',expectedVersion:before.stateVersion};
+  expect(kit.refurbishCostCents).toBe(cost);
+
+  const queued=await s.call(s.path+route,command);
+  expect(queued.status).toBe(201);
+  expect(queued.data).toMatchObject({queued:true,costCents:cost,dueTurn,cashCents:before.cashCents});
+  expect((await s.call(s.path+route,command)).data).toEqual(queued.data);
+  expect((await view()).pendingOrders).toMatchObject([{id:'combined',kind:'refurbish',costCents:cost}]);
+  expect((await s.action(otherRepair,'blocked-by-queued-service')).data).toMatchObject(capacityError);
+  expect((await view()).inventory[0]).toMatchObject({status:'available',condition:50,supplies:20});
+
+  expect((await s.pass('service-start',logisticsConfig.serviceTurns-1)).data.status).toBe('completed');
+  expect((await view()).inventory[0]).toMatchObject({status:'maintenance',task:'refurbish',dueTurn,condition:50,supplies:20});
+  expect((await s.action(otherRepair,'blocked-by-active-service')).data).toMatchObject(capacityError);
+  expect((await s.call(s.path+'/command-center')).data.agenda).toContainEqual(expect.objectContaining({
+   id:kit.id,title:expect.stringContaining('reparo e reposição'),dueTurn
+  }));
+  expect((await s.pass('service-finish')).data.status).toBe('completed');
+  expect((await view()).inventory[0]).toMatchObject({status:'available',condition:100,supplies:100,refurbishCostCents:0});
+  expect((await s.action(route,'unnecessary')).data.code).toBe('SERVICE_UNNECESSARY');
+  expect((await s.call(s.path)).data.cashCents).toBe(before.cashCents-cost);
+  const ledger=(await s.call(s.path+'/finances/ledger')).data;
+  expect(ledger.filter((e:any)=>e.entryType==='equipment_refurbish')).toMatchObject([
+   {amountCents:-cost,turn:before.currentTurn+1}
+  ]);
+  expect((await s.action(otherRepair,'slot-free-again')).status).toBe(201);
  }finally{s.db.close()}
 });
 it('planejamento: compra não debita nem cria kit; remoção é livre e idempotente',async()=>{const s=await fixture();try{const before=(await s.call(s.path)).data;const queued=await s.action('/equipment/purchases','buy',{catalogId:'combat-1',quantity:1});expect(queued.status).toBe(201);expect(queued.data).toMatchObject({queued:true,costCents:180000,cashCents:before.cashCents});expect((await s.call(s.path+'/logistics')).data.inventory).toHaveLength(0);const center=(await s.call(s.path+'/command-center')).data;expect(center.pendingOrders).toHaveLength(1);expect(center.projectedCashCents).toBe(before.cashCents-180000);const cancelled=await s.action('/orders/buy/cancel','cancel');expect(cancelled.status).toBe(200);expect((await s.call(s.path+'/orders')).data.orders).toHaveLength(0);await s.pass();expect((await s.call(s.path)).data.cashCents).toBe(before.cashCents);expect((await s.call(s.path+'/logistics')).data.inventory).toHaveLength(0);}finally{s.db.close()}});

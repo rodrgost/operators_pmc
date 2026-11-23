@@ -3,7 +3,7 @@ import {readPersonnel,personnelAction,ensurePersonnel,hireSchema,renewSchema,act
 import {readLogistics,logisticsAction,ensureLogistics,purchaseSchema} from './logistics.ts';
 import {readOperations,operationAction,ensureOperations,startSchema,decisionSchema} from './operations.ts';
 import {readIntelligence,analysisAction,ensureIntelligence,analysisSchema} from './intelligence.ts';
-import {catalog,trainingEstimate,config as logisticsConfig} from '../packages/engine/logistics.ts';
+import {catalog,isEquipmentService,trainingEstimate,config as logisticsConfig} from '../packages/engine/logistics.ts';
 import type {Digest} from '../packages/engine/personnel.ts';
 import {gameDate} from '../packages/engine/core.ts';
 import {campaignDateTime,campaignDuration} from '../packages/rules/campaign-time.ts';
@@ -11,7 +11,7 @@ export interface Order {id:string;scope:string;kind:string;target:string;command
 export function orderRoute(path:string[],method:string){
  const [,,area,target,action,sub]=path;let scope='',kind='',id='',schema:any;
  if(method==='POST'&&area==='equipment'&&target==='purchases'){scope='logistics';kind='purchase';schema=purchaseSchema;}
- else if(method==='POST'&&area==='equipment'&&['maintenance','resupply'].includes(action)){scope='logistics';kind=action;id=target;schema=commandSchema;}
+ else if(method==='POST'&&area==='equipment'&&isEquipmentService(action)){scope='logistics';kind=action;id=target;schema=commandSchema;}
  else if(method==='POST'&&area==='headquarters'&&target==='modules'&&sub==='upgrade'){scope='logistics';kind='upgrade';id=action;schema=commandSchema;}
  else if(method==='POST'&&area==='intelligence'&&target==='analyses'){scope='intelligence';kind='analysis';schema=analysisSchema;}
  else if(method==='POST'&&area==='recruitment'&&target==='hire'){scope='personnel';kind='hire';schema=hireSchema;}
@@ -60,7 +60,7 @@ export async function applyOrder(context:any,order:Order,digest:Digest){const db
  return analysisAction(db,g.id,g.owner,command,digest);
 }
 export async function prepareOrders(db:Database,g:Campaign,digest:Digest,pending?:Order[]){const list=pending??await orders(db,g.id),context=await planContext(db,g);for(const order of list){try{await applyOrder(context,order,digest);order.dueTurn=dueTurn(order,context);order.previewText=preview(order,context);}catch(e){if(e instanceof ApiError)throw new ApiError(422,'PENDING_ORDER_INVALID',order.title+': '+e.message);throw e;}}return {context,list};}
-function label(order:Order,context:any){const names:any={hire:'Contratar operador',renew:'Renovar vínculo',squad_create:'Criar equipe',squad_update:'Editar equipe',squad_member_add:'Adicionar integrante',squad_member_remove:'Remover integrante',activity:'Iniciar atividade',activity_cancel:'Interromper atividade',squad_training:'Treinar equipe',purchase:'Comprar kits',upgrade:'Melhorar módulo',maintenance:'Reparar kit',resupply:'Repor suprimentos',accept:'Aceitar contrato',cancel:'Cancelar contrato',start:'Iniciar missão',withdraw:'Retirar equipe',decision:'Responder decisão',analysis:'Solicitar análise'};
+function label(order:Order,context:any){const names:any={hire:'Contratar operador',renew:'Renovar vínculo',squad_create:'Criar equipe',squad_update:'Editar equipe',squad_member_add:'Adicionar integrante',squad_member_remove:'Remover integrante',activity:'Iniciar atividade',activity_cancel:'Interromper atividade',squad_training:'Treinar equipe',purchase:'Comprar kits',upgrade:'Melhorar módulo',maintenance:'Reparar kit',resupply:'Repor suprimentos',refurbish:'Reparar e repor kit',accept:'Aceitar contrato',cancel:'Cancelar contrato',start:'Iniciar missão',withdraw:'Retirar equipe',decision:'Responder decisão',analysis:'Solicitar análise'};
  if(order.kind==='purchase')return `Comprar ${order.command.quantity} ${order.command.quantity===1?'kit':'kits'} ${catalog.find(c=>c.id===order.command.catalogId)?.name??''}`;
  if(order.kind==='upgrade')return 'Melhorar '+(logisticsConfig.modules.find(m=>m.id===order.target)?.name??order.target);
  if(order.kind==='hire'){const c=context.p?.candidates.find((c:any)=>c.id===order.command.candidateId);return 'Contratar '+(c?JSON.parse(c.profile_json).name:'operador');}

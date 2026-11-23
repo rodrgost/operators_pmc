@@ -64,7 +64,7 @@ function openInterruptedDecision(){
  if(interruptedDecision.value)openOperationCard('missions','operations-m-'+interruptedDecision.value.missionId)
 }
 
-const entryName=(type:string)=>(({intelligence_analysis:'Análise de inteligência',equipment_purchase:'Compra de kits',equipment_maintenance:'Reparo de kit',equipment_resupply:'Reposição de suprimentos',headquarters_upgrade:'Melhoria da sede',headquarters_maintenance:'Manutenção da sede',operator_training:'Treinamento',operator_treatment:'Tratamento',initial_capital:'Capital inicial',signing_bonus:'Bônus de assinatura',salary_payment:'Pagamento salarial',mission_mobilization:'Mobilização',mission_advance:'Adiantamento de missão',mission_completion:'Acerto de missão',advance_refund:'Devolução de adiantamento'} as Record<string,string>)[type]||'Movimentação financeira')
+const entryName=(type:string)=>(({intelligence_analysis:'Análise de inteligência',equipment_purchase:'Compra de kits',equipment_maintenance:'Reparo de kit',equipment_resupply:'Reposição de suprimentos',equipment_refurbish:'Reparo e reposição de kit',headquarters_upgrade:'Melhoria da sede',headquarters_maintenance:'Manutenção da sede',operator_training:'Treinamento',operator_treatment:'Tratamento',initial_capital:'Capital inicial',signing_bonus:'Bônus de assinatura',salary_payment:'Pagamento salarial',mission_mobilization:'Mobilização',mission_advance:'Adiantamento de missão',mission_completion:'Acerto de missão',advance_refund:'Devolução de adiantamento'} as Record<string,string>)[type]||'Movimentação financeira')
 async function api(path:string,options:any={}){return await $fetch<any>('/api/v1'+path,options)}
 async function load(){
  setupReady.value=false;loadingCampaign.value=true;authState.value='loading';

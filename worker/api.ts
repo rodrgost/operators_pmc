@@ -4,7 +4,7 @@ import {commandCenter,advanceSummary} from './command-center.ts';
 import {ensureIntelligence,readIntelligence,intelligenceWrites,intelligenceView,analysisAction,analysisSchema} from './intelligence.ts';
 import {collectSources,resolveAnalyses,collectReconnaissance,intelligenceCanonical,dossier,config as intelligenceConfig} from '../packages/engine/intelligence.ts';
 import {ensureLogistics,readLogistics,logisticsWrites,logisticsView,logisticsAction,purchaseSchema} from './logistics.ts';
-import {logisticsStart,facilityTurn,facilitiesFinance,logisticsCanonical,config as logisticsConfig} from '../packages/engine/logistics.ts';
+import {isEquipmentService,logisticsStart,facilityTurn,facilitiesFinance,logisticsCanonical,config as logisticsConfig} from '../packages/engine/logistics.ts';
 import {ensureWorld,readWorld,worldWrites,worldRoute} from './world.ts';
 import {worldTurn,applyMissionResults,publishWorldContracts,refreshIntel,worldCanonical,worldNotifications,config as worldConfig} from '../packages/engine/world.ts';
 import { createGameSchema, advanceSchema, resumeSchema, paginationSchema } from '../packages/contracts/index.ts';
@@ -180,7 +180,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
   if(['logistics','equipment','headquarters'].includes(path[2])){
    await ensureLogistics(db,id,owner,digest);const current=await getGame(db,id,owner);
    if(request.method==='GET'){const view={...logisticsView(current,await readLogistics(db,id)),pendingOrders:await orders(db,id)};if(path[2]==='equipment'&&path[3]==='catalog')return json(view.catalog);if(path[2]==='equipment'&&path[3]==='inventory')return json(view.inventory);if(path[2]==='logistics'||path[2]==='headquarters')return json(view);}
-   if(request.method==='POST'){const body=await request.json();if(path[2]==='equipment'&&path[3]==='purchases')return json(await logisticsAction(db,id,owner,'purchase','',purchaseSchema.parse(body),digest),201);if(path[2]==='equipment'&&['maintenance','resupply'].includes(path[4]))return json(await logisticsAction(db,id,owner,path[4],path[3],commandSchema.parse(body),digest));if(path[2]==='headquarters'&&path[3]==='modules'&&path[5]==='upgrade')return json(await logisticsAction(db,id,owner,'upgrade',path[4],commandSchema.parse(body),digest));}
+   if(request.method==='POST'){const body=await request.json();if(path[2]==='equipment'&&path[3]==='purchases')return json(await logisticsAction(db,id,owner,'purchase','',purchaseSchema.parse(body),digest),201);if(path[2]==='equipment'&&isEquipmentService(path[4]))return json(await logisticsAction(db,id,owner,path[4],path[3],commandSchema.parse(body),digest));if(path[2]==='headquarters'&&path[3]==='modules'&&path[5]==='upgrade')return json(await logisticsAction(db,id,owner,'upgrade',path[4],commandSchema.parse(body),digest));}
   }
   if(['contracts','missions','decisions','operations'].includes(path[2])){
    await ensureOperations(db,id,owner,digest);const current=await getGame(db,id,owner);

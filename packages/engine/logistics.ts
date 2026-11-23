@@ -12,10 +12,21 @@ export function seedLogistics(turn:number):Logistics{return {headquarters:{name:
 export function ready(k:any){return k.status==='available'&&k.condition>=config.minimumCondition&&k.supplies>=config.minimumSupplies}
 export function missionLoad(kits:any[]){return kits.reduce((n,k)=>n+itemType(k).weight,0)}
 export function missionLoadCapacity(kits:any[]){return Math.min(config.maximumMissionLoad,config.baseMissionLoad+Math.floor(kits.filter(k=>itemType(k).category==='logistics').sort((a,b)=>itemType(b).quality-itemType(a).quality).reduce((n,k,i)=>n+itemType(k).quality*config.logisticsLoadBonus/(1+i),0)))}
-export function serviceCost(k:any,task:string){const c=itemType(k);return Math.ceil(c.priceCents*(100-(task==='maintenance'?k.condition:k.supplies))/(task==='maintenance'?200:500))}
+type EquipmentService='maintenance'|'resupply'|'refurbish';
+export function isEquipmentService(task:string):task is EquipmentService{return task==='maintenance'||task==='resupply'||task==='refurbish'}
+export function serviceCost(k:any,task:EquipmentService):number{
+ if(task==='refurbish')return serviceCost(k,'maintenance')+serviceCost(k,'resupply');
+ const c=itemType(k);
+ return Math.ceil(c.priceCents*(100-(task==='maintenance'?k.condition:k.supplies))/(task==='maintenance'?200:500));
+}
 export function logisticsStart(l:Logistics,turn:number){const events:any[]=[];
  for(const m of l.modules)if(m.target_level&&m.due_turn<=turn){m.level=m.target_level;m.target_level=null;m.due_turn=null;events.push({type:'hq_upgrade_completed',title:'Melhoria concluída',description:config.modules.find(c=>c.id===m.type)!.name+' agora no nível '+m.level+'.',important:true})}
- for(const k of l.equipment)if(k.due_turn!==null&&k.due_turn<=turn){if(k.task==='maintenance')k.condition=100;if(k.task==='resupply')k.supplies=100;k.status='available';k.due_turn=null;k.task=null;events.push({type:'equipment_ready',title:'Kit disponível',description:itemType(k).name+' liberado no depósito.',important:false})}
+ for(const k of l.equipment)if(k.due_turn!==null&&k.due_turn<=turn){
+  if(k.task==='maintenance'||k.task==='refurbish')k.condition=100;
+  if(k.task==='resupply'||k.task==='refurbish')k.supplies=100;
+  k.status='available';k.due_turn=null;k.task=null;
+  events.push({type:'equipment_ready',title:'Kit disponível',description:itemType(k).name+' liberado no depósito.',important:false});
+ }
  return events;
 }
 export function stageEquipment(l:Logistics,missionId:string,stage:number,type:string,crew:any[]){
