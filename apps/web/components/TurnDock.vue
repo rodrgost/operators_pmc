@@ -8,6 +8,7 @@ const props=defineProps<{game:any;command:any;busy:boolean;locked:boolean;turns:
 const emit=defineEmits(['advance','resume','cancel','navigate','open-decision','update:turns','update:stop','height'])
 const reviewOpen=ref(false),reviewDialog=ref<HTMLDialogElement|null>(null)
 const expanded=ref(false),element=ref<HTMLElement|null>(null)
+const agendaView=ref<'list'|'week'>('list')
 const showFinancialEvents=ref(false)
 const agendaPreferenceKey='operators-agenda-show-financial-events'
 const money=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'USD'}).format(n/100)
@@ -28,6 +29,10 @@ const decisions=computed(()=>props.command?.alerts?.filter((a:any)=>a.id==='deci
 const suggestion=computed(()=>nextAdvance(props.game.currentTurn,props.command))
 const review=computed(()=>turnReview(props.game.currentTurn,props.turns,props.command))
 const forecast=computed(()=>review.value.forecast)
+const dismissedAnalysisNotice=ref('')
+const latestAdvance=computed(()=>props.command?.latestAdvance)
+const analysisNoticeKey=computed(()=>[props.game.id,latestAdvance.value?.requestId,latestAdvance.value?.currentTurn].join(':'))
+const deliveredAnalyses=computed(()=>latestAdvance.value?.events?.find((event:any)=>event.type==='intelligence_analysis_completed')?.count??0)
 const today=computed(()=>new Date(props.game.date))
 const timeAt=(turn:number)=>campaignTimeAt(props.game.date,props.game.currentTurn,turn)
 const dateAt=(turn:number)=>formatCampaignTurn(props.game,turn)
@@ -68,18 +73,17 @@ watch(()=>[props.game.id,props.game.stateVersion,props.turns,props.command],()=>
 const fixedDurations=[1,24/rules.hoursPerTurn,rules.turnsPerWeek]
 const turnOptions=computed(()=>[...new Set([...fixedDurations,suggestion.value.turns,props.turns])].sort((a,b)=>a-b))
 function turnLabel(turns:number){
- if(!fixedDurations.includes(turns)&&turns===suggestion.value.turns&&suggestion.value.item)return 'Até '+dateAt(props.game.currentTurn+turns)
+ if(turns===suggestion.value.turns&&suggestion.value.item)return 'Até '+dateAt(props.game.currentTurn+turns)
  return campaignDuration(turns)
 }
 const advanceReason=computed(()=>{
  const next=suggestion.value
  if(next.turns!==props.turns||!next.item?.title)return ''
- const destination='Até '+dateAt(props.game.currentTurn+next.turns)
- if(!showFinancialEvents.value&&next.item.tab==='finance')return destination
- if(next.beforeDeadline)return destination+' · Você terá '+campaignDuration(1)+' para agir · '+next.item.title
- if(next.item.requiresAction)return destination+' · Prazo para agir · '+next.item.title
- if(orders.value.includes(next.item))return destination+' · Se confirmar a ordem · '+next.item.title
- return destination+' · '+next.item.title
+ if(!showFinancialEvents.value&&next.item.tab==='finance')return ''
+ if(next.beforeDeadline)return 'Você terá '+campaignDuration(1)+' para agir · '+next.item.title
+ if(next.item.requiresAction)return 'Prazo para agir · '+next.item.title
+ if(orders.value.includes(next.item))return 'Se confirmar a ordem · '+next.item.title
+ return 'Próximo compromisso · '+next.item.title
 })
 watch(()=>[props.game.id,props.game.currentTurn,props.command,props.pending],()=>{if(props.command&&!props.pending)emit('update:turns',suggestion.value.turns)},{immediate:true})
 let observer:ResizeObserver|undefined
@@ -91,17 +95,31 @@ onBeforeUnmount(()=>observer?.disconnect())
  <div class="turn-dock-inner">
   <button class="agenda-toggle" :aria-expanded="expanded" aria-controls="turn-agenda" @click="expanded=!expanded"><span><strong>Agenda e previsão</strong><small>{{[orders.length?orders.length+' para confirmar':'',agenda.length?agenda.length+' '+(agenda.length===1?'compromisso':'compromissos'):''].filter(Boolean).join(' · ')||'Sem compromissos visíveis'}}</small></span><span aria-hidden="true">{{expanded?'⌄':'⌃'}}</span></button>
   <div v-if="expanded" id="turn-agenda" class="turn-agenda">
+   <p v-if="advanceReason&&!pending&&result?.status!=='failed'" class="agenda-help">{{advanceReason}}</p>
    <section class="order-group"><h2>Para confirmar <span>{{orders.length}}</span></h2><p v-if="!orders.length" class="agenda-empty">Nenhuma ordem planejada.</p><p v-else class="agenda-help">As ordens entram em execução no início do avanço. As primeiras 6h já contam para os prazos. Nada foi cobrado. Remova uma ordem para desfazer; para alterá-la, remova e agende novamente.</p><article v-for="order in orders" :key="order.id" class="queued-order"><div><strong>{{order.title}}</strong><small>{{order.costCents>0?money(order.costCents)+' ao confirmar':order.costCents<0?money(-order.costCents)+' de saldo líquido previsto':'Sem custo imediato'}}</small><small>{{order.previewText||'O primeiro avanço já conta para a execução.'}}</small></div><button class="secondary" :disabled="busy||locked||pending" :aria-label="'Remover ordem: '+order.title" @click="emit('cancel',order.id)">Remover</button></article></section>
    <section v-if="decisions.length" class="order-group requires-action"><h2>Requer ação</h2><button v-for="decision in decisions" :key="decision.id" class="agenda-link" :disabled="busy||locked" @click="openDestination(decision.tab)">{{decision.title}} →</button><p>Respostas são registradas imediatamente. A execução ocorre no próximo período.</p></section>
    <section class="order-group">
-    <h2>Próximos compromissos</h2>
-    <p v-if="!agenda.length" class="agenda-empty">Nenhum compromisso visível.</p>
-    <div v-for="day in agendaDays" :key="day.title" class="agenda-day">
-     <h3>{{day.title}}</h3>
-     <button v-for="item in day.items" :key="item.id" class="agenda-link" :disabled="busy||locked" @click="openDestination(item.tab)">
+    <div class="agenda-heading">
+     <h2>Próximos compromissos</h2>
+     <div class="agenda-views" role="group" aria-label="Visualização da agenda">
+      <button type="button" class="secondary" :aria-pressed="agendaView==='list'" @click="agendaView='list'">Lista</button>
+      <button type="button" class="secondary" :aria-pressed="agendaView==='week'" @click="agendaView='week'">Semana</button>
+     </div>
+    </div>
+    <AgendaWeek v-if="agendaView==='week'" :game="game" :items="agenda" v-slot="{items}">
+     <button v-for="item in items" :key="item.id" class="agenda-link" :disabled="busy||locked" @click="openDestination(item.tab)">
       <span>{{item.title}}</span><strong :class="{'review-warning':item.requiresAction}">{{eventTiming(item)}}</strong>
      </button>
-    </div>
+    </AgendaWeek>
+    <template v-else>
+     <p v-if="!agenda.length" class="agenda-empty">Nenhum compromisso visível.</p>
+     <div v-for="day in agendaDays" :key="day.title" class="agenda-day">
+      <h3>{{day.title}}</h3>
+      <button v-for="item in day.items" :key="item.id" class="agenda-link" :disabled="busy||locked" @click="openDestination(item.tab)">
+       <span>{{item.title}}</span><strong :class="{'review-warning':item.requiresAction}">{{eventTiming(item)}}</strong>
+      </button>
+     </div>
+    </template>
    </section>
    <div class="agenda-options">
     <label class="check"><input type="checkbox" :checked="showFinancialEvents" @change="setShowFinancialEvents(($event.target as HTMLInputElement).checked)"> Exibir eventos financeiros</label>
@@ -114,8 +132,11 @@ onBeforeUnmount(()=>observer?.disconnect())
   </div>
   <p v-if="error" class="dock-error" role="alert">{{error}}</p>
   <p v-if="command?.planningError" class="dock-error">{{command.planningError}}</p>
+  <div v-if="deliveredAnalyses&&dismissedAnalysisNotice!==analysisNoticeKey" class="analysis-delivery">
+   <p role="status">{{deliveredAnalyses===1?'Análise concluída':deliveredAnalyses+' análises concluídas'}} · Consulte o dossiê.</p>
+   <button type="button" class="secondary" aria-label="Dispensar aviso de análise" @click="dismissedAnalysisNotice=analysisNoticeKey">✕</button>
+  </div>
   <div class="dock-controls"><label><span class="sr-only">Período de avanço</span><select :value="turns" :disabled="busy||locked||pending" @change="emit('update:turns',Number(($event.target as HTMLSelectElement).value))"><option v-for="n in turnOptions" :key="n" :value="n">{{turnLabel(n)}}</option></select></label><button class="primary" :disabled="blocked" @click="requestAdvance">{{busy?'Processando…':result?.status==='failed'?'Retomar lote':pending?'Consultar avanço':review.label}}</button></div>
-  <p v-if="advanceReason&&!pending&&result?.status!=='failed'" class="advance-reason">{{advanceReason}}</p>
  </div>
  <dialog ref="reviewDialog" class="turn-review" aria-labelledby="turn-review-title" @cancel="reviewOpen=false" @close="reviewOpen=false">
   <header class="turn-review-heading"><div><span class="eyebrow">REVISÃO DO AVANÇO</span><h2 id="turn-review-title">Avançar {{review.duration}}?</h2><p>{{dateAt(game.currentTurn)}} → {{dateAt(review.throughTurn)}}</p></div><button class="secondary" autofocus aria-label="Fechar revisão do avanço" @click="reviewOpen=false">✕</button></header>
@@ -136,6 +157,26 @@ onBeforeUnmount(()=>observer?.disconnect())
 </template>
 
 <style scoped>
+.agenda-heading {
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ flex-wrap: wrap;
+ gap: .35rem .75rem;
+}
+.agenda-views {
+ display: flex;
+ gap: .25rem;
+}
+.agenda-views .secondary {
+ padding: .35rem .55rem;
+ font-size: var(--text-caption);
+ min-height: 36px;
+}
+.agenda-views [aria-pressed="true"] {
+ background: var(--command-raised);
+ border-color: var(--command-info);
+}
 .agenda-options {
  display: grid;
  margin-top: 8px;
@@ -157,15 +198,17 @@ onBeforeUnmount(()=>observer?.disconnect())
  margin: .65rem 0 .2rem;
  font-size: var(--text-caption);
 }
-.agenda-day .agenda-link > strong.review-warning {
+.agenda-link > strong.review-warning {
  color: #e9ac64;
-}
-.advance-reason {
- margin: .45rem 0 0;
- font-size: var(--text-caption);
- color: #c5d0d6;
 }
 .turn-dock .dock-controls > label {
  width: clamp(150px, 48%, 245px);
 }
+@media (max-width:999px) {
+ .turn-dock .dock-controls > label { width:clamp(106px, 38%, 164px); }
+ .turn-dock .dock-controls .primary { font-size:var(--text-caption); }
+}
+.analysis-delivery { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.35rem; color:var(--command-info); font-size:var(--text-caption); }
+.analysis-delivery p { margin:0; }
+.analysis-delivery .secondary { padding:.25rem .6rem; min-height:36px; }
 </style>

@@ -9,24 +9,37 @@ it('pessoal: especialidade diferencia atributos e a qualidade principal influenc
  const recruit=async(level:number,specialty:number,rolls:number[]=[])=>{
   const parts=[level-1,specialty,...rolls];
   const [row]=await market('balance',0,100,async()=>parts.map(n=>n.toString(16).padStart(4,'0')).join('').padEnd(64,'0'));
-  return {attributes:JSON.parse(row.profile_json).attributes,salary:row.salary_cents,bonus:row.bonus_cents};
+  return {...JSON.parse(row.profile_json),salary:row.salary_cents,bonus:row.bonus_cents};
  };
  const profiles=[['stealth','perception'],['combat','endurance'],['technical','perception'],['technical','stealth'],['leadership','perception']];
  for(const [specialty,[primary,secondary]] of profiles.entries()){
-  const {attributes}=await recruit(1,specialty);
-  const strongest=Object.keys(attributes).sort((a,b)=>attributes[b]-attributes[a]).slice(0,2);
-  expect(strongest).toEqual([primary,secondary]);
+  const keys=['combat','stealth','technical','perception','endurance','leadership'];
+  for(const rolls of [[],keys.map(attribute=>attribute===primary||attribute===secondary?0:20),keys.map(attribute=>attribute===primary?0:20)]){
+   const {attributes}=await recruit(1,specialty,rolls);
+   expect(attributes[primary]).toBeGreaterThan(attributes[secondary]);
+   expect(attributes[secondary]).toBeGreaterThan(Math.max(...keys.filter(key=>key!==primary&&key!==secondary).map(key=>attributes[key])));
+  }
  }
  const first=await recruit(1,0),second=await recruit(2,0);
  expect(second.attributes.stealth-first.attributes.stealth).toBe(3);
+ expect([first.xp,second.xp]).toEqual([0,100]);
  expect([first.salary,second.salary]).toEqual([40_000,55_000]);
- const higherSecondary=await recruit(1,0,[0,0,0,20]);
+ const higherSecondary=await recruit(1,0,[0,0,0,5]);
  const higherPrimary=await recruit(1,0,[0,20]);
  expect(higherSecondary.salary).toBe(first.salary);
  expect(higherPrimary.salary).toBe(55_000);
  expect(higherPrimary.bonus).toBe(higherPrimary.salary);
  const strongestVeteran=await recruit(8,0,[0,20,0,0,0,0,0,100]);
  expect(strongestVeteran.salary).toBe(270_000);
+ expect(strongestVeteran.xp).toBe(700);
+});
+it('pessoal: contratação de oferta antiga completa o XP do nível e mantém os atributos da oferta',async()=>{
+ const s=await campaign();try{
+  const candidate=(await view(s)).candidates[0];
+  s.db.prepare("UPDATE online_recruitment SET profile_json=json_set(profile_json,'$.level',8,'$.xp',0) WHERE id=?").run(candidate.id);
+  expect((await hire(s)).status).toBe(201);
+  expect((await view(s)).operators[0]).toMatchObject({level:8,xp:700,attributes:candidate.attributes,employment:{salary_cents:candidate.salaryCents}});
+ }finally{s.db.close()}
 });
 it('pessoal: mercado determinístico, contratação idempotente e projeção sem seed',async()=>{
  const a=await campaign(),b=await campaign();try{

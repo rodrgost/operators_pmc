@@ -3,7 +3,7 @@ import type { State } from '../packages/domain/index.ts';
 import { it, expect } from 'vitest';
 import { handleApi } from '../worker/api.ts';
 import { advanceTurn } from '../packages/engine/index.ts';
-it('online: isolamento por identidade, idempotência e determinismo com motor local',async()=>{const {db,call}=setup();try{const {data:g}=await call('/games',{requestId:'c',name:'Online PMC',seed:'asterra'});expect((await call('/games/'+g.id,undefined,'other')).status).toBe(404);const cmd={requestId:'a',expectedVersion:0,turns:4,stopOnImportant:false};const {data:r}=await call(`/games/${g.id}/advance`,cmd);expect(r.currentTurn).toBe(4);expect((await call(`/games/${g.id}/advance`,cmd)).data).toEqual(r);const summary=(await call(`/games/${g.id}/turns/4/summary`)).data;let state:State={turn:0,cashCents:10000000,reputation:10,status:'active'};let local:any;for(let i=0;i<4;i++){local=advanceTurn(state,'asterra','2030-01-01T00:00:00.000Z');state=local.state}expect(summary).toEqual(local.summary);expect((await call(`/games/${g.id}/advance`,{...cmd,turns:5})).status).toBe(409);expect((await call('/games/'+g.id)).data.seed).toBeUndefined()}finally{db.close()}});
+it('online: isolamento por identidade, idempotência e determinismo com motor local',async()=>{const {db,call}=setup();try{const {data:g}=await call('/games',{requestId:'c',name:'Online PMC',seed:'asterra'});expect((await call('/games/'+g.id,undefined,'other')).status).toBe(404);const cmd={requestId:'a',expectedVersion:0,turns:4,stopOnImportant:false};const {data:r}=await call(`/games/${g.id}/advance`,cmd);expect(r.currentTurn).toBe(4);expect((await call(`/games/${g.id}/advance`,cmd)).data).toEqual(r);const summary=(await call(`/games/${g.id}/turns/4/summary`)).data;let state:State={turn:0,cashCents:10000000,reputation:10,status:'active'};let local:any;for(let i=0;i<4;i++){local=advanceTurn(state,'asterra',g.date);state=local.state}expect(summary).toEqual(local.summary);expect((await call(`/games/${g.id}/advance`,{...cmd,turns:5})).status).toBe(409);expect((await call('/games/'+g.id)).data.seed).toBeUndefined()}finally{db.close()}});
 it('online: requisições concorrentes com mesmo ID não duplicam turnos',async()=>{const {db,call}=setup();try{const {data:g}=await call('/games',{requestId:'c',name:'Online PMC',seed:'x'});const command={requestId:'same',expectedVersion:0,turns:28,stopOnImportant:false};const [a,b]=await Promise.all([call(`/games/${g.id}/advance`,command),call(`/games/${g.id}/advance`,command)]);expect(a.data).toEqual(b.data);expect(a.data.currentTurn).toBe(28);const entries=(await call(`/games/${g.id}/timeline?limit=100`)).data;expect(entries.filter((e:any)=>e.type==='weekly_close')).toHaveLength(1)}finally{db.close()}});
 it('online: exige identidade de usuário',async()=>{const {db,DB}=setup();try{expect((await handleApi(new Request('https://pmc.example/api/v1/games'),{DB})).status).toBe(401)}finally{db.close()}});
 
@@ -65,11 +65,13 @@ it('online: comando concorrente diferente não toma lote e interrupção respeit
 it('online: 336 turnos reproduzem todos os resumos locais e persistem entre chamadas',async()=>{
  const {db,call}=setup();try{
   const {data:g}=await call('/games',{requestId:'c',name:'Long PMC',seed:'asterra'});
+  expect(g.date).toBe('2030-01-06T00:00:00.000Z');
   let state:State={turn:0,cashCents:10000000,reputation:10,status:'active'};
   for(let week=0;week<12;week++){
    expect((await call(`/games/${g.id}/advance`,{requestId:`w-${week}`,expectedVersion:week*28,turns:28,stopOnImportant:false})).data.status).toBe('completed');
+   expect(new Date((await call(`/games/${g.id}`)).data.date).getUTCDay()).toBe(0);
    for(let i=0;i<28;i++){
-    const local=advanceTurn(state,'asterra','2030-01-01T00:00:00.000Z');state=local.state;
+    const local=advanceTurn(state,'asterra',g.date);state=local.state;
     expect((await call(`/games/${g.id}/turns/${state.turn}/summary`)).data).toEqual(local.summary);
    }
   }

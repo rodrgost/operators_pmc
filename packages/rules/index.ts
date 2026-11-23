@@ -1,5 +1,5 @@
 export const RULES_VERSION = '0.1.0';
-export const rules = Object.freeze({ startDate: '2030-01-01T00:00:00.000Z', hoursPerTurn: 6, turnsPerWeek: 28, maxBatch: 28, initialCashCents: 10_000_000, initialReputation: 10 });
+export const rules = Object.freeze({ startDate: '2030-01-06T00:00:00.000Z', hoursPerTurn: 6, turnsPerWeek: 28, maxBatch: 28, initialCashCents: 10_000_000, initialReputation: 10 });
 export const countries = [
   { id:'valdoria', name:'República de Valdoria', description:'Segurança corporativa e economia estável' },
   { id:'karsen', name:'Federação de Karsen', description:'Indústria e tensões separatistas' },

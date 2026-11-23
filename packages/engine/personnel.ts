@@ -5,6 +5,7 @@ export { balance };
 export const restFatiguePerTurn=balance.restFatigue/balance.activityTurns;
 export const restTurns=(fatigue:number)=>Math.max(1,Math.ceil(fatigue/restFatiguePerTurn));
 export const recoveryHealthPerTurn=balance.recoveryHealth/balance.activityTurns;
+export const startingXpForLevel=(level:number)=>Math.max(0,level-1)*operationsRules.levelXpStep;
 export const attributes=['combat','stealth','technical','perception','endurance','leadership'] as const;
 export const specializations=['recon','assault','medic','technical','leader'] as const;
 type Attribute=(typeof attributes)[number];
@@ -41,14 +42,17 @@ export async function market(seed:string,week:number,reputation:number,digest:Di
   const stats=Object.fromEntries(attributes.map((attribute,index)=>{
    const bonus=attribute===primary?primaryBonus:attribute===secondary?secondaryBonus:0;
    return [attribute,base+bonus+n(8+index*4,spread+1)] as const;
-  }));
+  })) as Record<Attribute,number>;
+  const bestOther=Math.max(...attributes.filter(attribute=>attribute!==primary&&attribute!==secondary).map(attribute=>stats[attribute]));
+  stats[secondary]=Math.max(stats[secondary],bestOther+1);
+  stats[primary]=Math.max(stats[primary],stats[secondary]+1);
   const [minimumSalary,maximumSalary]=balance.salaryBands[level-1];
   const primaryQuality=(stats[primary]-base-primaryBonus)/spread;
   const marketVariation=n(36,101)/100;
   const weight=balance.primaryAttributeSalaryWeight;
   const salaryPosition=primaryQuality*weight+marketVariation*(1-weight);
   const salary=Math.round(minimumSalary+(maximumSalary-minimumSalary)*salaryPosition)*100;
-  const profile={...operatorIdentity('candidate-'+hash.slice(0,24),specialization),level,xp:0,specialization,attributes:stats,traits:[traits[n(48,6)],traits[(n(48,6)+1+n(52,5))%6]]};
+  const profile={...operatorIdentity('candidate-'+hash.slice(0,24),specialization),level,xp:startingXpForLevel(level),specialization,attributes:stats,traits:[traits[n(48,6)],traits[(n(48,6)+1+n(52,5))%6]]};
   return {id:'candidate-'+hash.slice(0,24),week,profile_json:JSON.stringify(profile),salary_cents:salary,bonus_cents:salary*balance.signingSalaryFactor,hired:0};
  }));
  return uniqueCandidateNames(candidates,operators);

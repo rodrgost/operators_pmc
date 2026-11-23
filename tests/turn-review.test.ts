@@ -5,20 +5,24 @@ import ts from 'typescript'
 import {turnDuration,turnReview} from '../apps/web/utils/turnReview.ts'
 import {nextAdvance} from '../apps/web/utils/turnSelection.ts'
 import * as campaignTime from '../packages/rules/campaign-time.ts'
-import {formatCampaignEvent,formatCampaignReport,formatCampaignTurn} from '../apps/web/utils/campaignTime.ts'
+import {campaignAgendaWeek,campaignWeek,formatCampaignEvent,formatCampaignReport,formatCampaignTurn} from '../apps/web/utils/campaignTime.ts'
 function fixture(overrides:any={},storage=new Map<string,string>()){
  const props:any={game:{id:'g',date:'2030-01-31T18:00:00Z',currentTurn:0,stateVersion:1},command:{pendingOrders:[],agenda:[],advanceForecasts:[]},turns:1,busy:false,locked:false,pending:false,result:null,...overrides}
  const events:any[]=[],watchers:any[]=[],mounts:(()=>void)[]=[]
  const localStorage={getItem:(key:string)=>storage.get(key)??null,setItem:(key:string,value:string)=>storage.set(key,value)}
  const ctx:any={...campaignTime,formatCampaignTurn,rules:{hoursPerTurn:6,turnsPerWeek:28},turnReview,nextAdvance,defineProps:()=>props,defineEmits:()=> (...args:any[])=>events.push(args),ref:(value:any)=>({value}),computed:(fn:any)=>({get value(){return fn()}}),watch:(...args:any[])=>watchers.push(args),nextTick:async()=>{},localStorage,ResizeObserver:class {},onMounted:(fn:()=>void)=>mounts.push(fn),onBeforeUnmount:()=>{}}
  const source=readFileSync('apps/web/components/TurnDock.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0].replace(/^import .*$/gm,'')
- runInNewContext(ts.transpileModule(source+';globalThis.h={requestAdvance,confirmAdvance,reviewOpen,agenda,agendaDays,eventTiming,dateAt,advanceReason,setShowFinancialEvents,suggestion};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,ctx)
+ runInNewContext(ts.transpileModule(source+';globalThis.h={requestAdvance,confirmAdvance,reviewOpen,agenda,agendaDays,eventTiming,dateAt,turnLabel,advanceReason,setShowFinancialEvents,suggestion,deliveredAnalyses};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,ctx)
  mounts.forEach(mount=>mount())
  return {h:ctx.h,props,events,watchers}
 }
 it('tempo: duração e rótulo distinguem avanço de confirmação de ordens',()=>{
  expect(turnDuration(1)).toBe('6h');expect(turnDuration(4)).toBe('1 dia');expect(turnDuration(5)).toBe('1 dia e 6h');expect(turnDuration(8)).toBe('2 dias');expect(turnDuration(28)).toBe('1 semana')
- expect(turnReview(0,1,{pendingOrders:[{id:'a'}]}).label).toBe('Confirmar 1 ordem · +6h')
+ expect(turnReview(0,1,{pendingOrders:[{id:'a'}]}).label).toBe('Confirmar 1 ordem')
+})
+it('lê as análises entregues no resumo mesmo quando a resposta do avanço só traz o status',()=>{
+ const f=fixture({result:{status:'completed',requestId:'a'},command:{latestAdvance:{requestId:'a',events:[{type:'intelligence_analysis_completed',count:2}]}}})
+ expect(f.h.deliveredAnalyses.value).toBe(2)
 })
 it('filtra compromissos financeiros e restaura a preferência ao abrir outra campanha',()=>{
  const salary={id:'salary-a',dueTurn:2,tab:'finance',title:'Salários'}
@@ -28,7 +32,8 @@ it('filtra compromissos financeiros e restaura a preferência ao abrir outra cam
  const first=fixture({command,turns:2},storage)
  expect(first.h.agenda.value).toEqual([mission])
  expect(first.h.suggestion.value.item).toEqual(salary)
- expect(first.h.advanceReason.value).toBe('Até sex, 1 fev · 6h')
+ expect(first.h.turnLabel(2)).toBe('Até sex, 1 fev · 6h')
+ expect(first.h.advanceReason.value).toBe('')
  first.h.setShowFinancialEvents(true)
  expect(first.h.agenda.value).toEqual([salary,mission])
  const reopened=fixture({command,game:{...first.props.game,id:'g2'}},storage)
@@ -48,8 +53,31 @@ it('agenda cruza o mês e reúne etapa, prazo de ação e compromisso financeiro
  ])
  expect(f.h.eventTiming(mission)).toBe('Previsto para 6h')
  expect(f.h.eventTiming(deadline)).toBe('Até 12h')
- expect(f.h.advanceReason.value).toBe('Até sex, 1 fev · 6h · Você terá 6h para agir · Mobilizar contrato')
+ expect(f.h.advanceReason.value).toBe('Você terá 6h para agir · Mobilizar contrato')
  expect(f.h.dateAt(1)).toBe('sex, 1 fev · 0h')
+})
+it('mostra a data no seletor mesmo quando a sugestão coincide com a duração de um dia',()=>{
+ const f=fixture({command:{agenda:[{dueTurn:4,title:'Entrega'}]},turns:4})
+ expect(f.h.turnLabel(4)).toBe('Até sex, 1 fev · 18h')
+ expect(f.h.advanceReason.value).toBe('Próximo compromisso · Entrega')
+ expect([0,27,28].map(campaignWeek)).toEqual([1,1,2])
+})
+it('a visão semanal reúne os compromissos visíveis de domingo a sábado e permite consultar a semana seguinte',()=>{
+ const game={id:'g',currentTurn:8,date:'2030-01-05T12:00:00Z'}
+ const salary={id:'salary-a',dueTurn:10,tab:'finance',title:'Salários'}
+ const mission={id:'mission-a',dueTurn:9,tab:'operations',title:'Retorno'}
+ const deadline={id:'mobilization-a',dueTurn:11,tab:'contracts',title:'Mobilização',requiresAction:true}
+ const f=fixture({game,command:{agenda:[deadline,salary,mission]}})
+ const current=campaignAgendaWeek(game,f.h.agenda.value,0)
+ expect(current).toHaveLength(7)
+ expect(current[0].date.toISOString()).toBe('2029-12-30T00:00:00.000Z')
+ expect(current[6]).toMatchObject({isToday:true,items:[mission]})
+ const next=()=>campaignAgendaWeek(game,f.h.agenda.value,1)
+ expect(next()[0]).toMatchObject({date:new Date('2030-01-06T00:00:00.000Z'),isToday:false,items:[deadline]})
+ f.h.setShowFinancialEvents(true)
+ expect(next()[0].items).toEqual([salary,deadline])
+ expect(next()[1].items).toEqual([])
+ expect(f.events).toEqual([])
 })
 it('mantém a data de um prazo consistente no histórico e mostra a virada de ano',()=>{
  const game={date:'2030-12-31T18:00:00Z',currentTurn:12}

@@ -5,6 +5,7 @@ import {readOperations,operationAction,ensureOperations,startSchema,decisionSche
 import {readIntelligence,analysisAction,ensureIntelligence,analysisSchema} from './intelligence.ts';
 import {catalog,isEquipmentService,trainingEstimate,config as logisticsConfig} from '../packages/engine/logistics.ts';
 import type {Digest} from '../packages/engine/personnel.ts';
+import {analysisTitle} from '../packages/rules/intelligence-labels.ts';
 import {gameDate} from '../packages/engine/core.ts';
 import {campaignDateTime,campaignDuration} from '../packages/rules/campaign-time.ts';
 export interface Order {id:string;scope:string;kind:string;target:string;command:any;title:string;costCents:number;previewText?:string;dueTurn?:number|null}
@@ -22,7 +23,17 @@ export function orderRoute(path:string[],method:string){
  else if(area==='decisions'&&method==='POST'&&action==='resolve'){scope='operations';kind='decision';id=target;schema=decisionSchema;}
  return kind&&schema?{scope,kind,target:id,schema}:null;
 }
-export async function orders(db:Database,id:string):Promise<Order[]>{const rows=await db.prepare("SELECT * FROM online_pending_orders WHERE game_id=? AND status='pending' ORDER BY rowid").bind(id).all();return rows.results.map(r=>({id:r.id,scope:r.scope,kind:r.kind,target:r.target??'',command:JSON.parse(r.command_json),title:r.title,costCents:r.cost_cents,previewText:JSON.parse(r.result_json).previewText,dueTurn:JSON.parse(r.result_json).dueTurn}));}
+export async function orders(db:Database,id:string):Promise<Order[]>{
+ const rows=await db.prepare(`SELECT p.*,c.title AS contract_title FROM online_pending_orders p
+  LEFT JOIN online_contracts c ON c.game_id=p.game_id AND p.kind='analysis' AND json_extract(p.command_json,'$.targetType')='contract'
+   AND c.id=json_extract(p.command_json,'$.targetId')
+  WHERE p.game_id=? AND p.status='pending' ORDER BY p.rowid`).bind(id).all();
+ return rows.results.map(r=>{
+  const command=JSON.parse(r.command_json),result=JSON.parse(r.result_json);
+  const title=r.kind==='analysis'?analysisTitle(command.topic,command.targetType,command.targetId,r.contract_title):r.title;
+  return {id:r.id,scope:r.scope,kind:r.kind,target:r.target??'',command,title,costCents:r.cost_cents,previewText:result.previewText,dueTurn:result.dueTurn};
+ });
+}
 function dueTurn(order:Order,context:any){
  const reservation=context.p?.reservations.find((r:any)=>r.source_id===order.id);
  const kit=context.l?.equipment.find((k:any)=>k.id==='kit-'+order.id+'-0'||k.id===order.target);
@@ -60,7 +71,7 @@ export async function applyOrder(context:any,order:Order,digest:Digest){const db
  return analysisAction(db,g.id,g.owner,command,digest);
 }
 export async function prepareOrders(db:Database,g:Campaign,digest:Digest,pending?:Order[]){const list=pending??await orders(db,g.id),context=await planContext(db,g);for(const order of list){try{await applyOrder(context,order,digest);order.dueTurn=dueTurn(order,context);order.previewText=preview(order,context);}catch(e){if(e instanceof ApiError)throw new ApiError(422,'PENDING_ORDER_INVALID',order.title+': '+e.message);throw e;}}return {context,list};}
-function label(order:Order,context:any){const names:any={hire:'Contratar operador',renew:'Renovar vínculo',squad_create:'Criar equipe',squad_update:'Editar equipe',squad_member_add:'Adicionar integrante',squad_member_remove:'Remover integrante',activity:'Iniciar atividade',activity_cancel:'Interromper atividade',squad_training:'Treinar equipe',purchase:'Comprar kits',upgrade:'Melhorar módulo',maintenance:'Reparar kit',resupply:'Repor suprimentos',refurbish:'Reparar e repor kit',accept:'Aceitar contrato',cancel:'Cancelar contrato',start:'Iniciar missão',withdraw:'Retirar equipe',decision:'Responder decisão',analysis:'Solicitar análise'};
+function label(order:Order,context:any){const names:any={hire:'Contratar operador',renew:'Renovar vínculo',squad_create:'Criar equipe',squad_update:'Editar equipe',squad_member_add:'Adicionar integrante',squad_member_remove:'Remover integrante',activity:'Iniciar atividade',activity_cancel:'Interromper atividade',squad_training:'Treinar equipe',purchase:'Comprar kits',upgrade:'Melhorar módulo',maintenance:'Reparar kit',resupply:'Repor suprimentos',refurbish:'Reparar e repor kit',accept:'Aceitar contrato',cancel:'Cancelar contrato',start:'Iniciar missão',withdraw:'Retirar equipe',decision:'Responder decisão'};
  if(order.kind==='purchase')return `Comprar ${order.command.quantity} ${order.command.quantity===1?'kit':'kits'} ${catalog.find(c=>c.id===order.command.catalogId)?.name??''}`;
  if(order.kind==='upgrade')return 'Melhorar '+(logisticsConfig.modules.find(m=>m.id===order.target)?.name??order.target);
  if(order.kind==='hire'){const c=context.p?.candidates.find((c:any)=>c.id===order.command.candidateId);return 'Contratar '+(c?JSON.parse(c.profile_json).name:'operador');}
@@ -80,7 +91,10 @@ export async function enqueue(db:Database,id:string,owner:string,route:any,comma
  const duplicate=pending.some(o=>o.kind===route.kind&&o.target===route.target&&(route.kind==='hire'?o.command.candidateId===command.candidateId:route.kind==='analysis'?o.command.targetType===command.targetType&&o.command.targetId===command.targetId&&o.command.topic===command.topic:true));
  if(!['purchase','squad_create'].includes(route.kind)&&duplicate)throw new ApiError(422,'ORDER_ALREADY_PENDING','Esta ação já está agendada. Remova a ordem existente para alterá-la.');
  if(pending.length>=20)throw new ApiError(422,'ORDER_LIMIT','O plano comporta até 20 ordens. Confirme ou remova uma ordem para liberar espaço.');
- const {context}=await prepareOrders(db,g,digest,pending);const order:Order={id:command.requestId,scope:route.scope,kind:route.kind,target:route.target,command,title:'',costCents:0};order.title=label(order,context);const cash=context.g.state.cashCents;const details=await applyOrder(context,order,digest);order.costCents=cash-context.g.state.cashCents;
+ const {context}=await prepareOrders(db,g,digest,pending);const order:Order={id:command.requestId,scope:route.scope,kind:route.kind,target:route.target,command,title:'',costCents:0};if(order.kind==='analysis'){
+  const contract=command.targetType==='contract'?await db.prepare('SELECT title FROM online_contracts WHERE game_id=? AND id=?').bind(id,command.targetId).first():null;
+  order.title=analysisTitle(command.topic,command.targetType,command.targetId,contract?.title);
+ }else order.title=label(order,context);const cash=context.g.state.cashCents;const details=await applyOrder(context,order,digest);order.costCents=cash-context.g.state.cashCents;
  const next={...g,stateVersion:g.stateVersion+1};const response={...details,...projection(next),queued:true,orderId:order.id,title:order.title,costCents:order.costCents,dueTurn:dueTurn(order,context),previewText:preview(order,context),message:'Ordem planejada. O primeiro avanço já conta para a execução.'};
  if(await mutate(db,g,next,(guard,args)=>[db.prepare(`INSERT INTO online_pending_orders SELECT ?,?,?,?,?,?,?,?,?,?,'pending',NULL,? WHERE ${guard}`).bind(id,order.id,order.scope,order.kind,order.target,JSON.stringify(command),payload,order.title,order.costCents,g.state.turn,JSON.stringify(response),...args)]))return response;
  }throw new ApiError(409,'BUSY','Tente novamente com a mesma ordem.');

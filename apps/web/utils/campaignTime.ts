@@ -1,7 +1,26 @@
-import {campaignDateTime,campaignDuration,campaignTimeAt} from '../../../packages/rules/campaign-time.ts'
+import {campaignDateTime,campaignDayOffset,campaignDuration,campaignTimeAt} from '../../../packages/rules/campaign-time.ts'
 import {rules} from '../../../packages/rules/index.ts'
 
 type CampaignClock = {date:string;currentTurn:number}
+
+export function campaignAgendaWeek<T extends {dueTurn:number}>(game:CampaignClock,items:T[],weeksAhead:number) {
+ const today=new Date(game.date)
+ const weekday=today.getUTCDay()
+ const firstDay=weeksAhead*7-weekday
+ const days=Array.from({length:7},(_,index)=>{
+  const offset=firstDay+index
+  const date=new Date(today)
+  date.setUTCHours(0,0,0,0)
+  date.setUTCDate(date.getUTCDate()+offset)
+  return {date,isToday:offset===0,items:[] as T[]}
+ })
+ for(const item of [...items].sort((a,b)=>a.dueTurn-b.dueTurn)){
+  const date=campaignTimeAt(game.date,game.currentTurn,item.dueTurn)
+  const index=campaignDayOffset(date,today)-firstDay
+  days[index]?.items.push(item)
+ }
+ return days
+}
 
 export function formatCampaignTurn(game:CampaignClock,turn:number|null|undefined,includeYear=false) {
  if(turn==null)return 'Data indisponível'
@@ -30,6 +49,10 @@ export function formatCampaignReport(description:string|undefined) {
   .replace(/ Consulte as condições atuais da formação\.$/,'')
 }
 
+export function campaignWeek(turn:number) {
+ return Math.floor(turn/rules.turnsPerWeek)+1
+}
+
 export function nextCampaignWeek(turn:number) {
- return (Math.floor(turn/rules.turnsPerWeek)+1)*rules.turnsPerWeek
+ return campaignWeek(turn)*rules.turnsPerWeek
 }

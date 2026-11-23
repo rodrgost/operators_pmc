@@ -3,7 +3,7 @@ import {readLogistics,logisticsWrites} from './logistics.ts';
 import {moduleCapacity,moduleLevel,trainingEstimate,config as logisticsConfig,type Logistics} from '../packages/engine/logistics.ts';
 import { z } from 'zod';
 import { ApiError, type Database,type Statement,type Campaign,rowGame,mutate,getGame,projection } from './persistence.ts';
-import { balance,restTurns,restFatiguePerTurn,recoveryHealthPerTurn,market,uniqueCandidateNames,emptyPersonnel,employment,availability,squadProjection,specializations,type Personnel,type Digest } from '../packages/engine/personnel.ts';
+import { balance,restTurns,restFatiguePerTurn,recoveryHealthPerTurn,market,startingXpForLevel,uniqueCandidateNames,emptyPersonnel,employment,availability,squadProjection,specializations,type Personnel,type Digest } from '../packages/engine/personnel.ts';
 const requestId=z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/);
 const id=z.string().min(1).max(180);
 const weeks=z.union([z.literal(4),z.literal(8),z.literal(12)]);
@@ -94,7 +94,9 @@ export async function personnelAction(db:Database,id:string,owner:string,kind:st
    assert(p.contracts.filter(c=>c.status==='active').length<(l?moduleCapacity(l,'administration'):balance.operatorCapacity),'CAPACITY','Capacidade administrativa atingida.');
    assert(g.state.cashCents>=c.bonus_cents,'INSUFFICIENT_CASH','Caixa insuficiente para o bônus de assinatura.');
    c.hired=1;entityId='operator-'+c.id;
-   p.operators.push({id:entityId,profile_json:c.profile_json,health:balance.initialHealth,fatigue:balance.initialFatigue,morale:balance.initialMorale,loyalty:balance.initialLoyalty,hired_turn:g.state.turn});
+   const profile=JSON.parse(c.profile_json);
+   profile.xp=Math.max(profile.xp??0,startingXpForLevel(profile.level));
+   p.operators.push({id:entityId,profile_json:JSON.stringify(profile),health:balance.initialHealth,fatigue:balance.initialFatigue,morale:balance.initialMorale,loyalty:balance.initialLoyalty,hired_turn:g.state.turn});
    p.contracts.push({id:'employment-'+command.requestId,operator_id:entityId,salary_cents:c.salary_cents,start_turn:g.state.turn,end_turn:g.state.turn+command.weeks*28,next_pay_turn:g.state.turn+28,arrears_cents:0,status:'active'});
    next.state.cashCents-=c.bonus_cents;ledger.push({sourceId:'hire:'+command.requestId,entryType:'signing_bonus',turn:g.state.turn,amountCents:-c.bonus_cents});
   }else if(kind==='renew'){
