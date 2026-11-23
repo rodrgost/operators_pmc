@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import {campaignDay} from '../../../packages/rules/campaign-time'
+import type {GameLabelIcon} from '../utils/gameLabels'
 
-type AgendaEvent={id:string;title:string;dueTurn:number;tab:string;requiresAction?:boolean}
+type AgendaEvent={id:string;title:string;dueTurn:number;tab:string;requiresAction?:boolean;labelIcon?:GameLabelIcon}
 const props=defineProps<{game:{id:string;date:string;currentTurn:number};items:AgendaEvent[]}>()
 const weekOffset=ref(0),selectedIndex=ref<number|null>(null)
 const days=computed(()=>campaignAgendaWeek(props.game,props.items,weekOffset.value))
@@ -37,7 +38,7 @@ watch(()=>[props.game.id,props.game.currentTurn],()=>showWeek(0))
     <span class="week-day-name">{{weekdays[index]}}</span>
     <strong>{{day.date.getUTCDate()}}</strong>
     <span class="week-day-count" :class="{'week-day-action':day.items.some(item=>item.requiresAction)}">{{day.items.length||'–'}}</span>
-    <span v-for="item in day.items.slice(0,2)" :key="item.id" class="week-day-preview" aria-hidden="true">{{item.title}}</span>
+    <span v-for="item in day.items.slice(0,2)" :key="item.id" class="week-day-preview" aria-hidden="true"><GameLabel v-bind="item.labelIcon" :label="item.title" /></span>
    </button>
   </div>
   <div class="agenda-day">

@@ -8,7 +8,7 @@ import type {Digest} from '../packages/engine/personnel.ts';
 import {analysisTitle} from '../packages/rules/intelligence-labels.ts';
 import {gameDate} from '../packages/engine/core.ts';
 import {campaignDateTime,campaignDuration} from '../packages/rules/campaign-time.ts';
-export interface Order {id:string;scope:string;kind:string;target:string;command:any;title:string;costCents:number;previewText?:string;dueTurn?:number|null}
+export interface Order {id:string;scope:string;kind:string;target:string;command:any;title:string;costCents:number;previewText?:string;dueTurn?:number|null;labelIcon?:{kind:'kit'|'mission';code:string}}
 export function orderRoute(path:string[],method:string){
  const [,,area,target,action,sub]=path;let scope='',kind='',id='',schema:any;
  if(method==='POST'&&area==='equipment'&&target==='purchases'){scope='logistics';kind='purchase';schema=purchaseSchema;}
@@ -24,14 +24,16 @@ export function orderRoute(path:string[],method:string){
  return kind&&schema?{scope,kind,target:id,schema}:null;
 }
 export async function orders(db:Database,id:string):Promise<Order[]>{
- const rows=await db.prepare(`SELECT p.*,c.title AS contract_title FROM online_pending_orders p
+ const rows=await db.prepare(`SELECT p.*,c.title AS contract_title,c.type AS contract_type FROM online_pending_orders p
   LEFT JOIN online_contracts c ON c.game_id=p.game_id AND p.kind='analysis' AND json_extract(p.command_json,'$.targetType')='contract'
    AND c.id=json_extract(p.command_json,'$.targetId')
   WHERE p.game_id=? AND p.status='pending' ORDER BY p.rowid`).bind(id).all();
  return rows.results.map(r=>{
   const command=JSON.parse(r.command_json),result=JSON.parse(r.result_json);
   const title=r.kind==='analysis'?analysisTitle(command.topic,command.targetType,command.targetId,r.contract_title):r.title;
-  return {id:r.id,scope:r.scope,kind:r.kind,target:r.target??'',command,title,costCents:r.cost_cents,previewText:result.previewText,dueTurn:result.dueTurn};
+  const kit=r.kind==='purchase'?catalog.find(item=>item.id===command.catalogId):undefined;
+  const labelIcon=kit?{kind:'kit' as const,code:kit.category}:r.contract_type?{kind:'mission' as const,code:r.contract_type}:undefined;
+  return {id:r.id,scope:r.scope,kind:r.kind,target:r.target??'',command,title,costCents:r.cost_cents,previewText:result.previewText,dueTurn:result.dueTurn,...(labelIcon?{labelIcon}:{})};
  });
 }
 function dueTurn(order:Order,context:any){

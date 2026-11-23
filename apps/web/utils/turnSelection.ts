@@ -1,6 +1,7 @@
 import {rules} from '../../../packages/rules/index.ts'
+import type {GameLabelIcon} from './gameLabels.ts'
 
-type Milestone = {id?:string;title?:string;tab?:string;dueTurn?:number|null;requiresAction?:boolean}
+type Milestone = {id?:string;title?:string;tab?:string;dueTurn?:number|null;requiresAction?:boolean;labelIcon?:GameLabelIcon}
 type AdvanceSuggestion = {turns:number;item?:Milestone;beforeDeadline?:boolean}
 
 export function nextAdvance(currentTurn:number,command:{agenda?:Milestone[];pendingOrders?:Milestone[]}|null|undefined):AdvanceSuggestion {
