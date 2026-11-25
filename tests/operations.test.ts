@@ -71,6 +71,9 @@ it('operações: decisão crítica interrompe mesmo sem preferência e fallback 
   const m=(await s.start()).data.missionId;
   expect((await s.advance(10)).data).toMatchObject({status:'interrupted',currentTurn:3,reason:'critical_decision'});
   let pending=(await s.call(s.path+'/decisions')).data;expect(pending).toHaveLength(1);expect(pending[0].expiresTurn).toBe(5);
+  expect((await s.call(s.path+'/command-center')).data.agenda).toContainEqual(expect.objectContaining({
+   id:pending[0].id,targetId:pending[0].id,title:'Decidir · '+s.contract.title,dueTurn:5,requiresAction:true,
+  }));
   await s.advance(2,'deadline');expect((await s.call(s.path+'/decisions')).data).toHaveLength(0);
   await s.advance(1,'return');expect((await s.call(s.path+'/missions/'+m)).data.status).toBe('withdrawn');
   await s.advance(2,'later');expect((await s.call(s.path+'/finances/ledger')).data.filter((e:any)=>e.entryType==='advance_refund')).toHaveLength(1);

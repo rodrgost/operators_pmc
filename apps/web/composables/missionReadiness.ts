@@ -13,3 +13,21 @@ export function missionReadiness(contract:any,people:any,plan:any,inventory:any[
  const missingEquipment:string[]=(contract?.requiredEquipment??[]).filter((category:string)=>!kits.some(k=>k.category===category))
  return {teamIssues,missingEquipment}
 }
+
+type SupplyKit={id:string;category:string;status:string;dueTurn:number|null}
+type SupplyOrder={kind:string;target:string;dueTurn?:number|null;labelIcon?:{code:string};command?:{catalogId?:string}}
+
+export function kitSupplyOptions(categories:string[],inventory:SupplyKit[],orders:SupplyOrder[]){
+ return categories.map(category=>{
+  const kits=inventory.filter(kit=>kit.category===category)
+  const arriving=kits.filter(kit=>kit.status==='in_delivery'||kit.status==='maintenance')
+   .sort((a,b)=>(a.dueTurn??Infinity)-(b.dueTurn??Infinity))[0]
+  if(arriving)return {category,section:'inventory',action:arriving.status==='in_delivery'?'Ver entrega':'Ver serviço',dueTurn:arriving.dueTurn}
+  const service=orders.find(order=>['maintenance','resupply','refurbish'].includes(order.kind)&&kits.some(kit=>kit.id===order.target))
+  if(service)return {category,section:'inventory',action:'Ver serviço agendado',dueTurn:service.dueTurn}
+  const purchase=orders.find(order=>order.kind==='purchase'&&order.labelIcon?.code===category)
+  if(purchase)return {category,section:'catalog',action:'Ver compra agendada',dueTurn:purchase.dueTurn,catalogId:purchase.command?.catalogId}
+  if(kits.some(kit=>kit.status==='available'))return {category,section:'inventory',action:'Preparar kit'}
+  return {category,section:'catalog',action:'Comprar kit'}
+ })
+}

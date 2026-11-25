@@ -4,7 +4,7 @@ import {runInNewContext} from 'node:vm';
 import ts from 'typescript';
 for(const failAt of ['write','refresh'] as const){
  it(`UI pessoal: retry após perda em ${failAt} mantém comando mesmo ao reabrir o painel`,async()=>{
-  const source=readFileSync('apps/web/components/PersonnelPanel.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0];
+  const source=readFileSync('apps/web/components/PersonnelPanel.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0].replace(/^import .*$/gm,'');
   const store:Record<string,any>={},actions=new Map<string,any>(),posted:any[]=[];let fail=true,ids=0;
   const transport=async(_path:string,options:any={})=>{
    if(options.method){posted.push(options.body);actions.set(options.body.requestId,options.body);if(failAt==='write'&&fail){fail=false;throw Error('response lost')}return {};}

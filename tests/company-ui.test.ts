@@ -1,8 +1,18 @@
 import {it,expect} from 'vitest'
 import {candidateList,kitCatalogGroups,squadStatus,kitPurchaseIssue} from '../apps/web/composables/companyUi.ts'
+import {missionFitScore,missionFitWeights} from '../apps/web/utils/missionFitScore.ts'
 it('companhia: filtra e compara candidatos sem alterar o mercado',()=>{
  const rows=[{id:'a',specialization:'recon',salaryCents:300,signingBonusCents:500,level:2,attributes:{leadership:10}},{id:'b',specialization:'medic',salaryCents:100,signingBonusCents:200,level:1,attributes:{leadership:60}}]
  expect(candidateList(rows).map(c=>c.id)).toEqual(['b','a']);expect(candidateList(rows,'recon')).toHaveLength(1);expect(candidateList(rows,'','leadership')[0].id).toBe('b');expect(candidateList(rows,'','level')[0].id).toBe('a');expect(rows[0].id).toBe('a')
+})
+it('recrutamento: busca nomes e codinomes sem depender de acentos e calcula adequação pelos pesos da missão',()=>{
+ const rows=[{id:'a',name:'João Reis',callsign:'Falcão',specialization:'recon',salaryCents:300},{id:'b',name:'Maria Luz',specialization:'medic',salaryCents:100}]
+ expect(candidateList(rows,'','','joao').map(c=>c.id)).toEqual(['a'])
+ expect(candidateList(rows,'','',' FALCAO ').map(c=>c.id)).toEqual(['a'])
+ expect(candidateList(rows,'medic','','falcao')).toHaveLength(0)
+ const weights=missionFitWeights('security')
+ expect(weights.length).toBeGreaterThan(0)
+ expect(missionFitScore(weights,Object.fromEntries(weights.map(([key])=>[key,80])))).toBe(80)
 })
 it('companhia: seis categorias mantêm as variantes separadas e ordenadas',()=>{
  const catalog=['combat','recon','medical','technical','communication','logistics'].flatMap(category=>[3,1,2].map(quality=>({id:category+quality,category,quality,priceCents:quality*quality*100})))

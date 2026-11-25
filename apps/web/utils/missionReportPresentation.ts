@@ -25,3 +25,11 @@ export function missionCrewMetrics(operator?:{health?:number;fatigue?:number;mor
 export function missionKitMetrics(kit:{condition:number;supplies:number}){
  return [{label:'Condição',value:kit.condition},{label:'Suprimentos',value:kit.supplies}]
 }
+
+export function missionCashImpact(missionId:string,ledger:{sourceId:string;entryType:string;amountCents:number}[]){
+ const prefix='mission:'+missionId+':'
+ const entries=ledger.filter(entry=>entry.sourceId.startsWith(prefix))
+ const mobilization=entries.find(entry=>entry.entryType==='mission_mobilization')
+ if(!mobilization)return null
+ return {netCents:entries.reduce((sum,entry)=>sum+entry.amountCents,0),mobilizationCents:-mobilization.amountCents}
+}

@@ -13,8 +13,16 @@ export function campaignDay(date: Date) {
 }
 
 export function campaignHour(date: Date) {
- const minutes = date.getUTCMinutes()
- return date.getUTCHours() + 'h' + (minutes ? String(minutes).padStart(2, '0') : '')
+ return formatClock(date.getUTCHours(),date.getUTCMinutes())
+}
+function formatClock(hours:number|string,minutes:number|string) {
+ return String(hours).padStart(2,'0')+':'+String(minutes).padStart(2,'0')
+}
+
+// Pending orders can carry a preview saved before the clock format changed.
+export function normalizeSavedClock(text?:string) {
+ return text?.replace(/(\b\d{1,2} [\p{L}]{3}(?: \d{4})? · )(\d{1,2})h(\d{2})?\b/gu,
+  (_,date,hours,minutes)=>date+formatClock(hours,minutes??0))
 }
 
 export function campaignDateTime(date: Date, includeYear = false) {

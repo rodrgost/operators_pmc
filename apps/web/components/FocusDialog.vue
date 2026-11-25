@@ -4,10 +4,12 @@ const emit=defineEmits(['close'])
 const dialog=ref<HTMLDialogElement|null>(null)
 let observer:MutationObserver|undefined
 let previousFocus:HTMLElement|null=null
+let previousCard:HTMLElement|null=null
 function syncScroll(){document.documentElement.classList.toggle('focus-dialog-open',!!document.querySelector('dialog.focus-dialog[open]'))}
 function requestClose(event?:Event){event?.preventDefault();if(!props.busy)emit('close')}
 onMounted(()=>{
  previousFocus=document.activeElement as HTMLElement|null
+ previousCard=previousFocus?.closest<HTMLElement>('[data-action-card]')??null
  const el=dialog.value!
  const ancestors:HTMLElement[]=[]
  for(let parent=el.parentElement;parent;parent=parent.parentElement)ancestors.push(parent)
@@ -21,12 +23,27 @@ onMounted(()=>{
  for(const parent of ancestors)observer.observe(parent,{attributes:true,attributeFilter:['style','hidden']})
  syncVisibility()
 })
-onBeforeUnmount(()=>{observer?.disconnect();dialog.value?.close();syncScroll();if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true})})
+onBeforeUnmount(()=>{
+ observer?.disconnect()
+ dialog.value?.close()
+ syncScroll()
+ const focusAfterClose=document.activeElement
+ nextTick(()=>{
+  if(document.querySelector('dialog[open]')||(document.activeElement!==focusAfterClose&&document.activeElement!==document.body))return
+  if(previousFocus?.isConnected&&!previousFocus.matches(':disabled')&&previousFocus.getClientRects().length){
+   previousFocus.focus({preventScroll:true})
+  }else if(previousCard?.isConnected&&previousCard.getClientRects().length){
+   if(!previousCard.hasAttribute('tabindex'))previousCard.tabIndex=-1
+   previousCard.focus({preventScroll:true})
+  }
+ })
+})
 </script>
 <template>
- <dialog ref="dialog" class="focus-dialog" :aria-label="title" @cancel="requestClose">
+ <dialog ref="dialog" class="focus-dialog" :class="{'focus-dialog-with-footer':$slots.footer}" :aria-label="title" @cancel="requestClose">
   <header class="focus-dialog-heading"><h2>{{title}}</h2><button type="button" class="secondary" :disabled="busy" :aria-label="'Fechar '+title" autofocus @click="requestClose()">Fechar ✕</button></header>
   <div class="focus-dialog-content"><p v-if="error" class="error" role="alert">{{error}}</p><slot /></div>
+  <footer v-if="$slots.footer" class="focus-dialog-footer"><slot name="footer" /></footer>
  </dialog>
 </template>
 <style>
@@ -51,4 +68,10 @@ dialog.focus-dialog::backdrop{background:rgb(0 0 0 / 78%)}
 .focus-dialog-content .inline-action>button:first-child{display:none}
 .focus-dialog-content .intel-panel{margin:0}
 @media(max-width:640px){.focus-dialog-heading,.focus-dialog-content{padding:var(--space-4)}}
+dialog.focus-dialog-with-footer{overflow:hidden}
+dialog.focus-dialog-with-footer[open]{display:flex;flex-direction:column}
+.focus-dialog-with-footer .focus-dialog-heading,.focus-dialog-footer{flex-shrink:0}
+.focus-dialog-with-footer .focus-dialog-content{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.focus-dialog-footer{display:block;margin:0;padding:var(--space-3) var(--space-6);border-top:1px solid var(--command-line);background:#101b20}
+@media(max-width:640px){.focus-dialog-footer{padding:var(--space-2) var(--space-4) calc(var(--space-2) + env(safe-area-inset-bottom,0px))}}
 </style>

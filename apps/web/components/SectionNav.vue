@@ -17,4 +17,4 @@ function choose(value:string){
 }
 
 </script>
-<template><nav class="title-nav section-title-nav" :aria-label="label"><component :is="modelValue===item[0]?'h2':'div'" v-for="item in items" :key="item[0]" class="title-nav-item"><button type="button" :class="{active:modelValue===item[0]}" :aria-current="modelValue===item[0]?'page':undefined" :disabled="disabled" @click="choose(item[0])">{{item[1]}}<NavigationBadge v-if="gameId&&scope" :status="news.status(gameId,scope+'.'+item[0])" /></button></component></nav></template>
+<template><nav class="title-nav section-title-nav" :aria-label="label"><div v-for="item in items" :key="item[0]" class="title-nav-item" :role="modelValue===item[0]?'heading':undefined" :aria-level="modelValue===item[0]?2:undefined"><button type="button" :class="{active:modelValue===item[0]}" :aria-current="modelValue===item[0]?'page':undefined" :disabled="disabled" @click="choose(item[0])">{{item[1]}}<NavigationBadge v-if="gameId&&scope" :status="news.status(gameId,scope+'.'+item[0])" /></button></div></nav></template>

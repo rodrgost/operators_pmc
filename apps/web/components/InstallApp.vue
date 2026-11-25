@@ -12,4 +12,4 @@ async function install(){
 onMounted(()=>{window.addEventListener('beforeinstallprompt',available);window.addEventListener('appinstalled',installed)})
 onBeforeUnmount(()=>{window.removeEventListener('beforeinstallprompt',available);window.removeEventListener('appinstalled',installed)})
 </script>
-<template><button v-if="browserStorage&&installEvent" class="secondary" :disabled="installing" @click="install">Instalar OPERATORS</button></template>
+<template><button v-if="browserStorage&&installEvent" class="secondary action-block" :disabled="installing" @click="install">Instalar OPERATORS</button></template>

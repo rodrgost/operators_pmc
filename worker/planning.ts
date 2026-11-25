@@ -7,7 +7,7 @@ import {catalog,isEquipmentService,trainingEstimate,config as logisticsConfig} f
 import type {Digest} from '../packages/engine/personnel.ts';
 import {analysisTitle} from '../packages/rules/intelligence-labels.ts';
 import {gameDate} from '../packages/engine/core.ts';
-import {campaignDateTime,campaignDuration} from '../packages/rules/campaign-time.ts';
+import {campaignDateTime,campaignDuration,normalizeSavedClock} from '../packages/rules/campaign-time.ts';
 export interface Order {id:string;scope:string;kind:string;target:string;command:any;title:string;costCents:number;previewText?:string;dueTurn?:number|null;labelIcon?:{kind:'kit'|'mission';code:string}}
 export function orderRoute(path:string[],method:string){
  const [,,area,target,action,sub]=path;let scope='',kind='',id='',schema:any;
@@ -33,7 +33,7 @@ export async function orders(db:Database,id:string):Promise<Order[]>{
   const title=r.kind==='analysis'?analysisTitle(command.topic,command.targetType,command.targetId,r.contract_title):r.title;
   const kit=r.kind==='purchase'?catalog.find(item=>item.id===command.catalogId):undefined;
   const labelIcon=kit?{kind:'kit' as const,code:kit.category}:r.contract_type?{kind:'mission' as const,code:r.contract_type}:undefined;
-  return {id:r.id,scope:r.scope,kind:r.kind,target:r.target??'',command,title,costCents:r.cost_cents,previewText:result.previewText,dueTurn:result.dueTurn,...(labelIcon?{labelIcon}:{})};
+  return {id:r.id,scope:r.scope,kind:r.kind,target:r.target??'',command,title,costCents:r.cost_cents,previewText:normalizeSavedClock(result.previewText),dueTurn:result.dueTurn,...(labelIcon?{labelIcon}:{})};
  });
 }
 function dueTurn(order:Order,context:any){

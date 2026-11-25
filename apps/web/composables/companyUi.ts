@@ -1,5 +1,9 @@
-export function candidateList(candidates:any[],specialty='',sort='salary'){
- const values=candidates.filter(c=>!specialty||c.specialization===specialty)
+const normalizedName=(name:string)=>name.trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/\p{Diacritic}/gu,'')
+export function matchesPersonnel(person:{name?:string;callsign?:string;specialization?:string},specialty='',search=''){
+ return (!specialty||person.specialization===specialty)&&normalizedName([person.name,person.callsign].join(' ')).includes(normalizedName(search))
+}
+export function candidateList(candidates:any[],specialty='',sort='salary',search=''){
+ const values=candidates.filter(candidate=>matchesPersonnel(candidate,specialty,search))
  return [...values].sort((a,b)=>sort==='level'?b.level-a.level||a.salaryCents-b.salaryCents:sort==='bonus'?a.signingBonusCents-b.signingBonusCents:sort==='leadership'?(b.attributes?.leadership??0)-(a.attributes?.leadership??0):a.salaryCents-b.salaryCents)
 }
 export function kitCatalogGroups(catalog:any[],category=''){
