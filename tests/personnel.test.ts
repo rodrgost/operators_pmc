@@ -139,11 +139,9 @@ it('pessoal: oferta expirada, dinheiro e capacidade são validados antes de cont
   s.db.prepare('UPDATE online_games SET cash_cents=0 WHERE id=?').run(s.g.id);
   expect((await hire(s)).data.code).toBe('INSUFFICIENT_CASH');
   s.db.prepare('UPDATE online_games SET cash_cents=100000000 WHERE id=?').run(s.g.id);
-  for(let week=0;week<2;week++){
-   for(let i=0;i<6;i++)expect((await hire(s,0,12,'hire-'+week+'-'+i)).status).toBe(201);
-   await advance(s,28,'next-'+week);
-  }
-  expect((await view(s)).employed).toBe(12);expect((await hire(s,0,4,'overflow')).data.code).toBe('CAPACITY');
+  for(let i=0;i<4;i++)expect((await hire(s,0,12,'hire-'+i)).status).toBe(201);
+  expect(await view(s)).toMatchObject({employed:4,capacity:4,facilityRules:null});
+  expect((await hire(s,0,4,'overflow')).data.code).toBe('CAPACITY');
  }finally{s.db.close()}
 });
 it('pessoal: mudanças de equipe preservam histórico e impedem vínculos duplicados',async()=>{

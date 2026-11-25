@@ -41,7 +41,7 @@ A API original da fundação permanece em `apps/api/src/app.ts` e pode ser inici
 
 ## Começar uma companhia
 
-Crie uma partida e abra **Operadores → Recrutamento**. Escolha vínculo de 4, 8 ou 12 semanas, revise o bônus de assinatura e o salário, e confirme. A oferta semanal inicial tem seis candidatos; capacidade inicial de 12 vínculos ativos. Valores de balanceamento são configuráveis em `packages/rules/personnel.json`.
+Crie uma partida e abra **Operadores → Recrutamento**. Escolha vínculo de 4, 8 ou 12 semanas, revise o bônus de assinatura e o salário, e confirme. A oferta semanal inicial tem seis candidatos. A Administração comporta quatro vínculos ativos no nível 1 e ganha quatro vagas por nível, conforme `packages/rules/logistics.json`. Os demais parâmetros de recrutamento estão em `packages/rules/personnel.json`.
 
 Salários vencem a cada 28 turnos do vínculo, inclusive a última semana contratada. Falta de caixa gera dívida salarial e perda de moral/lealdade; a dívida é quitada quando houver caixa suficiente. O ledger registra apenas saídas efetivas. Não há game over financeiro automático.
 

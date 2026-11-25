@@ -35,11 +35,11 @@
       "id": "training",
       "name": "Centro de treinamento",
       "capacities": [
-        1,
         2,
-        3,
         4,
-        6
+        6,
+        8,
+        10
       ],
       "upgradeBaseCents": 250000,
       "upgradeTurns": 8,
@@ -49,11 +49,11 @@
       "id": "infirmary",
       "name": "Enfermaria",
       "capacities": [
-        1,
         2,
-        3,
         4,
-        6
+        6,
+        8,
+        10
       ],
       "upgradeBaseCents": 300000,
       "upgradeTurns": 8,
@@ -63,11 +63,11 @@
       "id": "depot",
       "name": "Depósito",
       "capacities": [
-        20,
-        40,
-        70,
-        110,
-        160
+        6,
+        12,
+        18,
+        24,
+        30
       ],
       "preparations": [
         1,
@@ -98,11 +98,11 @@
       "id": "administration",
       "name": "Administração",
       "capacities": [
+        4,
+        8,
         12,
-        20,
-        30,
-        45,
-        65
+        16,
+        20
       ],
       "upgradeBaseCents": 350000,
       "upgradeTurns": 8,

@@ -10,7 +10,7 @@ it('avanço: resumo recupera intervalo e exclui compras posteriores no mesmo tur
 async function campaign(chunk:number){const s=await fixture();let sequence=0;const decisions=new Set<string>();
  try{await s.call(s.path+'/logistics');await s.call(s.path+'/intelligence');for(let n=0;n<3;n++){const p=(await s.call(s.path+'/personnel')).data;expect((await s.action('/recruitment/hire','hire-'+n,{candidateId:p.candidates[0].id,weeks:4})).status).toBe(201)}
  let p=(await s.call(s.path+'/personnel')).data;const ids=p.operators.map((o:any)=>o.id);const squad=(await s.action('/squads','squad',{name:'Alfa',memberIds:ids.slice(0,2),leaderId:ids[0],deputyId:ids[1]})).data.squadId;
- for(const category of ['combat','recon','medical','technical','communication','logistics'])expect((await s.action('/equipment/purchases','buy-'+category,{catalogId:category+'-1',quantity:1})).status).toBe(201);
+ for(const category of ['combat','recon','communication'])expect((await s.action('/equipment/purchases','buy-'+category,{catalogId:category+'-1',quantity:1})).status).toBe(201);
  for(const type of ['operations','training','infirmary','depot','administration'])expect((await s.action('/headquarters/modules/'+type+'/upgrade','upgrade-'+type)).status).toBe(200);
  async function invariant(){const g=await s.state(),ledger=(await s.call(s.path+'/finances/ledger')).data;expect(ledger.reduce((n:number,e:any)=>n+e.amountCents,0)).toBe(g.cashCents);expect(s.db.prepare('PRAGMA foreign_key_check').all()).toHaveLength(0);expect((s.db.prepare('SELECT count(*) n FROM online_equipment WHERE condition<0 OR condition>100 OR supplies<0 OR supplies>100').get() as any).n).toBe(0);expect((s.db.prepare('SELECT count(*) n FROM (SELECT region_id,sum(score) total FROM online_world_influences GROUP BY region_id HAVING total!=100)').get() as any).n).toBe(0);}
  async function drive(target:number){
@@ -26,7 +26,9 @@ async function campaign(chunk:number){const s=await fixture();let sequence=0;con
    await invariant();
   }
  }
- await drive(4);
+ await drive(6);
+ for(const category of ['medical','technical','logistics'])expect((await s.action('/equipment/purchases','buy-'+category,{catalogId:category+'-1',quantity:1})).status).toBe(201);
+ await drive(10);
  for(let week=0;week<12;week++){
   const turn=(await s.state()).currentTurn;p=(await s.call(s.path+'/personnel')).data;
   for(const op of p.operators){if(op.employment&&op.employment.end_turn-turn<=28)expect((await s.action('/operators/'+op.id+'/renew-contract','renew-'+week+'-'+op.id,{weeks:4})).status).toBe(200);}

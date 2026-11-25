@@ -1,7 +1,6 @@
 {
   "version": "personnel-0.1",
   "candidatesPerWeek": 6,
-  "operatorCapacity": 12,
   "squadMin": 2,
   "squadMax": 6,
   "contractWeeks": [

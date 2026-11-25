@@ -5,7 +5,40 @@ const dateAt=(turn:number|null|undefined,includeYear=false)=>formatCampaignTurn(
 const data=ref<any>(null),busy=ref(false),error=ref(''),notice=ref(''),review=ref<any>(null),mode=ref(['headquarters','catalog','inventory'].includes(props.initialSection||'')?props.initialSection!:'headquarters'),category=ref(''),quantity=ref(1)
 const commands=useState<Record<string,any>>('logistics-commands',()=>({})),pending=computed({get:()=>commands.value[props.game.id]??null,set:(v:any)=>commands.value={...commands.value,[props.game.id]:v}}),locked=computed(()=>busy.value||!!pending.value)
 const base=()=>'/api/v1/games/'+props.game.id,money=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'USD'}).format(n/100)
-const states:any={in_delivery:'Em entrega',available:'No depósito',reserved:'Reservado',in_use:'Em missão',maintenance:'Em preparação',destroyed:'Destruído'},capacities:any={training:'vagas de treinamento',infirmary:'vagas de tratamento',depot:'unidades de armazenagem',operations:'operações simultâneas',administration:'operadores com vínculo'}
+const states:any={in_delivery:'Em entrega',available:'No depósito',reserved:'Reservado',in_use:'Em missão',maintenance:'Em preparação',destroyed:'Destruído'}
+const facilities={
+ administration:{icon:'company',capacityLabel:'Operadores com vínculo'},
+ operations:{icon:'command',capacityLabel:'Operações simultâneas'},
+ depot:{icon:'kit-logistics',capacityLabel:'Armazenagem'},
+ training:{icon:'kit-combat',capacityLabel:'Vagas de treinamento'},
+ infirmary:{icon:'kit-medical',capacityLabel:'Vagas de tratamento'},
+}
+const depotActions=[
+ {section:'inventory',label:'Estoque e serviços'},
+ {section:'catalog',label:'Comprar kits'},
+]
+const depotActionColumns=depotActions.map(({label})=>`minmax(0, ${label.length}fr)`).join(' ')
+type FacilityType=keyof typeof facilities
+interface Facility {
+ type:FacilityType
+ name:string
+ level:number
+ capacity:number
+ weeklyCostCents:number
+ targetLevel:number|null
+ dueTurn:number|null
+ nextCapacity:number|null
+ nextWeeklyCostCents:number|null
+ upgradeCostCents:number|null
+ upgradeTurns:number|null
+}
+const facilityTypes=Object.keys(facilities) as FacilityType[]
+const selectedFacility=ref<FacilityType|null>(null)
+const facilityMap=computed(()=>facilityTypes.flatMap(type=>{
+ const facility=(data.value?.modules as Facility[]|undefined)?.find(module=>module.type===type)
+ return facility?[facility]:[]
+}))
+const facilityDetail=computed(()=>facilityMap.value.find(module=>module.type===selectedFacility.value))
 const qualityChoice=ref<Record<string,string>>({})
 const stockCategory=ref('')
 const catalogGroups=computed(()=>kitCatalogGroups(data.value?.catalog??[],category.value))
@@ -19,9 +52,20 @@ watch(()=>props.kitNavigation,(target,previous)=>{
 function activeKit(group:any){return group.variants.find((c:any)=>c.id===qualityChoice.value[group.category])??group.variants[0]}
 function selectQuality(category:string,id:string){qualityChoice.value={...qualityChoice.value,[category]:id};review.value=null}
 function purchaseIssue(c:any){return kitPurchaseIssue(c,quantity.value,data.value,props.game.cashCents)}
-function upgradeProgress(m:any){return Math.max(0,Math.min(m.upgradeTurns,m.upgradeTurns-(m.dueTurn-data.value.currentTurn)))}
+function remainingUpgradeTurns(facility:Facility){
+ return facility.dueTurn===null?0:Math.max(0,facility.dueTurn-data.value.currentTurn)
+}
+function upgradeProgress(facility:Facility){
+ return Math.max(0,(facility.upgradeTurns??0)-remainingUpgradeTurns(facility))
+}
+function closeFacility(){selectedFacility.value=null;review.value=null}
+function scheduleUpgrade(type:FacilityType){
+ review.value={path:'/headquarters/modules/'+type+'/upgrade',body:{}}
+ return run()
+}
 async function refresh(){try{data.value=await $fetch(base()+'/logistics');return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar a sede.';return false}}
 const scheduled=(target:string)=>(data.value?.pendingOrders??[]).filter((o:any)=>o.target===target&&o.kind!=='purchase')
+const facilityOrders=(type:FacilityType)=>scheduled(type).filter((order:any)=>order.kind==='upgrade')
 const purchases=(catalogId:string)=>(data.value?.pendingOrders??[]).filter((o:any)=>o.kind==='purchase'&&o.command.catalogId===catalogId)
 const preparationUsage=computed(()=>{
   const inProgress=(data.value?.inventory??[]).filter((kit:any)=>kit.status==='maintenance')
@@ -44,21 +88,112 @@ function cancelQueued(id:string){review.value={path:'/orders/'+id+'/cancel',body
 function prepare(path:string,body:any,label:string,cost:number,consequence:string){review.value={path,body,label,cost,consequence};error.value=''}
 async function run(){if(busy.value||(!review.value&&!pending.value))return;const command=pending.value||{path:review.value.path,body:{...review.value.body,requestId:crypto.randomUUID(),expectedVersion:data.value.stateVersion}};pending.value=command;busy.value=true;emit('processing',true);error.value='';notice.value='';let done=false;try{const response=await $fetch<any>(base()+command.path,{method:'POST',body:command.body});if(!await refresh())return;pending.value=null;review.value=null;notice.value=response.cancelledOrderId?'Ordem removida. A ação não será confirmada.':'';done=true}catch(e:any){if(e.status>=400&&e.status<500){pending.value=null;review.value=null;await refresh()}error.value=e.data?.message||'Falha de conexão. Repita para recuperar o mesmo comando.'}finally{busy.value=false;emit('processing',!!pending.value)}if(done)emit('changed')}
 watch(()=>[props.game.id,props.game.stateVersion],async()=>{review.value=null;await refresh()})
+watch(()=>props.game.id,closeFacility)
 onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
 
+watch(mode,closeFacility)
 </script>
 <template><div class="logistics-panel" :aria-busy="busy" @click.capture="captureAction($event)"><ActionFeedback :target="feedbackTarget" :section="mode" :turn="game.currentTurn" v-model:error="error" v-model:notice="notice" />
  <section v-if="pending&&!busy" class="panel"><p>Comando aguardando confirmação. Repetir não duplica compras ou débitos.</p><button class="primary action-block" @click="run">Repetir comando</button></section>
  <template v-if="data">
- <div v-if="mode==='headquarters'" class="stats finance-stats logistics-summary"><section class="stat"><span>MANUTENÇÃO SEMANAL</span><strong>{{money(data.headquarters.weeklyMaintenanceCents)}}</strong><small>Fechamento semanal, após salários</small></section><section class="stat"><span>ARMAZENAGEM</span><strong>{{data.load}} / {{data.loadCapacity}}</strong><small>Inclui kits em entrega, serviço e missão</small></section></div>
  <SectionNav :game-id="game.id" scope="infrastructure" v-model="mode" label="Seções de sede e logística" :disabled="locked" :items="[['headquarters','Instalações'],['catalog','Comprar kits'],['inventory','Estoque e serviços']]" />
  <div v-if="data.headquarters.arrearsCents" class="error">Manutenção em atraso: {{money(data.headquarters.arrearsCents)}}. Compras, serviços, melhorias, novas missões e treinos suspensos. A quitação ocorre ao avançar com caixa suficiente após os salários.</div>
 
- <template v-if="mode==='headquarters'"><div class="section-intro"><h2>{{data.headquarters.name}}</h2><p>Melhorias sequenciais mantêm a capacidade atual até a conclusão. Sede ativada em {{dateAt(data.headquarters.activatedTurn,true)}}.</p></div><div class="personnel-grid"><article v-for="m in data.modules" :key="m.type" data-action-card :id="'logistics-m-'+m.type" class="panel"><span class="eyebrow">NÍVEL {{m.level}} / 5</span><h3>{{m.name}}</h3><p>{{m.capacity}} {{m.capacity===1?({training:'vaga de treinamento',infirmary:'vaga de tratamento',depot:'unidade de armazenagem',operations:'operação simultânea',administration:'operador com vínculo'} as Record<string,string>)[m.type]:capacities[m.type]}}<br>{{money(m.weeklyCostCents)}} / semana</p>
- <p v-if="m.type==='depot'"><strong>{{preparationUsage.occupied}} / {{data.preparationCapacity}}</strong> vagas de serviço ocupadas<br>Reparos e reposições compartilham essas vagas. Serviços agendados entram na contagem.</p>
- <section v-if="m.targetLevel" class="facility-progress"><label>Melhoria em andamento <strong>{{formatCampaignDuration(Math.max(0,m.dueTurn-data.currentTurn))}} restantes</strong><progress :value="upgradeProgress(m)" :max="m.upgradeTurns" :aria-label="'Melhoria de '+m.name" /></label></section><p v-if="m.level<5" class="facility-benefit">{{m.type==='depot'?'Armazenagem':'Capacidade'}}: <strong>{{m.capacity}} → {{m.nextCapacity}}</strong><br>
- <template v-if="m.type==='depot'">Vagas de serviço: <strong>{{data.preparationCapacity}} → {{data.nextPreparationCapacity}}</strong><br></template>
- Manutenção no próximo nível: {{money(m.nextWeeklyCostCents)}} / semana</p><p v-if="m.targetLevel">Melhoria para nível {{m.targetLevel}} em andamento · conclusão prevista para {{dateAt(m.dueTurn)}}. Capacidade atual preservada.</p><p v-else-if="m.level<5">Próximo nível: {{money(m.upgradeCostCents)}} · {{formatCampaignDuration(m.upgradeTurns)}}</p><button v-if="m.level<5&&!m.targetLevel&&!scheduled(m.type).length" class="secondary action-block" :disabled="locked||!!data.headquarters.arrearsCents||game.cashCents<m.upgradeCostCents" @click="prepare('/headquarters/modules/'+m.type+'/upgrade',{},'Melhorar '+m.name,m.upgradeCostCents,'Conclusão prevista para '+dateAt(data.currentTurn+m.upgradeTurns)+'. Capacidade '+m.nextCapacity+(m.type==='depot'?', com '+data.nextPreparationCapacity+' vagas de serviço':'')+'. Manutenção do módulo passa a '+money(m.nextWeeklyCostCents)+'/semana.')">Revisar melhoria</button><span v-else-if="m.level===5" class="tag">Nível máximo</span> <PendingOrderNotice :orders="scheduled(m.type)" :disabled="locked" @remove="cancelQueued" /><FocusDialog v-if="review?.path==='/headquarters/modules/'+m.type+'/upgrade'" title="Revisar melhoria" :busy="busy" :error="error" @close="review=null"><section class="inline-action decision-card"><span class="eyebrow">REVISÃO DO COMANDO</span><h2>{{review.label}}</h2><p>Cobrança ao confirmar o avanço {{money(review.cost)}}<br>{{review.consequence}}</p><div class="personnel-actions"><button class="primary" :disabled="locked||game.cashCents<review.cost" @click="run">Agendar · {{money(review.cost)}}</button><button class="secondary" :disabled="locked" @click="review=null">Voltar</button></div></section></FocusDialog></article></div></template>
+ <template v-if="mode==='headquarters'">
+  <dl class="headquarters-maintenance">
+   <dt>Manutenção semanal</dt><dd>{{money(data.headquarters.weeklyMaintenanceCents)}}</dd>
+  </dl>
+  <div class="facility-map" role="group" aria-label="Planta da sede">
+   <button
+    v-for="facility in facilityMap" :id="'logistics-m-'+facility.type" :key="facility.type"
+    type="button" class="facility-room" :class="{'facility-room-operations':facility.type==='operations'}"
+    :style="{gridArea:facility.type}" data-action-card
+    aria-haspopup="dialog" @click="selectedFacility=facility.type"
+   >
+    <span class="facility-room-top">
+     <GameIcon :name="facilities[facility.type].icon" />
+     <span>Nível {{facility.level}} / 5</span>
+     <span class="facility-room-arrow" aria-hidden="true">↗</span>
+    </span>
+    <strong class="facility-room-name">{{facility.name}}</strong>
+    <span class="facility-room-metric">
+     <span>{{facilities[facility.type].capacityLabel}}</span>
+     <strong>{{facility.type==='depot'?`${data.load} / ${data.loadCapacity}`:facility.capacity}}</strong>
+    </span>
+    <span v-if="facility.type==='depot'" class="facility-room-metric">
+     <span>Vagas de serviço ocupadas</span><strong>{{preparationUsage.occupied}} / {{data.preparationCapacity}}</strong>
+    </span>
+    <span v-if="facility.targetLevel" class="facility-room-status">
+     <GameIcon name="clock" /> Em melhoria · falta {{formatCampaignDuration(remainingUpgradeTurns(facility))}}
+    </span>
+    <span v-else-if="facilityOrders(facility.type).length" class="facility-room-status">
+     <GameIcon name="clock" /> Melhoria agendada
+    </span>
+   </button>
+  </div>
+
+  <FocusDialog v-if="facilityDetail" :title="facilityDetail.name" :busy="busy" :error="error" @close="closeFacility">
+   <div class="facility-details">
+    <p v-if="notice" role="status">{{notice}}</p>
+    <dl class="facility-facts">
+     <div><dt>Nível atual</dt><dd>{{facilityDetail.level}} / 5</dd></div>
+     <div>
+      <dt>{{facilityDetail.type==='depot'?'Armazenagem comprometida':facilities[facilityDetail.type].capacityLabel}}</dt>
+      <dd>{{facilityDetail.type==='depot'?`${data.load} / ${data.loadCapacity}`:facilityDetail.capacity}}</dd>
+     </div>
+     <div v-if="facilityDetail.type==='depot'">
+      <dt>Vagas de serviço ocupadas</dt><dd>{{preparationUsage.occupied}} / {{data.preparationCapacity}}</dd>
+     </div>
+     <div><dt>Manutenção semanal</dt><dd>{{money(facilityDetail.weeklyCostCents)}}</dd></div>
+    </dl>
+    <template v-if="facilityDetail.type==='depot'">
+     <p>A carga inclui kits em entrega, em serviço e em missão. As vagas de serviço incluem reparos e reposições agendados ou em andamento.</p>
+     <p v-if="preparationFull&&preparationUsage.nextCompletion!==null">Próxima liberação prevista para {{dateAt(preparationUsage.nextCompletion)}}.</p>
+     <div class="facility-actions" :style="{gridTemplateColumns:depotActionColumns}">
+      <button
+       v-for="action in depotActions" :key="action.section"
+       type="button" class="secondary" :disabled="locked" @click="mode=action.section"
+      >{{action.label}}</button>
+     </div>
+    </template>
+
+    <section v-if="facilityDetail.targetLevel||facilityDetail.upgradeCostCents!==null" class="facility-upgrade">
+     <h3>{{facilityDetail.targetLevel?'Melhoria em andamento':'Melhoria para o nível '+(facilityDetail.level+1)}}</h3>
+     <section v-if="facilityDetail.targetLevel" class="facility-progress">
+      <p>Conclusão do nível {{facilityDetail.targetLevel}} prevista para {{dateAt(facilityDetail.dueTurn)}}.</p>
+      <label>
+       Tempo restante <strong>{{formatCampaignDuration(remainingUpgradeTurns(facilityDetail))}}</strong>
+       <progress :value="upgradeProgress(facilityDetail)" :max="facilityDetail.upgradeTurns??1" />
+      </label>
+     </section>
+     <dl class="facility-facts">
+      <div v-if="!facilityDetail.targetLevel&&facilityDetail.upgradeCostCents!==null">
+       <dt>Custo ao confirmar o avanço</dt><dd>{{money(facilityDetail.upgradeCostCents)}}</dd>
+      </div>
+      <div v-if="!facilityDetail.targetLevel&&facilityDetail.upgradeTurns!==null">
+       <dt>Prazo</dt><dd>{{formatCampaignDuration(facilityDetail.upgradeTurns)}}</dd>
+      </div>
+      <div><dt>{{facilities[facilityDetail.type].capacityLabel}}</dt><dd>{{facilityDetail.capacity}} → {{facilityDetail.nextCapacity}}</dd></div>
+      <div v-if="facilityDetail.type==='depot'">
+       <dt>Vagas de serviço</dt><dd>{{data.preparationCapacity}} → {{data.nextPreparationCapacity}}</dd>
+      </div>
+      <div v-if="facilityDetail.nextWeeklyCostCents!==null">
+       <dt>Manutenção semanal após a melhoria</dt><dd>{{money(facilityDetail.nextWeeklyCostCents)}}</dd>
+      </div>
+     </dl>
+     <button
+      v-if="!facilityDetail.targetLevel&&!facilityOrders(facilityDetail.type).length&&facilityDetail.upgradeCostCents!==null"
+      type="button" class="primary"
+      :disabled="locked||!!data.headquarters.arrearsCents||game.cashCents<facilityDetail.upgradeCostCents"
+      @click="scheduleUpgrade(facilityDetail.type)"
+     >Agendar melhoria</button>
+     <PendingOrderNotice :orders="facilityOrders(facilityDetail.type)" :disabled="locked" @remove="cancelQueued" />
+    </section>
+    <p v-else>Nível máximo atingido.</p>
+    <button v-if="pending&&!busy" type="button" class="primary" @click="run">Repetir comando</button>
+   </div>
+  </FocusDialog>
+ </template>
  <template v-else-if="mode==='catalog'">
   <div class="kit-toolbar">
    <label class="personnel-label">Categoria<GameLabelSelect v-model="category" kind="kit" all="Todas" /></label>
@@ -86,6 +221,111 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
  </template><p v-else>Carregando infraestrutura…</p></div></template>
 
 <style scoped>
+.headquarters-maintenance{
+ display:flex;
+ align-items:baseline;
+ flex-wrap:wrap;
+ gap:var(--space-1) var(--space-3);
+ width:fit-content;
+ margin:0 0 var(--space-4);
+ padding:var(--space-2) var(--space-3);
+ border:1px solid var(--command-line);
+ border-radius:8px;
+ background:var(--command-surface);
+ font-size:var(--text-caption);
+ color:#adbdc4;
+}
+.headquarters-maintenance dd{margin:0;color:#edf2f3;font-weight:650;font-variant-numeric:tabular-nums}
+.facility-map {
+ display:grid;
+ grid-template-columns:repeat(3,minmax(0,1fr));
+ grid-template-areas:
+  "administration operations depot"
+  "training operations infirmary";
+ gap:var(--space-4);
+ padding:var(--space-4);
+ border:1px solid var(--command-line);
+ border-radius:16px;
+ background-color:#0d181d;
+ background-image:
+  linear-gradient(90deg,#263c45 0 1px,transparent 1px),
+  linear-gradient(#263c45 0 1px,transparent 1px);
+ background-size:24px 24px;
+}
+.facility-room {
+ display:flex;
+ flex-direction:column;
+ align-items:stretch;
+ gap:var(--space-2);
+ min-width:0;
+ padding:var(--space-3);
+ border:1px solid #47616b;
+ border-radius:8px;
+ background:#15262d;
+ color:#e6edf0;
+ text-align:left;
+ line-height:1.35;
+}
+.facility-room-operations{
+ justify-content:center;
+ border-color:#6e856b;
+ background:#1a2b25;
+}
+.facility-room:hover{border-color:var(--command-accent);background:#263b36}
+.facility-room-top {
+ display:flex;
+ align-items:center;
+ gap:var(--space-2);
+ color:#c4d2d8;
+ font-size:var(--text-caption);
+}
+.facility-room-top .game-icon{color:var(--command-accent)}
+.facility-room-arrow{margin-inline-start:auto;color:var(--command-accent);font-size:1rem}
+.facility-room-name{font-size:var(--text-subtitle);overflow-wrap:anywhere}
+.facility-room-metric{
+ display:flex;
+ justify-content:space-between;
+ gap:var(--space-2);
+ color:#bccbd2;
+ font-size:var(--text-caption);
+ font-weight:400;
+}
+.facility-room-metric strong{color:#edf2f3;white-space:nowrap;font-variant-numeric:tabular-nums}
+.facility-room-status{
+ display:flex;
+ align-items:center;
+ gap:var(--space-1);
+ color:var(--command-warning);
+ font-size:var(--text-caption);
+}
+.facility-room-status .game-icon{width:15px;height:15px}
+.facility-details,.facility-upgrade{display:grid;gap:var(--space-3)}
+.facility-details p,.facility-upgrade h3{margin:0}
+.facility-upgrade{border-top:1px solid var(--command-line);padding-top:var(--space-3)}
+.facility-facts {
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));
+ gap:var(--space-2);
+ margin:0;
+}
+.facility-facts div{padding:var(--space-2) var(--space-3);background:var(--command-raised);border-radius:8px}
+.facility-facts dt{font-size:var(--text-caption);color:#bccbd2}
+.facility-facts dd{margin:var(--space-1) 0 0;font-weight:650;font-variant-numeric:tabular-nums}
+.facility-actions{display:grid;gap:var(--space-2)}
+.facility-actions>button{min-width:0;overflow-wrap:anywhere}
+.facility-details>button,.facility-upgrade>button{width:100%}
+.facility-upgrade :deep(.scheduled-order){display:grid;grid-template-columns:minmax(0,1fr)}
+@media(max-width:840px){
+ .facility-map{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-areas:"administration operations" "depot depot" "training infirmary";
+  gap:var(--space-2);
+  padding:var(--space-2);
+ }
+}
+@media(max-width:400px){
+ .facility-room-metric{flex-wrap:wrap}
+}
 .kit-toolbar{display:flex;gap:var(--space-2);align-items:end}
 .kit-toolbar .personnel-label{min-width:0;flex:1;margin-bottom:var(--space-2)}
 .kit-toolbar .kit-quantity{flex:0 0 96px}

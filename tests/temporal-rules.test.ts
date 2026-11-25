@@ -71,18 +71,23 @@ it('ferimento grave exige oito períodos, permite interromper depois do mínimo 
 });
 it('desfazer tratamento grave antes do primeiro período libera a vaga e estorna uma única vez',async()=>{
  const s=await fixture();try{
+  const {candidates}=await s.people();
+  expect((await s.action('/recruitment/hire','third-hire',{candidateId:candidates[0].id,weeks:4})).status).toBe(201);
+  expect((await s.pass('confirm-third-hire')).data.status).toBe('completed');
+  const third=(await s.people()).operators.find((operator:any)=>!s.ids.includes(operator.id));
   s.db.prepare('UPDATE online_operators SET health=10').run();
+  expect((await s.action('/operators/'+third.id+'/activities','other-treatment',{type:'recovery'})).status).toBe(200);
   const before=await s.state(),url='/operators/'+s.ids[0]+'/activities';
   const started=await s.action(url,'treatment',{type:'recovery'});
-  expect(started.data).toMatchObject({currentTurn:4,cashCents:before.cashCents-3000});
-  expect((await s.people()).operators[0]).toMatchObject({health:10,availability:'recovery',minimumTreatmentEndTurn:12});
+  expect(started.data).toMatchObject({currentTurn:before.currentTurn,cashCents:before.cashCents-3000});
+  expect((await s.people()).operators[0]).toMatchObject({health:10,availability:'recovery',minimumTreatmentEndTurn:before.currentTurn+8});
   expect((await s.action('/operators/'+s.ids[1]+'/activities','wait',{type:'recovery'})).data.code).toBe('FACILITY_CAPACITY');
   const body={requestId:'undo-treatment',expectedVersion:started.data.stateVersion};
   const undone=await s.call(s.path+url+'/cancel',body);
-  expect(undone.data).toMatchObject({activityUndone:true,refundedCents:3000,cashCents:before.cashCents,currentTurn:4});
+  expect(undone.data).toMatchObject({activityUndone:true,refundedCents:3000,cashCents:before.cashCents,currentTurn:before.currentTurn});
   expect((await s.call(s.path+url+'/cancel',body)).data).toEqual(undone.data);
   expect((await s.people()).operators[0]).toMatchObject({health:10,reservation:null,minimumTreatmentEndTurn:null});
-  expect((await s.call(s.path+'/finances/ledger')).data).toContainEqual(expect.objectContaining({entryType:'operator_activity_refund',amountCents:3000,turn:4}));
+  expect((await s.call(s.path+'/finances/ledger')).data).toContainEqual(expect.objectContaining({entryType:'operator_activity_refund',amountCents:3000,turn:before.currentTurn}));
   expect((await s.action('/operators/'+s.ids[1]+'/activities','next',{type:'recovery'})).status).toBe(200);
  }finally{s.db.close()}
 });
