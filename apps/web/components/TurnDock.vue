@@ -33,10 +33,6 @@ const milestones=computed<AgendaItem[]>(()=>review.value.milestones)
 const expiring=computed(()=>milestones.value.filter(item=>item.requiresAction))
 const otherMilestones=computed(()=>milestones.value.filter(item=>!item.requiresAction))
 const forecast=computed(()=>review.value.forecast)
-const dismissedAnalysisNotice=ref('')
-const latestAdvance=computed(()=>props.command?.latestAdvance)
-const analysisNoticeKey=computed(()=>[props.game.id,latestAdvance.value?.requestId,latestAdvance.value?.currentTurn].join(':'))
-const deliveredAnalyses=computed(()=>latestAdvance.value?.events?.find((event:any)=>event.type==='intelligence_analysis_completed')?.count??0)
 const today=computed(()=>new Date(props.game.date))
 const timeAt=(turn:number)=>campaignTimeAt(props.game.date,props.game.currentTurn,turn)
 const dateAt=(turn:number)=>formatCampaignTurn(props.game,turn)
@@ -108,10 +104,6 @@ watch(()=>[props.game.id,props.game.currentTurn,props.command,props.pending],()=
    <button type="button" class="secondary action-block" :disabled="busy||locked" @click="emit('open-decision')">Ver decisão</button>
   </div>
   <p v-if="error||command?.planningError" class="dock-error" role="alert">{{error||command.planningError}}</p>
-  <div v-if="deliveredAnalyses&&dismissedAnalysisNotice!==analysisNoticeKey" class="analysis-delivery">
-   <p role="status">{{deliveredAnalyses===1?'Análise concluída':deliveredAnalyses+' análises concluídas'}} · Consulte o dossiê.</p>
-   <button type="button" class="secondary" aria-label="Dispensar aviso de análise" @click="dismissedAnalysisNotice=analysisNoticeKey">✕</button>
-  </div>
   <div class="dock-row action-row">
    <button type="button" class="secondary dock-agenda" aria-haspopup="dialog" :aria-expanded="agendaOpen" @click="agendaOpen=true">
     Agenda <span v-if="deadlines.length" class="agenda-count" :aria-label="deadlines.length+' pendências com prazo'">{{deadlines.length}}</span>
@@ -146,7 +138,7 @@ watch(()=>[props.game.id,props.game.currentTurn,props.command,props.pending],()=
      </select>
     </label>
     <p v-if="advanceReason&&!pending&&result?.status!=='failed'" class="agenda-help"><GameLabel v-bind="advanceReasonIcon" :label="advanceReason" /></p>
-    <label class="check"><input type="checkbox" :checked="stop" :disabled="busy||locked||pending" @change="emit('update:stop',($event.target as HTMLInputElement).checked)"> Interromper em evento importante</label>
+    <label class="check"><input type="checkbox" :checked="stop" :disabled="busy||locked||pending" @change="emit('update:stop',($event.target as HTMLInputElement).checked)"> Interromper em ocorrência importante de missão</label>
     <button type="button" class="secondary agenda-review action-block" :disabled="blocked||pending||result?.status==='failed'" @click="reviewFromAgenda">Revisar avanço</button>
    </details>
    <section class="order-group">
@@ -292,7 +284,4 @@ watch(()=>[props.game.id,props.game.currentTurn,props.command,props.pending],()=
  .dock-row .primary{font-size:var(--text-body)}
  .dock-agenda{padding-inline:12px}
 }
-.analysis-delivery { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.35rem; color:var(--command-info); font-size:var(--text-caption); }
-.analysis-delivery p { margin:0; }
-.analysis-delivery .secondary { padding:.25rem .6rem; min-height:36px; }
 </style>

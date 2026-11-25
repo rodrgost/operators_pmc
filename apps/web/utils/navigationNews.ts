@@ -1,7 +1,7 @@
 export type NewsState={latest:Record<string,number>;seen:Record<string,number>;attention:string[]}
 export function newsStatus(state:NewsState|undefined,key:string){
  if(!state)return '';
- const matches=(section:string)=>section===key||section.startsWith(key+'.');
+ const matches=(section:string)=>section===key||section.startsWith(key+'.')||section.startsWith(key+':');
  if(state.attention.some(matches))return 'attention';
  return Object.keys(state.latest).some(section=>matches(section)&&state.latest[section]>(state.seen[section]??0))?'new':'';
 }

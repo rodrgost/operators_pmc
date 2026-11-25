@@ -2,25 +2,20 @@ import {it,expect} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import ts from 'typescript';
-it('UI inteligência: destaca o relatório durante o primeiro turno em que o dossiê é visto',async()=>{
+it('UI inteligência: mantém a análise consultável quando outra fonte fornece a estimativa principal',async()=>{
  const source=readFileSync('apps/web/components/IntelligencePanel.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0].replace(/^import .*$/gm,'');
- const props={game:{id:'g',currentTurn:7},targetType:'region',targetId:'karsen',active:false};
+ const props={game:{id:'g',currentTurn:7},targetType:'region',targetId:'karsen'};
  const report={id:'report-a',source:'analysis',collectedTurn:5};
- const data={topics:{security:{topic:'security',sources:[report]}},analyses:[],history:[]};
- const storage=new Map<string,string>();
- function mount(){
-  const ctx:any={useActionFeedback:()=>({}),defineProps:()=>props,defineEmits:()=>()=>{},ref:(value:any)=>({value}),computed:(read:any)=>({get value(){return read()}}),useState:(_key:string,init:any)=>({value:init()}),watch:()=>{},onMounted:()=>{},$fetch:async()=>data,localStorage:{getItem:(key:string)=>storage.get(key),setItem:(key:string,value:string)=>storage.set(key,value)}};
-  runInNewContext(ts.transpileModule(source+';globalThis.h={refresh,markAnalysisResultsSeen,topics};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,ctx);
-  return ctx.h;
- }
- let h=mount();await h.refresh();h.markAnalysisResultsSeen();
- expect(storage.size).toBe(0);
- props.active=true;h.markAnalysisResultsSeen();
- expect(h.topics.value[0].newReport).toEqual(report);
- h=mount();await h.refresh();h.markAnalysisResultsSeen();
- expect(h.topics.value[0].newReport).toEqual(report);
- props.game.currentTurn++;h.markAnalysisResultsSeen();
- expect(h.topics.value[0].newReport).toBeNull();
+ const data={topics:{security:{topic:'security',recordId:'field-report',sources:[report]}},analyses:[],history:[]};
+ const ctx:any={useActionFeedback:()=>({}),defineProps:()=>props,defineEmits:()=>()=>{},ref:(value:any)=>({value}),computed:(read:any)=>({get value(){return read()}}),useState:(_key:string,init:any)=>({value:init()}),watch:()=>{},onMounted:()=>{},$fetch:async()=>data};
+ runInNewContext(ts.transpileModule(source+';globalThis.h={refresh,topics,newsScope};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,ctx);
+ const h=ctx.h;
+ await h.refresh();
+ expect(h.newsScope.value).toBe('world.regions.karsen');
+ props.game.currentTurn++;
+ expect(h.topics.value[0].analysisReport).toEqual(report);
+ data.topics.security.recordId=report.id;
+ expect(h.topics.value[0].analysisReport).toBeNull();
 });
 for(const failAt of ['write','refresh'])it('UI inteligência: pedido com resposta perdida em '+failAt+' retém requestId ao reabrir',async()=>{
  const source=readFileSync('apps/web/components/IntelligencePanel.vue','utf8').replace(/^import .*$/gm,'').split('<script setup lang="ts">')[1].split('</script>')[0],store:Record<string,any>={},posted:any[]=[],actions=new Map<string,any>();let fail=true,ids=0;

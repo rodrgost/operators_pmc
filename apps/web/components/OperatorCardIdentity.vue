@@ -10,7 +10,7 @@ defineProps<{
  <div class="operator-identity">
   <OperatorPortrait :name="person.name" :gender="person.gender" :portrait-variant="person.portraitVariant" :specialization="person.specialization" />
   <div>
-   <h3><span v-if="person.callsign" class="callsign-prefix">“{{person.callsign}}” </span>{{person.name}}</h3>
+   <h3><span v-if="person.callsign" class="callsign-prefix">“{{person.callsign}}” </span>{{person.name}}<slot /></h3>
    <p>{{specialty}} · Nível {{person.level}}<template v-if="showXp"> · XP {{person.xp??0}}</template></p>
   </div>
  </div>

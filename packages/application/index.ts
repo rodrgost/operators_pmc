@@ -1,7 +1,7 @@
 import {NORMAL_V1,preset,type DifficultyId} from '../engine/difficulty.ts';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import { DomainError, type Game, type AdvanceResult, type Summary } from '../domain/index.ts';
+import { DomainError, isImportantMissionEvent, type Game, type AdvanceResult, type Summary } from '../domain/index.ts';
 import type { AdvanceCommand } from '../contracts/index.ts';
 import { countries, organizations, rules, RULES_VERSION } from '../rules/index.ts';
 import { advanceTurn, gameDate } from '../engine/index.ts';
@@ -59,7 +59,7 @@ export class GameService {
  this.db.prepare('UPDATE games SET current_turn=?,state_version=state_version+1,cash_cents=?,reputation=?,status=? WHERE id=?').run(next.state.turn,next.state.cashCents,next.state.reputation,next.state.status,id);
  for(const event of next.summary.events)this.db.prepare('INSERT INTO game_events VALUES(?,?,?,?,?)').run(id,event.turn,event.sequence,event.type,JSON.stringify(event));
  this.db.prepare('INSERT INTO turn_summaries VALUES(?,?,?,?)').run(id,next.state.turn,JSON.stringify(next.summary),next.summary.stateHash);
- const processed=row.processed_turns+1; const interrupted=command.stopOnImportant&&next.summary.events.some(e=>e.important)&&processed<command.turns;
+ const processed=row.processed_turns+1; const interrupted=command.stopOnImportant&&next.summary.events.some(isImportantMissionEvent)&&processed<command.turns;
  const status=interrupted?'interrupted':processed===command.turns?'completed':'processing';
  const value={requestId:command.requestId,requestedTurns:command.turns,processedTurns:processed,currentTurn:next.state.turn,stateVersion:game.stateVersion+1,status,reason:interrupted?'important_event':null};
  this.db.prepare('UPDATE advance_requests SET processed_turns=?,last_committed_turn=?,status=?,interruption_reason=?,result_json=? WHERE game_id=? AND request_id=?').run(processed,next.state.turn,status,value.reason,JSON.stringify(value),id,command.requestId);

@@ -88,8 +88,8 @@ export async function personnelTurn(original:Personnel,turn:number,cash:number,s
    ledger.push({sourceId:'salary:'+c.id+':'+turn,entryType:'salary_payment',turn,amountCents:-amount});
    op.morale=clamp(op.morale+balance.paidMorale);op.loyalty=clamp(op.loyalty+balance.paidLoyalty);
    add('salary_paid','Salário pago',JSON.parse(op.profile_json).name+' · pagamento confirmado.');record('salary:'+c.id+':'+turn,'salary_paid','Salário pago',{operatorId:op.id,amountCents:amount});
-  }else if(due){op.morale=clamp(op.morale-balance.missedPayMorale);op.loyalty=clamp(op.loyalty-balance.missedPayLoyalty);add('salary_unpaid','Salário em atraso',JSON.parse(op.profile_json).name+' · caixa insuficiente.',true);record('unpaid:'+c.id+':'+turn,'salary_unpaid','Salário em atraso',{operatorId:op.id,arrearsCents:c.arrears_cents});}
-  if(c.status==='active'&&c.end_turn<=turn){c.status='expired';add('employment_expired','Vínculo encerrado',JSON.parse(op.profile_json).name+' aguarda renovação.',true);record('expired:'+c.id,'employment_expired','Vínculo encerrado',{operatorId:op.id});}
+  }else if(due){op.morale=clamp(op.morale-balance.missedPayMorale);op.loyalty=clamp(op.loyalty-balance.missedPayLoyalty);add('salary_unpaid','Salário em atraso',JSON.parse(op.profile_json).name+' · caixa insuficiente.');record('unpaid:'+c.id+':'+turn,'salary_unpaid','Salário em atraso',{operatorId:op.id,arrearsCents:c.arrears_cents});}
+  if(c.status==='active'&&c.end_turn<=turn){c.status='expired';add('employment_expired','Vínculo encerrado',JSON.parse(op.profile_json).name+' aguarda renovação.');record('expired:'+c.id,'employment_expired','Vínculo encerrado',{operatorId:op.id});}
  }
  for(const r of p.reservations.filter(r=>r.kind==='rest')){
   const op=p.operators.find(o=>o.id===r.operator_id);if(!op)continue;

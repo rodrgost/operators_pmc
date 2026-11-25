@@ -10,6 +10,6 @@ export function resolveTurn(state:State,startDate:string,bulletinDraw:number,has
  const add=(type:string,title:string,description:string,important=false)=>events.push({turn:next.turn,sequence:events.length,type,title,description,important});
  add('turn_completed','Turno concluído',`Janela de ${rules.hoursPerTurn} horas processada.`);
  if(next.turn%4===0){const country=countries[Math.floor(bulletinDraw*countries.length)];add('public_bulletin',`Boletim · ${country.name}`,'Atualização pública registrada. A simulação de crises e contratos será incorporada nas próximas fases.');}
- if(next.turn%rules.turnsPerWeek===0)add('weekly_close','Fechamento semanal',`Semana ${next.turn/rules.turnsPerWeek} encerrada. Nenhuma despesa operacional contratada nesta fase.`,true);
+ if(next.turn%rules.turnsPerWeek===0)add('weekly_close','Fechamento semanal',`Semana ${next.turn/rules.turnsPerWeek} encerrada. Nenhuma despesa operacional contratada nesta fase.`);
  return {state:next,summary:{turn:next.turn,date:gameDate(startDate,next.turn),events,stateHash:hash}};
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {isImportantMissionEvent} from '../../../packages/domain/index'
 import type {AgendaItem} from '../utils/agendaItem'
 import {campaignDateTime,campaignDuration} from '../../../packages/rules/campaign-time'
 const browserStorage=useRuntimeConfig().public.storageMode==='browser'
@@ -35,6 +36,11 @@ watch(tab,()=>{activeScope.value=tab.value;lastArea.value[area.value]=tab.value;
 const authState=ref('loading'),setupReady=ref(false)
 const canCreate=computed(()=>authState.value==='signedIn'&&setupReady.value&&registrationCountries.value.some(c=>c.id===registrationCountryId.value)&&difficultyOptions.value.some(d=>d.id===difficulty.value))
 const navigationNews=useNavigationNews()
+function newsForArea(key:string){
+ if(!game.value)return ''
+ const tabs=key==='missions'?['contracts','operations']:key==='company'?['operators','infrastructure','finance']:[key]
+ return tabs.some(value=>navigationNews.status(game.value.id,value)==='new')?'new':''
+}
 
 const deletingCompany=ref<any>(null),deleteName=ref('')
 const registrationCountryId=ref('valdoria'),registrationCountries=ref<any[]>([])
@@ -46,7 +52,6 @@ function formatGameDate(value:string){return campaignDateTime(new Date(value),tr
 const dateAt=(turn:number)=>formatCampaignTurn(game.value,turn)
 const ledgerNewest=computed(()=>[...ledger.value].sort((a:any,b:any)=>b.turn-a.turn))
 const command=ref<any>(null),loadingCampaign=ref(true),scrollContainer=ref<HTMLElement|null>(null),cancelRequest=ref<any>(null)
-watch([tab,financeSection,()=>command.value],()=>{if(game.value&&command.value){if(tab.value==='overview'||tab.value==='contracts')navigationNews.markRead(game.value.id,tab.value);if(tab.value==='finance')navigationNews.markRead(game.value.id,'finance.'+financeSection.value)}},{flush:'post'})
 const country=computed(()=>world.value.find(c=>c.id===selectedCountry.value)||world.value[0])
 const contractRegion=ref('')
 const contractCountryName=computed(()=>world.value.find(c=>c.id===contractRegion.value||c.regions?.some((region:any)=>region.id===contractRegion.value))?.name)
@@ -147,7 +152,7 @@ async function load(){
   authState.value='error';throw e;
  }finally{loadingCampaign.value=false}
 }
-async function select(id:string){const entering=!game.value;busy.value=true;error.value='';try{await api('/games/'+id+'/logistics');await api('/games/'+id+'/intelligence');const selected=await api('/games/'+id);const [nextEvents,nextWorld,nextLedger,nextPersonnel,nextOperations,nextCommand]=await Promise.all([api(`/games/${id}/timeline`),api(`/games/${id}/world/countries`),api(`/games/${id}/finances/ledger`),api(`/games/${id}/finances/summary`),api(`/games/${id}/operations`),api(`/games/${id}/command-center`)]);game.value=selected;events.value=nextEvents;world.value=nextWorld;ledger.value=nextLedger;personnelSummary.value=nextPersonnel;operationsSummary.value=nextOperations;command.value=nextCommand;navigationNews.sync(id,nextCommand.navigationNews??{},activeOperations.value.length>0);localStorage.setItem('operators-game',id);result.value=command.value?.latestAdvance??null;pendingAdvance.value=result.value?.status==='processing'?result.value.command:null;if(entering&&scrollContainer.value)scrollContainer.value.scrollTop=0;return true}catch(e:any){error.value=e.data?.message||'Não foi possível abrir a partida.';return false}finally{busy.value=false}}
+async function select(id:string){const entering=!game.value;busy.value=true;error.value='';try{await api('/games/'+id+'/logistics');await api('/games/'+id+'/intelligence');const selected=await api('/games/'+id);const [nextEvents,nextWorld,nextLedger,nextPersonnel,nextOperations,nextCommand]=await Promise.all([api(`/games/${id}/timeline`),api(`/games/${id}/world/countries`),api(`/games/${id}/finances/ledger`),api(`/games/${id}/finances/summary`),api(`/games/${id}/operations`),api(`/games/${id}/command-center`)]);game.value=selected;events.value=nextEvents;world.value=nextWorld;ledger.value=nextLedger;personnelSummary.value=nextPersonnel;operationsSummary.value=nextOperations;command.value=nextCommand;navigationNews.sync(id,nextCommand.navigationNews??{},nextCommand.latestAdvance?.startTurn??selected.currentTurn);localStorage.setItem('operators-game',id);result.value=command.value?.latestAdvance??null;pendingAdvance.value=result.value?.status==='processing'?result.value.command:null;if(entering&&scrollContainer.value)scrollContainer.value.scrollTop=0;return true}catch(e:any){error.value=e.data?.message||'Não foi possível abrir a partida.';return false}finally{busy.value=false}}
 function requestDelete(company:any){deletingCompany.value=company;deleteName.value='';error.value=''}
 async function removeCompany(){
  if(busy.value||!deletingCompany.value||deleteName.value!==deletingCompany.value.name)return;
@@ -222,9 +227,9 @@ onMounted(async()=>{const restoreRoute=useCampaignRoutes({game,tab,sections:sect
    <span><GameLabel kind="mission" :code="missionContext.type" :label="missionContext.title" /></span>
   </button>
  </header>
- <aside class="command-navigation"><button class="company-return" :disabled="busy||personnelWorking" @click="home" aria-label="Voltar às companhias">← Companhias</button><div class="workspace-label">CENTRO DE COMANDO</div><nav aria-label="Navegação principal"><button v-for="item in areaItems" :key="item[0]" :class="{active:area===item[0]}" :aria-current="area===item[0]?'page':undefined" :disabled="busy||personnelWorking" @click="navigate(item[0])"><span aria-hidden="true"><GameIcon :name="item[0]==='overview'?'command':item[0]" /></span>{{item[2]}}</button></nav></aside>
+ <aside class="command-navigation"><button class="company-return" :disabled="busy||personnelWorking" @click="home" aria-label="Voltar às companhias">← Companhias</button><div class="workspace-label">CENTRO DE COMANDO</div><nav aria-label="Navegação principal"><button v-for="item in areaItems" :key="item[0]" :class="{active:area===item[0]}" :aria-current="area===item[0]?'page':undefined" :disabled="busy||personnelWorking" @click="navigate(item[0])"><span aria-hidden="true"><GameIcon :name="item[0]==='overview'?'command':item[0]" /></span>{{item[2]}}<NavigationBadge :status="newsForArea(item[0])" /></button></nav></aside>
  <main ref="scrollContainer" class="campaign-scroll" tabindex="0" aria-label="Área da campanha">
- <div class="content"><nav v-if="areaTabs.length" class="title-nav" aria-label="Áreas da seção"><div v-for="item in areaTabs" :key="item[0]" class="title-nav-item" :role="tab===item[0]?'heading':undefined" :aria-level="tab===item[0]?1:undefined"><button type="button" :class="{active:tab===item[0]}" :aria-current="tab===item[0]?'page':undefined" :disabled="busy||personnelWorking" @click="navigate(item[0])">{{item[1]}}</button></div></nav><div v-if="!areaTabs.length" class="title-nav"><h1 class="title-nav-item"><span class="title-nav-label active">{{nav.find(n=>n[0]===tab)?.[2]}}</span></h1></div>
+ <div class="content"><nav v-if="areaTabs.length" class="title-nav" aria-label="Áreas da seção"><div v-for="item in areaTabs" :key="item[0]" class="title-nav-item" :role="tab===item[0]?'heading':undefined" :aria-level="tab===item[0]?1:undefined"><button type="button" :class="{active:tab===item[0]}" :aria-current="tab===item[0]?'page':undefined" :disabled="busy||personnelWorking" @click="navigate(item[0])">{{item[1]}}<NavigationBadge v-if="game" :status="navigationNews.status(game.id,item[0])" /></button></div></nav><div v-if="!areaTabs.length" class="title-nav"><h1 class="title-nav-item"><span class="title-nav-label active">{{nav.find(n=>n[0]===tab)?.[2]}}</span></h1></div>
  <template v-if="game">
  <p v-if="game.status==='financial_crisis'" class="company-crisis" role="status">Atenção financeira · Revise o caixa e os compromissos em Finanças.</p>
  <FirstMissionGuide v-if="['operations','operators','infrastructure'].includes(tab)&&missionContext?.gameId!==game.id" :command="command" :employed="personnelSummary.employed||0" compact :disabled="busy||personnelWorking" @navigate="navigate" />
@@ -250,12 +255,12 @@ onMounted(async()=>{const restoreRoute=useCampaignRoutes({game,tab,sections:sect
    <h2 id="operations-overview-title">Operações</h2>
   <article v-for="mission in operationsToShow" :key="mission.id" class="command-alert">
    <div>
-    <h3><GameLabel kind="mission" :code="mission.contractType" :label="mission.contractTitle || 'Operação'" /></h3>
+    <h3><GameLabel kind="mission" :code="mission.contractType" :label="mission.contractTitle || 'Operação'" /><CardNews :game-id="game.id" :news-key="'operations.'+(mission.endedTurn==null?'missions:':'history:')+mission.id" :label="mission.contractTitle||'Operação'" /></h3>
     <StateBadge v-if="mission.endedTurn!=null" :status="mission.status" :label="operationEndLabels[mission.status]??'Encerrado'" />
     <p v-else>{{mission.status==='awaiting_decision'?'Aguardando decisão':mission.status==='returning'?'Equipe retornando':'Em execução · '+mission.stageName}}</p>
     <MissionTurnBrief :mission="mission" :game="game" :current-turn="game.currentTurn" compact />
    </div>
-   <button class="secondary action-block" :disabled="busy||personnelWorking" @click="openOperationCard('missions','operations-m-'+mission.id,mission.endedTurn!=null)">{{mission.endedTurn==null?'Acompanhar':'Ver resultado'}}</button>
+   <button class="secondary action-block" :disabled="busy||personnelWorking" @click="openOperationCard(mission.endedTurn==null?'missions':'history','operations-m-'+mission.id,mission.endedTurn!=null)">{{mission.endedTurn==null?'Acompanhar':'Ver resultado'}}</button>
   </article>
  </section>
   <button v-if="!operationsToShow.length" class="secondary command-contracts action-block" :disabled="busy||personnelWorking" @click="contractRegion='';navigate('contracts')">Ver contratos · {{availableContracts}} disponíveis</button>
@@ -271,7 +276,7 @@ onMounted(async()=>{const restoreRoute=useCampaignRoutes({game,tab,sections:sect
    <summary>Registro de comando</summary>
    <p v-if="!events.length">Nenhum evento registrado.</p>
    <div v-for="event in events.slice(0,8)" :key="event.turn+'-'+event.sequence" class="event">
-    <span class="event-marker" :class="{important:event.important}"></span>
+   <span class="event-marker" :class="{important:isImportantMissionEvent(event)}"></span>
     <div><div class="event-title">{{event.type==='turn_completed'?'Período concluído':event.title}}<small>{{dateAt(event.turn)}}</small></div><p>{{formatCampaignEvent(game,event)}}</p></div>
    </div>
   </details>
@@ -288,7 +293,7 @@ onMounted(async()=>{const restoreRoute=useCampaignRoutes({game,tab,sections:sect
    </nav>
   </details>
  </div>
- <WorldPanel v-if="visited.includes('world')" v-show="tab==='world'" :game="game" :active="tab==='world'" :agenda-region="agendaRegion" @open-contracts="contractRegion=$event;navigate('contracts')" @changed="select(game.id)" @processing="personnelWorking=$event" />
+ <WorldPanel v-if="visited.includes('world')" v-show="tab==='world'" :game="game" :agenda-region="agendaRegion" @open-contracts="contractRegion=$event;navigate('contracts')" @changed="select(game.id)" @processing="personnelWorking=$event" />
  <LogisticsPanel v-if="visited.includes('infrastructure')" v-show="tab==='infrastructure'" :game="game" :initial-section="targetSection" :kit-navigation="kitNavigation" @changed="select(game.id)" @processing="personnelWorking=$event" />
  <PersonnelPanel v-if="visited.includes('operators')" v-show="tab==='operators'" :game="game" :destination="personnelDestination" @changed="select(game.id)" @processing="personnelWorking=$event" />
  <OperationsPanel v-for="panelMode in ['contracts','operations'].filter(t=>visited.includes(t))" :key="panelMode" v-show="tab===panelMode" :game="game" :mode="panelMode" :active="tab===panelMode" :region-id="contractRegion" :region-name="contractCountryName" :ledger="ledger" :agenda-contract-id="agendaContractId" @clear-agenda-contract="agendaContractId=''" :card-target="panelMode==='operations'?operationTarget:null" @card-opened="operationTarget===$event&&(operationTarget=null)" @navigate="navigate" @clear-region="contractRegion=''" @open-world="openWorld($event)" @changed="select(game.id)" @processing="personnelWorking=$event" />

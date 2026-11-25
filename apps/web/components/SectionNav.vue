@@ -6,7 +6,6 @@ const routes=useState<Record<string,string>>('campaign-sections',()=>({}))
 const active=useState('campaign-active-scope',()=> 'overview')
 watch(()=>[routes.value[props.scope||''],active.value],()=>{
  if(active.value!==props.scope)return
- if(props.gameId&&props.scope)news.markRead(props.gameId,props.scope+'.'+(routes.value[props.scope]||props.modelValue))
  const requested=routes.value[props.scope||'']
  if(requested&&props.items.some(item=>item[0]===requested)&&requested!==props.modelValue)emit('update:modelValue',requested)
 },{immediate:true})

@@ -110,9 +110,10 @@ function undoTrainingMember(squad:any){
 const hireOrders=(candidateId:string)=>(data.value.pendingOrders??[]).filter((o:any)=>o.kind==='hire'&&o.command.candidateId===candidateId)
 const operatorName=(id:string)=>formation.value.operators.find((o:any)=>o.id===id)?.name||'Não designado'
 const leadershipLabel=(id:string)=>{const op=formation.value.operators.find((o:any)=>o.id===id);return `${operatorName(id)} · Liderança ${op?.attributes?.leadership??'—'}`}
-async function refresh(){try{data.value=await $fetch(base()+'/personnel');for(const section of ['roster','squads','recruitment'])navigationNews.markRead(props.game.id,'operators.'+section);return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar os operadores.';return false}}
+async function refresh(){try{data.value=await $fetch(base()+'/personnel');return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar os operadores.';return false}}
 let historyRequest=0
 async function details(op:any,view:OperatorView='profile'){
+ navigationNews.markRead(props.game.id,'operators.roster:'+op.id)
  const request=++historyRequest
  selected.value=op
  operatorView.value=view
@@ -165,7 +166,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
   <button type="button" class="secondary" :aria-expanded="filtersOpen" aria-controls="personnel-filters" @click="filtersOpen=!filtersOpen">Filtros{{specialty?' (1)':''}}</button>
  </div>
  <div class="personnel-tools action-row">
-  <button type="button" class="secondary candidate-only" :aria-pressed="onlyCandidates" @click="onlyCandidates=!onlyCandidates">Só candidatos</button>
+  <button type="button" class="secondary candidate-only" :aria-pressed="onlyCandidates" @click="onlyCandidates=!onlyCandidates">Só candidatos <NavigationBadge :status="navigationNews.status(game.id,'operators.recruitment')" /></button>
   <button v-if="!onlyCandidates" type="button" class="secondary" :disabled="locked" @click="edit()">Nova equipe</button>
  </div>
  <div v-show="filtersOpen" id="personnel-filters" class="company-filters">
@@ -174,7 +175,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
   <button v-if="specialty||search.trim()" type="button" class="secondary action-block" @click="search='';specialty=''">Limpar busca e filtros</button>
  </div>
  <section v-if="!onlyCandidates" class="personnel-directory" aria-labelledby="personnel-roster">
-  <h2 id="personnel-roster">Efetivo</h2>
+  <h2 id="personnel-roster">Efetivo <NavigationBadge :status="navigationNews.status(game.id,'operators.roster')" /></h2>
   <PendingOrderNotice :orders="(data.pendingOrders??[]).filter((order:any)=>order.kind==='squad_create')" :disabled="locked" @remove="run('/orders/'+$event+'/cancel',{})" />
   <p v-if="!rosterGroups.length" class="directory-empty">{{search.trim()||specialty?'Nenhum operador corresponde aos filtros.':'Nenhum operador contratado.'}}</p>
   <section v-for="group in rosterGroups" :key="group.key" class="roster-group" :aria-labelledby="'roster-group-'+group.key">
@@ -207,7 +208,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
    </template>
    <div class="personnel-grid compact-roster">
     <article v-for="o in group.operators" :key="o.id" data-action-card :id="'personnel-o-'+o.id" class="panel operator-card">
-     <OperatorCardIdentity :person="o" :specialty="specs[o.specialization]" show-xp />
+     <OperatorCardIdentity :person="o" :specialty="specs[o.specialization]" show-xp><CardNews :game-id="game.id" :news-key="'operators.roster:'+o.id" :label="o.name" /></OperatorCardIdentity>
      <div class="roster-state">
       <StateBadge :status="o.availability" :label="o.employment?states[o.availability]||'Indisponível':'Vínculo encerrado'" />
       <span v-if="scheduled(o.id).length">Ordem agendada</span>
@@ -304,7 +305,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
  </section>
  <section class="personnel-directory" aria-labelledby="personnel-candidates">
   <div class="recruitment-meta directory-heading">
-   <h2 id="personnel-candidates">Candidatos · {{candidates.length}}</h2>
+   <h2 id="personnel-candidates">Candidatos · {{candidates.length}} <NavigationBadge :status="navigationNews.status(game.id,'operators.recruitment')" /></h2>
    <small v-if="data.nextMarketTurn!=null">Ofertas até {{dateAt(data.nextMarketTurn)}}</small>
    <button v-if="comparison.length" type="button" class="secondary action-block" @click="comparisonOpen=true">Comparar ({{comparison.length}})</button>
   </div>
@@ -313,7 +314,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
   <p v-if="!data.candidates.length" class="empty">O mercado renova no próximo fechamento semanal.</p>
   <div class="personnel-grid compact-candidates">
    <article v-for="c in candidates" :key="c.id" data-action-card :id="'personnel-c-'+c.id" class="panel operator-card">
-    <OperatorCardIdentity :person="c" :specialty="specs[c.specialization]" />
+    <OperatorCardIdentity :person="c" :specialty="specs[c.specialization]"><CardNews :game-id="game.id" :news-key="'operators.recruitment:'+c.id" :label="c.name" /></OperatorCardIdentity>
     <div class="candidate-facts">
      <span><small>Salário semanal</small><strong>{{money(c.salaryCents)}}</strong></span>
      <div class="operator-highlights"><span v-for="attribute in strongest(c)" :key="attribute.label">{{attribute.label}} <strong>{{attribute.value}}</strong></span></div>
@@ -321,11 +322,11 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
      <span v-if="fitWeights.length"><small>Adequação à missão</small><strong>{{missionFitScore(fitWeights,c.attributes)}}/100</strong></span>
     </div>
     <div class="candidate-actions action-row">
-     <button type="button" class="primary" :disabled="locked||!!c.scheduledOrderId||game.cashCents<c.signingBonusCents||data.employed>=data.capacity" @click="confirmation={candidate:c,weeks}" :aria-expanded="confirmation?.candidate.id===c.id">{{c.scheduledOrderId?'Contratação agendada':'Revisar contratação'}}</button>
+     <button type="button" class="primary" :disabled="locked||!!c.scheduledOrderId||game.cashCents<c.signingBonusCents||data.employed>=data.capacity" @click="navigationNews.markRead(game.id,'operators.recruitment:'+c.id);confirmation={candidate:c,weeks}" :aria-expanded="confirmation?.candidate.id===c.id">{{c.scheduledOrderId?'Contratação agendada':'Revisar contratação'}}</button>
      <button type="button" class="secondary compare-toggle" :disabled="comparison.length>=2&&!comparisonIds.includes(c.id)" :aria-pressed="comparisonIds.includes(c.id)" :aria-label="(comparisonIds.includes(c.id)?'Remover da comparação: ':'Comparar ')+c.name" @click="compareCandidate(c.id)">{{comparisonIds.includes(c.id)?'Selecionado':'Comparar'}}</button>
     </div>
     <p v-if="!c.scheduledOrderId&&(data.employed>=data.capacity||game.cashCents<c.signingBonusCents)" class="form-hint">{{data.employed>=data.capacity?'Limite de vínculos atingido.':'Caixa insuficiente para o bônus.'}}</p>
-    <details class="card-details candidate-details">
+    <details class="card-details candidate-details" @toggle="($event.currentTarget as HTMLDetailsElement).open&&navigationNews.markRead(game.id,'operators.recruitment:'+c.id)">
      <summary>Atributos e perfil</summary>
      <dl class="personnel-attributes"><div v-for="(label,key) in labels" :key="key"><dt>{{label}}</dt><dd>{{c.attributes[key]}}</dd></div></dl>
      <p v-if="c.traits?.length">Traços: {{c.traits.map((t:string)=>traits[t]||t).join(', ')}}</p>

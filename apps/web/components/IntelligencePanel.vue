@@ -2,7 +2,7 @@
 import {indicatorHelp} from '../utils/indicatorHelp'
 import {intelligenceTopicLabels as labels} from '../../../packages/rules/intelligence-labels'
 const {feedbackTarget,captureAction}=useActionFeedback()
-const props=defineProps<{game:any;targetType:string;targetId:string;compact?:boolean;active?:boolean}>(),emit=defineEmits(['changed','processing'])
+const props=defineProps<{game:any;targetType:string;targetId:string;compact?:boolean}>(),emit=defineEmits(['changed','processing'])
 const data=ref<any>(null),error=ref(''),busy=ref(false),review=ref(''),history=ref<any[]>([]),offset=ref(0),expanded=ref(false)
 const levels=['Desconhecido','Preliminar','Verificado','Detalhado']
 const commandStore=useState<Record<string,any>>('intelligence-commands',()=>({})),pending=computed({get:()=>commandStore.value[props.game.id]??null,set:(v:any)=>commandStore.value={...commandStore.value,[props.game.id]:v}}),locked=computed(()=>busy.value||!!pending.value)
@@ -10,25 +10,11 @@ const base=()=>'/api/v1/games/'+props.game.id+'/intelligence',query=()=>'?target
 function activeAnalysis(topic:string){
  return data.value?.analyses.find((job:any)=>job.topic===topic&&['scheduled','pending'].includes(job.status))
 }
-const seenByCampaign=useState<Record<string,Record<string,number>>>('analysis-results-seen',()=>({}))
+const newsScope=computed(()=>props.targetType==='region'?'world.regions.'+props.targetId:'contracts.'+props.targetId)
 const topics=computed(()=>Object.values(data.value?.topics??{}).map((topic:any)=>{
  const report=topic.sources?.find((source:any)=>source.source==='analysis')
- const highlighted=report&&seenByCampaign.value[props.game.id]?.[report.id]===props.game.currentTurn
- return {...topic,activeAnalysis:activeAnalysis(topic.topic),newReport:highlighted?report:null}
+ return {...topic,activeAnalysis:activeAnalysis(topic.topic),analysisReport:report?.id!==topic.recordId?report:null}
 }))
-function markAnalysisResultsSeen(){
- if(props.active===false||!data.value||!Number.isInteger(props.game.currentTurn))return
- const id=props.game.id,key='operators-analysis-seen:'+id
- const reports=Object.values(data.value.topics??{}).flatMap((topic:any)=>(topic.sources??[]).filter((source:any)=>source.source==='analysis'))
- if(!reports.length)return
- let seen=seenByCampaign.value[id]
- if(!seen){try{seen=JSON.parse(localStorage.getItem(key)||'{}')??{}}catch{seen={}}}
- const next={...seen}
- for(const report of reports)next[report.id]??=props.game.currentTurn
- seenByCampaign.value={...seenByCampaign.value,[id]:next}
- try{localStorage.setItem(key,JSON.stringify(next))}catch{}
-}
-watch(()=>[props.game.id,props.game.currentTurn,props.active,data.value],markAnalysisResultsSeen,{flush:'post'})
 const money=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'USD'}).format(n/100)
 let refreshSerial=0
 async function refresh(){const serial=++refreshSerial,scope=base()+query();try{const next=await $fetch<any>(scope+'&limit=10');if(serial!==refreshSerial||scope!==base()+query())return false;data.value=next;history.value=data.value.history;offset.value=history.value.length;return true}catch(e:any){if(serial!==refreshSerial||scope!==base()+query())return false;error.value=e.data?.message||'Não foi possível carregar a inteligência.';return false}}
@@ -39,8 +25,11 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
 </script>
 <template><section class="intel-panel" :class="{'intel-integrated':compact}" @click.capture="captureAction($event);error=''"><div v-if="!compact" class="panel-heading"><h3>Inteligência da companhia</h3><span class="tag">ESTIMATIVAS</span></div><p v-if="!compact">Uma análise busca uma estimativa mais precisa para ajudar no planejamento. Ela não altera as condições do país nem torna a missão mais segura. Fontes podem divergir, e a informação perde confiança com o tempo.</p><details class="intel-guide"><summary>Como ler as estimativas e quando analisar?</summary><p>A faixa listrada indica a avaliação disponível, de 0 a 100. Quanto mais estreita, mais precisa é a estimativa; ela ainda pode divergir da situação real.</p><p>Confiança mede a qualidade da informação, não a chance de sucesso da missão. O nível descreve o detalhamento: preliminar, verificado ou detalhado. Mesmo uma fonte verificada pode estar desatualizada.</p><p>Considere uma análise quando a informação estiver antiga, as fontes divergirem ou a incerteza pesar na sua decisão. O relatório pode trazer uma faixa diferente da anterior.<template v-if="data"> Prazo estimado: {{formatCampaignDuration(data.analysis.turns)}}.</template></p></details><ActionFeedback :target="feedbackTarget" :section="targetType + ':' + targetId" :turn="game.currentTurn" v-model:error="error" />
  <div v-if="pending&&!busy" class="panel intel-retry"><p>Análise aguardando confirmação. Repetir mantém o mesmo pedido e débito.</p><button class="primary action-block" @click="run">Repetir solicitação</button></div>
- <template v-if="data"><div class="intel-topics"><article v-for="t in topics" :key="t.topic" data-action-card :id="'intelligence-'+targetId+'-'+t.topic" class="intel-topic" :class="{'intel-topic-new':t.newReport}"><div class="panel-heading"><strong>{{labels[t.topic]}} · {{levels[t.level]}}</strong><span v-if="t.conflicting" class="tag">FONTES CONFLITANTES</span><span v-else-if="t.stale" class="tag">OBSOLETA</span></div><IntelligenceEstimate :label="labels[t.topic]" :estimate="t.estimate" :confidence="t.confidence" :inverse="['tension','difficulty','risk'].includes(t.topic)"><p class="indicator-help">{{indicatorHelp[t.topic]}}</p></IntelligenceEstimate>
- <div v-if="t.newReport" class="intel-new-report"><strong>Nova análise</strong><small>Concluída em {{formatCampaignTurn(game,t.newReport.collectedTurn)}}</small><IntelligenceEstimate v-if="t.newReport.id!==t.recordId" :label="'Resultado da análise de '+labels[t.topic].toLowerCase()" :estimate="t.newReport.estimate" :confidence="t.newReport.confidence" :inverse="['tension','difficulty','risk'].includes(t.topic)" /></div>
+ <template v-if="data"><div class="intel-topics"><article v-for="t in topics" :key="t.topic" data-action-card :id="'intelligence-'+targetId+'-'+t.topic" class="intel-topic"><div class="panel-heading"><strong>{{labels[t.topic]}} · {{levels[t.level]}}<CardNews :game-id="game.id" :news-key="newsScope+'.intelligence:'+t.topic" :label="labels[t.topic]" /></strong><span v-if="t.conflicting" class="tag">FONTES CONFLITANTES</span><span v-else-if="t.stale" class="tag">OBSOLETA</span></div><IntelligenceEstimate :label="labels[t.topic]" :estimate="t.estimate" :confidence="t.confidence" :inverse="['tension','difficulty','risk'].includes(t.topic)"><p class="indicator-help">{{indicatorHelp[t.topic]}}</p></IntelligenceEstimate>
+ <details v-if="t.analysisReport" class="card-details">
+  <summary>Análise de {{formatCampaignTurn(game,t.analysisReport.collectedTurn)}}</summary>
+  <IntelligenceEstimate :label="'Resultado da análise de '+labels[t.topic].toLowerCase()" :estimate="t.analysisReport.estimate" :confidence="t.analysisReport.confidence" :inverse="['tension','difficulty','risk'].includes(t.topic)" />
+ </details>
  <p v-if="t.activeAnalysis" role="status">{{t.activeAnalysis.status==='scheduled'?'Análise agendada':'Análise em andamento'}}<template v-if="t.activeAnalysis.dueTurn!=null"> · entrega prevista para {{formatCampaignTurn(game,t.activeAnalysis.dueTurn)}}</template>.</p>
  <button class="secondary action-block" :disabled="locked||game.cashCents<data.analysis.costCents||!!t.activeAnalysis" @click="review=t.topic">Analisar {{labels[t.topic].toLowerCase()}} · {{money(data.analysis.costCents)}}</button> <FocusDialog v-if="review===t.topic" title="Solicitar análise" :busy="busy" :error="error" @close="review=''"><section class="inline-action decision-card analysis-confirm"><h3>Solicitar análise de {{labels[review].toLowerCase()}}?</h3><p>Custo ao confirmar: {{money(data.analysis.costCents)}}. Entrega prevista para {{formatCampaignTurn(game,game.currentTurn+data.analysis.turns)}} se confirmar. Duas análises simultâneas por companhia. Não há reembolso automático; o relatório pode divergir de outras fontes.</p><div class="personnel-actions"><button class="primary" :disabled="locked||!!t.activeAnalysis" @click="run">Agendar análise</button><button class="secondary" :disabled="locked" @click="review=''">Voltar</button></div></section></FocusDialog></article></div>
 
@@ -65,8 +54,4 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
 
 .intel-integrated .intel-topics{gap:var(--space-4);margin:var(--space-4) 0}
 .analysis-confirm h3{font-size:var(--text-subtitle)}
-.intel-topic.intel-topic-new { border-inline-start:3px solid var(--command-accent); padding-inline-start:var(--space-3); }
-.intel-new-report { margin:var(--space-3) 0; }
-.intel-new-report > strong { color:var(--command-accent); }
-.intel-new-report > small { display:block; color:#b6c9d1; }
 </style>

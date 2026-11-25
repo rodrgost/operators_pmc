@@ -2,7 +2,6 @@
 const {feedbackTarget,captureAction}=useActionFeedback()
 const props=defineProps<{game:any;initialSection?:string;kitNavigation?:{category:string;catalogId?:string}|null}>(),emit=defineEmits(['changed','processing'])
 const dateAt=(turn:number|null|undefined,includeYear=false)=>formatCampaignTurn(props.game,turn,includeYear)
-const navigationNews=useNavigationNews()
 const data=ref<any>(null),busy=ref(false),error=ref(''),notice=ref(''),review=ref<any>(null),mode=ref(['headquarters','catalog','inventory'].includes(props.initialSection||'')?props.initialSection!:'headquarters'),category=ref(''),quantity=ref(1)
 const commands=useState<Record<string,any>>('logistics-commands',()=>({})),pending=computed({get:()=>commands.value[props.game.id]??null,set:(v:any)=>commands.value={...commands.value,[props.game.id]:v}}),locked=computed(()=>busy.value||!!pending.value)
 const base=()=>'/api/v1/games/'+props.game.id,money=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'USD'}).format(n/100)
@@ -21,7 +20,7 @@ function activeKit(group:any){return group.variants.find((c:any)=>c.id===quality
 function selectQuality(category:string,id:string){qualityChoice.value={...qualityChoice.value,[category]:id};review.value=null}
 function purchaseIssue(c:any){return kitPurchaseIssue(c,quantity.value,data.value,props.game.cashCents)}
 function upgradeProgress(m:any){return Math.max(0,Math.min(m.upgradeTurns,m.upgradeTurns-(m.dueTurn-data.value.currentTurn)))}
-async function refresh(){try{data.value=await $fetch(base()+'/logistics');navigationNews.markRead(props.game.id,'infrastructure.'+mode.value);return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar a sede.';return false}}
+async function refresh(){try{data.value=await $fetch(base()+'/logistics');return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar a sede.';return false}}
 const scheduled=(target:string)=>(data.value?.pendingOrders??[]).filter((o:any)=>o.target===target&&o.kind!=='purchase')
 const purchases=(catalogId:string)=>(data.value?.pendingOrders??[]).filter((o:any)=>o.kind==='purchase'&&o.command.catalogId===catalogId)
 const preparationUsage=computed(()=>{
@@ -47,7 +46,6 @@ async function run(){if(busy.value||(!review.value&&!pending.value))return;const
 watch(()=>[props.game.id,props.game.stateVersion],async()=>{review.value=null;await refresh()})
 onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
 
-watch(mode,()=>{if(data.value?.stateVersion!==undefined)navigationNews.markRead(props.game.id,'infrastructure.'+mode.value)})
 </script>
 <template><div class="logistics-panel" :aria-busy="busy" @click.capture="captureAction($event)"><ActionFeedback :target="feedbackTarget" :section="mode" :turn="game.currentTurn" v-model:error="error" v-model:notice="notice" />
  <section v-if="pending&&!busy" class="panel"><p>Comando aguardando confirmação. Repetir não duplica compras ou débitos.</p><button class="primary action-block" @click="run">Repetir comando</button></section>

@@ -78,11 +78,17 @@ function missionCrew(mission:any){
  })
 }
 
-const contracts=computed(()=>data.value.contracts.filter((c:any)=>(!filter.value||c.type===filter.value)&&(!props.regionId||c.regionId===props.regionId)&&(statusFilter.value==='all'||(statusFilter.value==='board'?boardStatuses.includes(c.status):c.status===statusFilter.value))&&(!search.value||[c.title,c.regionName,c.countryName,c.clientName,c.rival?.name].join(' ').toLocaleLowerCase('pt-BR').includes(search.value.toLocaleLowerCase('pt-BR')))).sort((a:any,b:any)=>contractRank(a)-contractRank(b)||(a.mobilizationDueTurn??a.expiresTurn??Infinity)-(b.mobilizationDueTurn??b.expiresTurn??Infinity)))
+function contractMatchesStatus(contract:any){
+ if(statusFilter.value==='all')return true
+ if(statusFilter.value!=='board')return contract.status===statusFilter.value
+ return boardStatuses.includes(contract.status)||navigationNews.status(props.game.id,'contracts.'+contract.id+'.intelligence')==='new'||intelContract.value?.id===contract.id
+}
+const contracts=computed(()=>data.value.contracts.filter((c:any)=>(!filter.value||c.type===filter.value)&&(!props.regionId||c.regionId===props.regionId)&&contractMatchesStatus(c)&&(!search.value||[c.title,c.regionName,c.countryName,c.clientName,c.rival?.name].join(' ').toLocaleLowerCase('pt-BR').includes(search.value.toLocaleLowerCase('pt-BR')))).sort((a:any,b:any)=>contractRank(a)-contractRank(b)||(a.mobilizationDueTurn??a.expiresTurn??Infinity)-(b.mobilizationDueTurn??b.expiresTurn??Infinity)))
 function contractRank(c:any){return c.status==='accepted'?0:(data.value.pendingOrders??[]).some((o:any)=>o.target===c.id&&o.kind==='accept')?1:c.status==='available'?2:3}
 const agendaContract=computed(()=>props.agendaContractId?data.value.contracts.find((contract:any)=>contract.id===props.agendaContractId):null)
 const visibleContracts=computed(()=>agendaContract.value?[agendaContract.value]:contracts.value)
 function openContract(contract:any){
+ navigationNews.markRead(props.game.id,'contracts.'+contract.id+'.offer:new')
  emit('clear-agenda-contract')
  if(selectedContract.value?.id!==contract.id)plan(contract)
  else nextTick(()=>scrollCampaignElement(plannerElement.value))
@@ -116,7 +122,7 @@ const name=(id:string)=>people.value.operators.find((o:any)=>o.id===id)?.name||i
 const leadershipLabel=(id:string)=>{const op=people.value.operators.find((o:any)=>o.id===id);return `${name(id)} · Liderança ${op?.attributes?.leadership??'—'}`}
 async function refresh(){try{const [ops,staff]=await Promise.all([$fetch<any>(base()+'/operations'),$fetch<any>(base()+'/personnel')]);data.value=ops;people.value=(staff as any).plannedPersonnel??staff;
  if(selectedContract.value){const updated=ops.contracts.find((c:any)=>c.id===selectedContract.value.id);if(updated&&['available','accepted'].includes(updated.status)){selectedContract.value=updated;if(!squadId.value&&people.value.squads.length){squadId.value=people.value.squads[0].id;chooseSquad()}}else closePreparation()}
- navigationNews.markRead(props.game.id,props.mode==='contracts'?'contracts':'operations.'+operationSection.value);return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar as operações.';return false}}
+ return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar as operações.';return false}}
 function resolveDecision(decisionId:string,choice:string){return run('/decisions/'+decisionId+'/resolve',{choice})}
 async function run(path:string,body:any={}){
  if(busy.value)return
@@ -143,7 +149,10 @@ async function details(m:any){
  const [detail,history]=await Promise.allSettled([$fetch<any>(base()+'/missions/'+m.id),$fetch<any[]>(base()+'/missions/'+m.id+'/reports?limit=100')])
  if(request!==reportRequest||props.game.id!==gameId||selectedMission.value?.id!==m.id)return
  if(detail.status==='fulfilled')departure.value=detail.value.intelligenceAtDeparture
- if(history.status==='fulfilled')reports.value=history.value
+ if(history.status==='fulfilled'){
+  reports.value=history.value
+  if(data.value.stateVersion===props.game.stateVersion)navigationNews.markRead(gameId,'operations.'+(m.endedTurn==null?'missions:':'history:')+m.id)
+ }
  if(detail.status==='rejected'||history.status==='rejected')error.value='Não foi possível carregar todos os relatórios. Tente abrir novamente.'
  reportsLoading.value=false
 }
@@ -169,7 +178,6 @@ watch(operationSection,()=>{selectedMission.value=null;withdrawal.value=null})
 watch(()=>[props.game.id,props.game.stateVersion],async()=>{if(preview.value?.stateVersion!==props.game.stateVersion)preview.value=null;selectedMission.value=null;await refresh()})
 onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
 
-watch([operationSection,()=>props.mode],()=>{if(data.value?.stateVersion!==undefined)navigationNews.markRead(props.game.id,props.mode==='contracts'?'contracts':'operations.'+operationSection.value)})
 </script>
 <template>
 <div ref="panelElement" class="operations-panel" :aria-busy="busy" @click.capture="captureAction($event)">
@@ -363,7 +371,7 @@ watch([operationSection,()=>props.mode],()=>{if(data.value?.stateVersion!==undef
       <span class="eyebrow"><GameLabel kind="mission" :code="c.type" /></span>
       <StateBadge :status="scheduled(c.id).length?'planned':c.status" :label="scheduled(c.id).length?'Ação agendada':statusNames[c.status]||c.status" />
      </div>
-     <h3>{{c.title}}</h3>
+     <h3>{{c.title}}<CardNews :game-id="game.id" :news-key="'contracts.'+c.id+'.offer:new'" :label="c.title" /><NavigationBadge v-if="!navigationNews.status(game.id,'contracts.'+c.id+'.offer')" :status="navigationNews.status(game.id,'contracts.'+c.id+'.intelligence')" /></h3>
      <p class="contract-location">
       {{c.countryName}}<template v-if="c.status==='accepted'||c.status==='available'"> · {{c.status==='accepted'?'Mobilizar até':'Aceitar até'}} {{dateAt(c.mobilizationDueTurn??c.expiresTurn)}}</template>
      </p>
@@ -376,15 +384,15 @@ watch([operationSection,()=>props.mode],()=>{if(data.value?.stateVersion!==undef
      <p v-if="c.requiredEquipment.length" class="contract-equipment">Kits · <KitList :categories="c.requiredEquipment" /></p>
      <button v-if="(c.status==='accepted'||(c.status==='available'&&scheduled(c.id,'accept').length))&&!scheduled(c.id,'start').length&&!scheduled(c.id,'cancel').length" type="button" class="primary contract-prepare" :disabled="locked" @click="openContract(c)">Planejar missão</button>
      <button v-else-if="c.status==='available'&&!scheduled(c.id).length" type="button" class="primary contract-prepare" :disabled="locked" @click="openContract(c)">Preparar missão</button>
-     <details class="card-details contract-briefing">
-      <summary>Briefing e estimativas</summary>
+     <details class="card-details contract-briefing" @toggle="($event.currentTarget as HTMLDetailsElement).open&&navigationNews.markRead(game.id,'contracts.'+c.id+'.offer:new')">
+      <summary>Briefing e estimativas <NavigationBadge :status="navigationNews.status(game.id,'contracts.'+c.id+'.intelligence')" /></summary>
       <ContractEstimates :contract="c" />
       <p v-if="c.briefing">{{c.briefing}}</p>
       <p v-if="c.context">{{c.context}}</p>
       <p><OrganizationEmblem :id="c.clientId" />{{c.source==='commercial'?'Oferta comercial':'Demanda emergente'}} · {{c.clientName}}</p>
       <p>Fonte da estimativa de risco: {{c.intelSource}}<br>Adiantamento: {{money(c.advanceCents)}}</p>
       <div class="personnel-actions contract-actions">
-       <button type="button" class="secondary" @click="intelContract=c">Inteligência e análises</button>
+       <button type="button" class="secondary" @click="intelContract=c">Inteligência e análises <NavigationBadge :status="navigationNews.status(game.id,'contracts.'+c.id+'.intelligence')" /></button>
        <button v-if="c.originEventId" type="button" class="secondary" @click="emit('open-world',{regionId:c.regionId,eventId:c.originEventId})">Consultar notícia de origem</button>
        <button v-if="c.status==='accepted'&&!scheduled(c.id,'start').length&&!scheduled(c.id,'cancel').length" type="button" class="secondary" :disabled="locked" @click="run('/contracts/'+c.id+'/cancel')">Cancelar aceite · sem custo</button>
       </div>
@@ -393,7 +401,7 @@ watch([operationSection,()=>props.mode],()=>{if(data.value?.stateVersion!==undef
      <FocusDialog v-if="intelContract?.id===c.id" title="Inteligência e análises" :busy="busy" :error="error" @close="intelContract=null">
       <section class="inline-action">
        <h2><GameLabel kind="mission" :code="intelContract.type" :label="intelContract.title" /></h2>
-       <IntelligencePanel :key="game.id+':'+intelContract.id" :game="game" :active="active" target-type="contract" :target-id="intelContract.id" @changed="emit('changed')" @processing="emit('processing',$event)" />
+       <IntelligencePanel :key="game.id+':'+intelContract.id" :game="game" target-type="contract" :target-id="intelContract.id" @changed="emit('changed')" @processing="emit('processing',$event)" />
       </section>
      </FocusDialog>
     </article>
@@ -401,7 +409,7 @@ watch([operationSection,()=>props.mode],()=>{if(data.value?.stateVersion!==undef
  </template>
  </template>
  <template v-else-if="operationSection!=='decisions'">
-  <section v-if="!visibleMissions.length&&(operationSection==='history'||!(data.pendingOrders??[]).some((o:any)=>o.kind==='start'))" class="empty action-empty"><h3>{{operationSection==='history'?'Sua história ainda vai começar':'Prepare sua próxima operação'}}</h3><p>{{operationSection==='history'?'As missões encerradas aparecerão aqui com seus resultados.':'Escolha um contrato e prepare a equipe antes de iniciar a mobilização.'}}</p><button class="primary" :disabled="locked" @click="emit('navigate','contracts')">Encontrar contrato →</button></section><div class="personnel-grid"><article v-for="m in visibleMissions" :key="m.id" data-action-card tabindex="-1" :id="'operations-m-'+m.id" class="panel operator-card"><StateBadge :status="m.status" :label="statusNames[m.status]||m.status" /><h3><GameLabel kind="mission" :code="m.contractType ?? data.contracts.find((c:any)=>c.id===m.contractId)?.type" :label="m.contractTitle||data.contracts.find((c:any)=>c.id===m.contractId)?.title||'Missão registrada'" /></h3>
+  <section v-if="!visibleMissions.length&&(operationSection==='history'||!(data.pendingOrders??[]).some((o:any)=>o.kind==='start'))" class="empty action-empty"><h3>{{operationSection==='history'?'Sua história ainda vai começar':'Prepare sua próxima operação'}}</h3><p>{{operationSection==='history'?'As missões encerradas aparecerão aqui com seus resultados.':'Escolha um contrato e prepare a equipe antes de iniciar a mobilização.'}}</p><button class="primary" :disabled="locked" @click="emit('navigate','contracts')">Encontrar contrato →</button></section><div class="personnel-grid"><article v-for="m in visibleMissions" :key="m.id" data-action-card tabindex="-1" :id="'operations-m-'+m.id" class="panel operator-card"><StateBadge :status="m.status" :label="statusNames[m.status]||m.status" /><h3><GameLabel kind="mission" :code="m.contractType ?? data.contracts.find((c:any)=>c.id===m.contractId)?.type" :label="m.contractTitle||data.contracts.find((c:any)=>c.id===m.contractId)?.title||'Missão registrada'" /><CardNews :game-id="game.id" :news-key="'operations.'+operationSection+':'+m.id" :label="m.contractTitle||'Missão'" /></h3>
 <div class="mission-progress-label"><strong>{{m.completedStages}} de {{m.totalStages}} etapas</strong><small>Início · {{dateAt(m.startedTurn)}}</small></div>
 <progress class="mission-progress" :value="m.completedStages" :max="m.totalStages" :aria-label="'Etapas concluídas de '+(m.contractTitle||'missão')" />
 <p v-if="m.status==='active'||m.status==='returning'" class="mission-next">

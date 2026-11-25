@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const props=defineProps<{game:any;active?:boolean;agendaRegion?:{id:string}|null}>(),emit=defineEmits(['open-contracts','changed','processing'])
+const props=defineProps<{game:any;agendaRegion?:{id:string}|null}>(),emit=defineEmits(['open-contracts','changed','processing'])
 const dateAt=(turn:number|null|undefined,includeYear=false)=>formatCampaignTurn(props.game,turn,includeYear)
 const navigationNews=useNavigationNews()
 const data=ref<any>(null),error=ref(''),loading=ref(false),details=ref<Record<string,any>>({}),older=ref<Record<string,any[]>>({}),offset=ref<Record<string,number>>({})
@@ -20,8 +20,10 @@ const conflictsByRegion=computed(()=>{
 })
 const types:any={government:'Governo',corporation:'Corporação',armed_faction:'Facção',civil:'Organização civil',rival_pmc:'PMC rival'},status:any={active:'Em andamento',completed:'Encerrado',resolved:'Resolvido'}
 const base=()=>'/api/v1/games/'+props.game.id+'/world'
-async function refresh(){loading.value=true;error.value='';try{data.value=await $fetch(base());older.value={};offset.value={};details.value={};if(focus.value[props.game.id]){await cause(focus.value[props.game.id]);focus.value={...focus.value,[props.game.id]:''}};markSectionRead()}catch(e:any){error.value=e.data?.message||'Não foi possível carregar o mundo.'}finally{loading.value=false}}
-function markSectionRead(){for(const key of section.value==='regions'?['regions','news','intelligence']:[section.value])navigationNews.markRead(props.game.id,'world.'+key)}
+async function refresh(){loading.value=true;error.value='';try{data.value=await $fetch(base());older.value={};offset.value={};details.value={};if(focus.value[props.game.id]){await cause(focus.value[props.game.id]);focus.value={...focus.value,[props.game.id]:''}}}catch(e:any){error.value=e.data?.message||'Não foi possível carregar o mundo.'}finally{loading.value=false}}
+function countryNews(country:any){
+ return country?.regions.some((region:any)=>navigationNews.status(props.game.id,'world.regions.'+region.id)==='new')?'new':''
+}
 async function history(regionId:string){try{const rows=await $fetch<any[]>(base()+'/regions/'+regionId+'/history?offset='+(offset.value[regionId]||0)+'&limit=20');older.value[regionId]=[...(older.value[regionId]||[]),...rows];offset.value[regionId]=(offset.value[regionId]||0)+rows.length}catch{error.value='Não foi possível carregar o histórico.'}}
 async function cause(id:string,regionId=selected.value){section.value='regions';try{details.value[regionId]=await $fetch(base()+'/events/'+id)}catch{error.value='Não foi possível carregar a origem.'}}
 function regionNews(regionId:string){return older.value[regionId]?.length?older.value[regionId]:data.value.history.filter((e:any)=>e.regionId===regionId)}
@@ -34,7 +36,6 @@ watch(selected,()=>{details.value={};older.value={};offset.value={}})
 watch(()=>[props.game.id,props.game.stateVersion],refresh)
 onMounted(refresh)
 
-watch(section,()=>{if(data.value&&!loading.value)markSectionRead()})
 </script>
 <template><div class="world-panel">
  <div v-if="error" class="error" role="alert">{{error}} <button class="secondary action-block" @click="refresh">Tentar novamente</button></div>
@@ -45,14 +46,14 @@ watch(section,()=>{if(data.value&&!loading.value)markSectionRead()})
    <div class="world-location">
     <div class="country-actions action-row">
      <button type="button" class="secondary location-toggle" :aria-expanded="locationOpen" aria-controls="world-location-options" @click="locationOpen=!locationOpen">
-      <strong>{{country?.name||'Selecionar país'}}</strong><span aria-hidden="true">{{locationOpen?'▴':'▾'}}</span>
+      <strong>{{country?.name||'Selecionar país'}}<NavigationBadge :status="countryNews(country)" /></strong><span aria-hidden="true">{{locationOpen?'▴':'▾'}}</span>
      </button>
      <button v-if="region" type="button" class="primary country-contracts" @click="emit('open-contracts',region.id)">Ver contratos</button>
     </div>
     <div v-show="locationOpen" id="world-location-options" class="country-list">
      <div v-for="c in data.countries" :key="c.id" class="country-group">
       <button type="button" class="country-option" :class="{selected:country?.id===c.id}" :aria-pressed="country?.id===c.id" @click="selected=c.id;locationOpen=false">
-       <OrganizationEmblem :id="c.id" /><strong>{{c.name}}</strong><span class="selection-mark" aria-hidden="true">{{country?.id===c.id?'✓':''}}</span>
+       <OrganizationEmblem :id="c.id" /><strong>{{c.name}}<NavigationBadge :status="countryNews(c)" /></strong><span class="selection-mark" aria-hidden="true">{{country?.id===c.id?'✓':''}}</span>
       </button>
      </div>
     </div>
@@ -61,14 +62,14 @@ watch(section,()=>{if(data.value&&!loading.value)markSectionRead()})
     <div class="country-summary">
      <OrganizationEmblem v-if="country" :id="country.id" />
      <div>
-      <h2>{{dossier.name}}</h2>
+      <h2>{{dossier.name}}<NavigationBadge :status="navigationNews.status(game.id,'world.regions.'+dossier.id)" /></h2>
       <p>Controle · {{dossier.controllerName}}</p>
       <p v-for="conflict in (conflictsByRegion.get(dossier.id)??[]).filter(item=>item.status==='active')" :key="conflict.id">Conflito ativo · intensidade {{conflict.intensity.toLowerCase()}}</p>
      </div>
     </div>
     <details class="card-details country-details" :open="intelligenceRegion===dossier.id" @toggle="toggleIntelligence(dossier.id,$event)">
-     <summary>Inteligência e estimativas</summary>
-     <IntelligencePanel :id="'intelligence-region-'+dossier.id" compact :key="game.id+':'+dossier.id" :game="game" :active="active&&section==='regions'&&intelligenceRegion===dossier.id" target-type="region" :target-id="dossier.id" @changed="emit('changed')" @processing="emit('processing',$event)" />
+     <summary>Inteligência e estimativas <NavigationBadge :status="navigationNews.status(game.id,'world.regions.'+dossier.id+'.intelligence')" /></summary>
+     <IntelligencePanel :id="'intelligence-region-'+dossier.id" compact :key="game.id+':'+dossier.id" :game="game" target-type="region" :target-id="dossier.id" @changed="emit('changed')" @processing="emit('processing',$event)" />
     </details>
     <details class="card-details country-details">
      <summary>Presença e conflitos</summary>

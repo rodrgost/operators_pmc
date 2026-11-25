@@ -53,13 +53,13 @@ it('online: histórico acima de 1,5 MB não impede novos turnos ou regrava hist�
   expect((await call(`/games/${g.id}/timeline?offset=2&limit=3`)).data).toHaveLength(3);
  }finally{db.close()}
 });
-it('online: comando concorrente diferente não toma lote e interrupção respeita fechamento semanal',async()=>{
+it('online: comando concorrente diferente não toma lote e fechamento semanal não interrompe',async()=>{
  const {db,call}=setup();try{
   const {data:g}=await call('/games',{requestId:'c',name:'Concurrent PMC',seed:'x'});
   const responses=await Promise.all(['a','b'].map(requestId=>call(`/games/${g.id}/advance`,{requestId,expectedVersion:0,turns:27,stopOnImportant:false})));
   expect(responses.map(r=>r.status).sort()).toEqual([200,409]);
   expect((await call(`/games/${g.id}`)).data.currentTurn).toBe(27);
-  expect((await call(`/games/${g.id}/advance`,{requestId:'week',expectedVersion:27,turns:4,stopOnImportant:true})).data).toMatchObject({status:'interrupted',processedTurns:1,currentTurn:28});
+  expect((await call(`/games/${g.id}/advance`,{requestId:'week',expectedVersion:27,turns:4,stopOnImportant:true})).data).toMatchObject({status:'completed',processedTurns:4,currentTurn:31});
  }finally{db.close()}
 });
 it('online: 336 turnos reproduzem todos os resumos locais e persistem entre chamadas',async()=>{

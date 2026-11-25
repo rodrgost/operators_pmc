@@ -54,6 +54,14 @@ export const contractViewSelect=`SELECT c.*,
   ORDER BY j.started_turn DESC,j.id DESC LIMIT 1
  ) END AS rival_id
  FROM online_contracts c`;
+export const contractBoardFilter=`AND (
+ c.expires_turn>(SELECT current_turn FROM online_games WHERE id=c.game_id)
+ OR c.status IN ('accepted','active','rival_active')
+ OR EXISTS(
+  SELECT 1 FROM online_intel_analyses a
+  WHERE a.game_id=c.game_id AND a.target_type='contract' AND a.target_id=c.id AND a.status='completed'
+ )
+) ORDER BY c.offered_turn DESC,c.id LIMIT 50`;
 export function contractProjection(c:any,logisticsEnabled=false,knowledge?:any){const intel=JSON.parse(c.intel_json);const country=countries.find(x=>c.region_id===x.id);const regionName=country?.name??c.region_id;const rival=organizations.find(x=>x.id===c.rival_id);return {rival:rival?{id:rival.id,name:rival.name}:null,previousRewardCents:intel.previousRewardCents??null,countryName:country?.name??'',regionName,clientName:organizations.find(x=>x.id===c.client_id)?.name??c.client_id,id:c.id,type:c.type,title:c.title,briefing:intel.narrative?.briefing??null,objective:intel.narrative?.objective??null,context:intel.narrative?.context??null,catalogVersion:intel.narrative?.catalogVersion??null,regionId:c.region_id,clientId:c.client_id,source:c.source,originEventId:c.origin_event_id,status:c.status,expiresTurn:c.expires_turn,acceptedTurn:intel.acceptedTurn??null,mobilizationDueTurn:c.status==='accepted'?contractDeadline(c):null,mobilizationTurns,rewardCents:c.reward_cents,advanceCents:Math.round(c.reward_cents*config.advanceRate),minimumOperators:c.minimum_operators,mobilizationPerOperatorCents:config.mobilizationPerOperatorCents,requiredEquipment:logisticsEnabled?(logisticsConfig.requirements as any)[c.type]:[],stages:config.stages,intelligence:knowledge??null,estimatedDifficulty:knowledge?(knowledge.topics.difficulty.estimate??{min:0,max:100}):intel.estimatedDifficulty,estimatedRisk:knowledge?(knowledge.topics.risk.estimate??{min:0,max:100}):intel.estimatedRisk,confidence:knowledge?knowledge.topics.risk.confidence:intel.confidence,intelSource:knowledge?knowledge.topics.risk.sourceName:intel.source,collectedTurn:knowledge?knowledge.topics.risk.collectedTurn:intel.collectedTurn};}
 const standardDecision={
  title:'Autorizar a próxima etapa?',
@@ -130,7 +138,7 @@ export async function operationAction(db:Database,id:string,owner:string,kind:st
 export async function operationsView(db:Database,g:Campaign){
  const recentMissions='SELECT id FROM online_missions WHERE game_id=? ORDER BY started_turn DESC,rowid DESC LIMIT 30';
  const rows=await db.batch([
-  db.prepare(`${contractViewSelect} WHERE game_id=? AND (expires_turn>? OR status IN ('accepted','active','rival_active')) ORDER BY offered_turn DESC,id LIMIT 50`).bind(g.id,g.state.turn),
+  db.prepare(`${contractViewSelect} WHERE c.game_id=? ${contractBoardFilter}`).bind(g.id),
   db.prepare('SELECT m.*,c.title AS contract_title,c.type AS contract_type FROM online_missions m LEFT JOIN online_contracts c ON c.game_id=m.game_id AND c.id=m.contract_id WHERE m.game_id=? ORDER BY m.started_turn DESC,m.rowid DESC LIMIT 30').bind(g.id),
   db.prepare("SELECT * FROM online_decisions WHERE game_id=? AND status='pending' ORDER BY expires_turn,id LIMIT 30").bind(g.id),
   db.prepare(`SELECT a.* FROM online_mission_assignments a WHERE a.game_id=? AND a.mission_id IN(${recentMissions}) ORDER BY operator_id`).bind(g.id,g.id),

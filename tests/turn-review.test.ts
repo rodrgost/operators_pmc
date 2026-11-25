@@ -12,7 +12,7 @@ function fixture(overrides:any={},storage=new Map<string,string>()){
  const localStorage={getItem:(key:string)=>storage.get(key)??null,setItem:(key:string,value:string)=>storage.set(key,value)}
  const ctx:any={...campaignTime,formatCampaignTurn,rules:{hoursPerTurn:6,turnsPerWeek:28},turnReview,nextAdvance,defineProps:()=>props,defineModel:()=>({value:false}),defineEmits:()=> (...args:any[])=>events.push(args),ref:(value:any)=>({value}),computed:(fn:any)=>({get value(){return fn()}}),watch:(...args:any[])=>watchers.push(args),nextTick:async()=>{},localStorage,ResizeObserver:class {},onMounted:(fn:()=>void)=>mounts.push(fn),onBeforeUnmount:()=>{}}
  const source=readFileSync('apps/web/components/TurnDock.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0].replace(/^import .*$/gm,'')
- runInNewContext(ts.transpileModule(source+';globalThis.h={requestAdvance,confirmAdvance,reviewOpen,reviewFromAgenda,agenda,agendaOpen,agendaDays,deadlines,openItem,eventTiming,dateAt,turnLabel,advanceReason,setShowFinancialEvents,suggestion,deliveredAnalyses};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,ctx)
+ runInNewContext(ts.transpileModule(source+';globalThis.h={requestAdvance,confirmAdvance,reviewOpen,reviewFromAgenda,agenda,agendaOpen,agendaDays,deadlines,openItem,eventTiming,dateAt,turnLabel,advanceReason,setShowFinancialEvents,suggestion};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,ctx)
  mounts.forEach(mount=>mount())
  return {h:ctx.h,props,events,watchers}
 }
@@ -25,10 +25,6 @@ it('relógio usa HH:MM e converte prévias gravadas sem alterar durações',()=>
  expect(campaignTime.campaignHour(new Date('2030-01-01T00:00:00Z'))).toBe('00:00')
  expect(campaignTime.normalizeSavedClock('Entrega ter, 1 jan · 6h (6h) · prazo de 1 dia e 12h.')).toBe('Entrega ter, 1 jan · 06:00 (6h) · prazo de 1 dia e 12h.')
  expect(campaignTime.normalizeSavedClock('Entrega ter, 1 jan 2030 · 18h04.')).toBe('Entrega ter, 1 jan 2030 · 18:04.')
-})
-it('lê as análises entregues no resumo mesmo quando a resposta do avanço só traz o status',()=>{
- const f=fixture({result:{status:'completed',requestId:'a'},command:{latestAdvance:{requestId:'a',events:[{type:'intelligence_analysis_completed',count:2}]}}})
- expect(f.h.deliveredAnalyses.value).toBe(2)
 })
 it('filtra compromissos financeiros e restaura a preferência ao abrir outra campanha',()=>{
  const salary={id:'salary-a',dueTurn:2,tab:'finance',title:'Salários'}

@@ -20,7 +20,7 @@ export function serviceCost(k:any,task:EquipmentService):number{
  return Math.ceil(c.priceCents*(100-(task==='maintenance'?k.condition:k.supplies))/(task==='maintenance'?200:500));
 }
 export function logisticsStart(l:Logistics,turn:number){const events:any[]=[];
- for(const m of l.modules)if(m.target_level&&m.due_turn<=turn){m.level=m.target_level;m.target_level=null;m.due_turn=null;events.push({type:'hq_upgrade_completed',title:'Melhoria concluída',description:config.modules.find(c=>c.id===m.type)!.name+' agora no nível '+m.level+'.',important:true})}
+ for(const m of l.modules)if(m.target_level&&m.due_turn<=turn){m.level=m.target_level;m.target_level=null;m.due_turn=null;events.push({type:'hq_upgrade_completed',title:'Melhoria concluída',description:config.modules.find(c=>c.id===m.type)!.name+' agora no nível '+m.level+'.',important:false})}
  for(const k of l.equipment)if(k.due_turn!==null&&k.due_turn<=turn){
   if(k.task==='maintenance'||k.task==='refurbish')k.condition=100;
   if(k.task==='resupply'||k.task==='refurbish')k.supplies=100;
@@ -71,7 +71,7 @@ export function facilityTurn(l:Logistics,p:Personnel,turn:number){const managed:
 export function facilitiesFinance(l:Logistics,turn:number,cash:number){const ledger:any[]=[],events:any[]=[];const h=l.headquarters;
  if(turn%28===0&&turn>h.last_bill_turn&&turn>h.activated_turn){h.arrears_cents+=weeklyMaintenance(l);h.last_bill_turn=turn;}
  if(h.arrears_cents>0&&cash>=h.arrears_cents){const cost=h.arrears_cents;cash-=cost;h.arrears_cents=0;ledger.push({sourceId:'hq:'+turn,entryType:'headquarters_maintenance',turn,amountCents:-cost});events.push({type:'hq_maintenance_paid',title:'Manutenção da sede paga',description:'Custos de infraestrutura quitados.',important:false})}
- else if(turn%28===0&&h.arrears_cents>0)events.push({type:'hq_maintenance_unpaid',title:'Manutenção da sede em atraso',description:'Dívida acumulada. Novos investimentos, missões e treinos suspensos; retornos e tratamento preservados.',important:true});
+ else if(turn%28===0&&h.arrears_cents>0)events.push({type:'hq_maintenance_unpaid',title:'Manutenção da sede em atraso',description:'Dívida acumulada. Novos investimentos, missões e treinos suspensos; retornos e tratamento preservados.',important:false});
  return {cash,ledger,events};
 }
 export function logisticsCanonical(l:Logistics){return {headquarters:l.headquarters,...Object.fromEntries(['modules','equipment','assignments','progress','activities'].map(k=>[k,[...(l as any)[k]].filter((a:any)=>k!=='assignments'||a.status==='assigned').sort((a:any,b:any)=>JSON.stringify(a).localeCompare(JSON.stringify(b),'en'))]))}}

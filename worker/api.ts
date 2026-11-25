@@ -1,3 +1,4 @@
+import {isImportantMissionEvent} from '../packages/domain/index.ts';
 import {difficultyChoices} from '../packages/engine/difficulty.ts';
 import {orderRoute,enqueue,orders,cancelOrder,prepareOrders,plannedFacts,orderCommitWrites} from './planning.ts';
 import {commandCenter,advanceSummary} from './command-center.ts';
@@ -93,7 +94,7 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
    }
    if(g.difficultyProfile.id!=='normal')next.summary.stateHash=await digest([next.summary.stateHash,g.difficultyProfile]);
    const processed=entry.processed+1;
-   const important=entry.command.stopOnImportant&&next.summary.events.some(e=>e.important)&&processed<entry.command.turns;
+   const important=entry.command.stopOnImportant&&next.summary.events.some(isImportantMissionEvent)&&processed<entry.command.turns;
    const status=opEffects?.critical?'interrupted':important?'interrupted':processed===entry.command.turns?'completed':'processing';
    const reason=opEffects?.critical?'critical_decision':important?'important_event':null;
    if(!await commitTurn(db,g,entry,next.summary,next.state,status,reason,effects?(guard,args)=>personnelWrites(db,g,effects.personnel,guard,args,[...(opEffects?.ledger??[]),...effects.ledger,...logisticsLedger],[...(opEffects?.history??[]),...effects.history]).concat(opEffects?operationsWrites(db,g,opEffects.operations,guard,args,opEffects.reports):[]).concat(worldEffects?worldWrites(db,g,worldEffects,guard,args):[]).concat(logistics?logisticsWrites(db,g,logistics,guard,args):[]).concat(intelligence?intelligenceWrites(db,g,intelligence,guard,args):[]).concat(planned?plannedFacts(planned.context,guard,args,next.state.turn):[]).concat(planned?orderCommitWrites(db,g,planned.list,guard,args,next.state.turn):[]):undefined))continue;

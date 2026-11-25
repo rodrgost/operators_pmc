@@ -42,7 +42,12 @@ it('operações: aceitar, planejar sem reservar e executar gera relatório e led
   const command={requestId:'start',expectedVersion:(await s.call(s.path)).data.stateVersion,...s.plan};
   const started=await s.call(s.path+'/contracts/'+s.contract.id+'/start',command);expect(started.status).toBe(201);
   expect((await s.call(s.path+'/contracts/'+s.contract.id+'/start',command)).data).toEqual(started.data);
-  expect((await s.advance(4)).data).toMatchObject({status:'completed',currentTurn:4});
+  const missionId=started.data.missionId;
+  expect((await s.call(s.path+'/command-center')).data.navigationNews['operations.missions:'+missionId]).toBe(1);
+  expect((await s.action('/advance','finish',{turns:5,stopOnImportant:true})).data).toMatchObject({status:'interrupted',reason:'important_event',currentTurn:4});
+  const news=(await s.call(s.path+'/command-center')).data.navigationNews;
+  expect(news['operations.missions:'+missionId]).toBeUndefined();
+  expect(news['operations.history:'+missionId]).toBe(5);
   const mission=(await s.call(s.path+'/missions/'+started.data.missionId)).data;expect(mission.status).toBe('completed');expect(mission.crew.filter((a:any)=>a.assignmentType==='reinforcement')).toHaveLength(1);
   const reports=(await s.call(s.path+'/missions/'+mission.id+'/reports')).data;expect(reports.some((r:any)=>r.outcome==='completed')).toBe(true);expect(JSON.stringify(reports)).not.toMatch(/difficulty|complicationDraw|capacity|audit_json/);
   const ledger=(await s.call(s.path+'/finances/ledger')).data;expect(ledger.reduce((n:number,e:any)=>n+e.amountCents,0)).toBe((await s.call(s.path)).data.cashCents);
