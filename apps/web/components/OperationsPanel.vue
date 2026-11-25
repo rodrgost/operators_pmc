@@ -63,8 +63,12 @@ const closingCash=computed(()=>selectedMission.value?missionCashImpact(selectedM
 const returnCrew=computed<{operatorId:string;name:string;availability?:string;health?:number;fatigue?:number;morale?:number}[]>(()=>closingReport.value?.crewAtReturn??[])
 const readyAtReturn=computed(()=>returnCrew.value.filter(operator=>operator.availability==='available').length)
 const progressReports=computed(()=>orderedReports.value.filter(report=>report!==closingReport.value).map(report=>({
- ...report,heading:missionReportTitle(report.title),result:missionReportOutcome(report.outcome),
+ ...report,heading:missionReportTitle(report.title),result:missionReportOutcome(report.outcome),reason:missionStageReason(report),
 })))
+const executionReport=computed(()=>progressReports.value.find(report=>report.stageIndex===2&&['success','partial','failure','complication'].includes(report.outcome)))
+const closingReason=computed(()=>closingReport.value?missionClosingReason(
+ closingReport.value,executionReport.value,progressReports.value.find(report=>report.outcome==='returning'),
+):'')
 const missionDecisions=computed(()=>new Map<string,any>(data.value.decisions.map((decision:any)=>[decision.missionId,decision])))
 function missionCrew(mission:any){
  const finished=mission.endedTurn!==null
@@ -416,6 +420,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
  <span>{{m.status==='returning'?'Retorno previsto':'Próxima etapa'}}</span>
  <strong>{{m.status==='active'?m.stageName+' · ':''}}{{dateAt(m.stageDueTurn)}}</strong>
 </p>
+<p v-if="m.status==='active'&&m.stageDescription">{{m.stageDescription}}</p>
 <OperationDecision :game="game" v-if="missionDecisions.has(m.id)" inline
  :decision="missionDecisions.get(m.id)" :orders="scheduled(missionDecisions.get(m.id).id)" :disabled="locked"
  @choose="resolveDecision(missionDecisions.get(m.id).id,$event)" @remove-order="run('/orders/'+$event+'/cancel')" />
@@ -432,6 +437,12 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
  <section v-if="closingReport" class="mission-closing">
   <h3>{{closingReport.title}}</h3>
   <p class="report-meta">{{m.contractTitle}} · {{dateAt(closingReport.turn,true)}}</p>
+  <p><strong>Por que deu esse resultado?</strong> {{closingReason}}</p>
+  <p v-if="executionReport?.reason">{{executionReport.heading}} · {{executionReport.reason}}</p>
+  <p v-if="closingReport.totalPaidCents>0&&closingReport.rewardCents>0">
+   {{closingReport.totalPaidCents>=closingReport.rewardCents?'Pagamento integral.':'Pagamento parcial de '+Math.round(closingReport.totalPaidCents/closingReport.rewardCents*100)+'%.'}}
+  </p>
+  <p v-else-if="closingReport.paymentCents<0">Adiantamento devolvido.</p>
   <dl class="closing-figures">
    <div v-if="closingCash"><dt>Impacto no caixa</dt><dd :class="closingCash.netCents<0?'debit':closingCash.netCents>0?'credit':''">{{closingCash.netCents>0?'+':''}}{{money(closingCash.netCents)}}</dd></div>
    <div v-else-if="closingReport.totalPaidCents!==undefined"><dt>Total recebido</dt><dd>{{money(closingReport.totalPaidCents)}}</dd></div>
@@ -461,11 +472,11 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
   <h3>{{m.contractTitle||'Operação em andamento'}}</h3>
   <p v-if="missionDecisions.has(m.id)">Decisão pendente · até {{dateAt(missionDecisions.get(m.id).expiresTurn)}}</p>
   <p v-else>{{m.status==='returning'?'Retorno previsto':'Próxima etapa · '+m.stageName}} · {{dateAt(m.stageDueTurn)}}</p>
-  <p v-if="progressReports.length">{{progressReports[0].heading}} · {{formatCampaignReport(progressReports[0].description)}}</p>
+  <p v-if="progressReports.length">{{progressReports[0].heading}} · {{progressReports[0].reason||formatCampaignReport(progressReports[0].description)}}</p>
  </section>
 
  <details v-if="progressReports.length" class="card-details">
- <summary>Linha do tempo · {{progressReports.length}}</summary>
+ <summary>Ver etapas · {{progressReports.length}}</summary>
  <details v-for="report in progressReports" :key="report.id" class="card-details report-timeline-entry">
   <summary>
    <span class="report-summary">
@@ -475,6 +486,8 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
    </span>
   </summary>
   <div class="report-detail-body">
+   <p v-if="report.stageDescription">{{report.stageDescription}}</p>
+   <p v-if="report.reason"><strong>Motivo</strong> {{report.reason}}</p>
    <p>{{formatCampaignReport(report.description)}}</p>
    <MissionReportFactors v-if="report.assessment" :assessment="report.assessment" />
    <div v-if="report.conditions?.length">
