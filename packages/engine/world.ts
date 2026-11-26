@@ -329,7 +329,44 @@ export function applyMissionResults(w:World,o:Operations,turn:number){
 
 }
 
-export async function publishWorldContracts(w:World,o:Operations,seed:string,turn:number,digest:Digest,profile:DifficultyProfile=NORMAL_V1){
+const diplomaticTerms={
+ cooperative:{risk:-3,premium:0},
+ tense:{risk:4,premium:0.05},
+ hostile:{risk:8,premium:0.12},
+ conflict:{risk:12,premium:0.20},
+} as const;
+
+export function applyDiplomaticOffers(w:World,o:Operations,turn:number,origin:string|null){
+ if(!origin || !countries.some(c=>c.id===origin))return;
+ for(const c of o.contracts){
+  if(c.status!=='available'||c.offered_turn!==turn)continue;
+  const intel=JSON.parse(c.intel_json);
+  if(intel.diplomacy||intel.previousRewardCents!=null)continue;
+  const destination=w.regions.find(r=>r.id===c.region_id)?.country_id;
+  if(!destination||destination===origin)continue;
+  const [low,high]=['gov-'+origin,'gov-'+destination].sort();
+  const relation=w.relations.find(r=>r.org_low===low&&r.org_high===high);
+  const value=relation?diplomaticValue(relation):0;
+  const inConflict=w.conflicts.some(conflict=>conflict.status==='active'&&
+   [low,high].every(id=>w.participants.some(p=>p.conflict_id===conflict.id&&p.organization_id===id)));
+  const level=inConflict?'conflict':value<-40?'hostile':value<-10?'tense':value>30?'cooperative':null;
+  if(!level)continue;
+  const terms=diplomaticTerms[level];
+  const restricted=inConflict&&c.client_id==='gov-'+destination&&c.type==='security';
+  const premiumCents=restricted?0:Math.round(c.reward_cents*terms.premium);
+  const previousRisk=c.risk;
+  if(!restricted)c.risk=Math.max(1,clamp(previousRisk+terms.risk));
+  c.reward_cents+=premiumCents;
+  const riskDelta=c.risk-previousRisk;
+  if(intel.estimatedRisk&&riskDelta){
+   intel.estimatedRisk={min:clamp(intel.estimatedRisk.min+riskDelta),max:clamp(intel.estimatedRisk.max+riskDelta)};
+  }
+  intel.diplomacy={origin,destination,level,premiumCents,restricted};
+  c.intel_json=JSON.stringify(intel);
+ }
+}
+
+export async function publishWorldContracts(w:World,o:Operations,seed:string,turn:number,digest:Digest,profile:DifficultyProfile=NORMAL_V1,origin:string|null=null){
 
  for(const e of w.events.filter(e=>e.created_turn===turn&&!e.contract_id)){
 
@@ -361,6 +398,7 @@ export async function publishWorldContracts(w:World,o:Operations,seed:string,tur
 
  }
 
+ applyDiplomaticOffers(w,o,turn,origin);
 }
 
 export function worldCanonical(w:World){const state={...w,events:w.events.filter(e=>e.status==='active'),conflicts:w.conflicts.filter(c=>c.status==='active'),jobs:w.jobs.filter(j=>j.status==='active')};return Object.fromEntries(Object.entries(state).map(([k,rows])=>[k,[...rows].sort((a:any,b:any)=>JSON.stringify(a).localeCompare(JSON.stringify(b),'en'))]));}

@@ -27,6 +27,16 @@ function countryNews(country:any){
 async function history(regionId:string){try{const rows=await $fetch<any[]>(base()+'/regions/'+regionId+'/history?offset='+(offset.value[regionId]||0)+'&limit=20');older.value[regionId]=[...(older.value[regionId]||[]),...rows];offset.value[regionId]=(offset.value[regionId]||0)+rows.length}catch{error.value='Não foi possível carregar o histórico.'}}
 async function cause(id:string,regionId=selected.value){section.value='regions';try{details.value[regionId]=await $fetch(base()+'/events/'+id)}catch{error.value='Não foi possível carregar a origem.'}}
 function regionNews(regionId:string){return older.value[regionId]?.length?older.value[regionId]:data.value.history.filter((e:any)=>e.regionId===regionId)}
+function countrySummary(dossier:any){
+ const bilateral=country.value?.diplomacy?.find((relation:any)=>relation.relationship==='Em conflito');
+ if(bilateral)return 'Conflito com '+bilateral.name+'. A área afetada é '+bilateral.conflictLocation+'. Confira as condições dos contratos nessa área.';
+ if((conflictsByRegion.value.get(dossier.id)??[]).some(conflict=>conflict.status==='active'))return 'Há um conflito em andamento no país. Confira o risco antes de aceitar um contrato.';
+ const indicators=dossier.publicIndicators?.indicators;
+ if(indicators?.security?.max<=45)return 'O boletim indica segurança baixa. Contratos novos podem exigir mais preparo.';
+ if(indicators?.tension?.min>=60)return 'O boletim indica tensão alta. Novos contratos podem ter risco maior.';
+ const strained=country.value?.diplomacy?.find((relation:any)=>['Tensa','Hostil'].includes(relation.relationship));
+ return strained?'A relação com '+strained.name+' está '+strained.relationship.toLowerCase()+'. Consulte as notícias do país para acompanhar mudanças.':'Nenhum conflito ativo aparece no boletim do país.';
+}
 const metrics=[
  {id:'stability',name:'Estabilidade',description:'Continuidade política e institucional'},
  {id:'security',name:'Segurança',description:'Condições de segurança para operações na área'},
@@ -80,10 +90,11 @@ onMounted(refresh)
      <div>
       <h2>{{dossier.name}}<NavigationBadge :status="navigationNews.status(game.id,'world.regions.'+dossier.id)" /></h2>
       <p>Controle · {{dossier.controllerName}}</p>
-      <p v-for="conflict in (conflictsByRegion.get(dossier.id)??[]).filter(item=>item.status==='active')" :key="conflict.id">Conflito ativo · intensidade {{conflict.intensity.toLowerCase()}}</p>
+      <p>{{countrySummary(dossier)}}</p>
      </div>
     </div>
-    <section v-if="dossier.publicIndicators" :id="'intelligence-region-'+dossier.id" class="public-indicators" aria-label="Indicadores públicos">
+    <details v-if="dossier.publicIndicators" :id="'intelligence-region-'+dossier.id" class="public-indicators card-details">
+     <summary>Indicadores públicos</summary>
      <p>Estimativas públicas · {{dateAt(dossier.publicIndicators.collectedTurn,true)}} · turno {{dossier.publicIndicators.collectedTurn}}</p>
      <div class="indicator-grid">
       <article v-for="metric in metrics" :key="metric.id">
@@ -104,7 +115,7 @@ onMounted(refresh)
        </div>
       </section>
      </details>
-    </section>
+    </details>
     <details v-if="country?.diplomacy?.length" class="card-details country-details">
      <summary>Relações entre países</summary>
      <article v-for="relation in country.diplomacy" :key="relation.countryId" class="mission-report">

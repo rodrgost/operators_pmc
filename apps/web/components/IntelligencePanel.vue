@@ -15,6 +15,18 @@ const topics=computed(()=>Object.values(data.value?.topics??{}).map((topic:any)=
  const report=topic.sources?.find((source:any)=>source.source==='analysis')
  return {...topic,activeAnalysis:activeAnalysis(topic.topic),analysisReport:report?.id!==topic.recordId?report:null}
 }))
+function topicSummary(topic:any){
+ const action=props.targetType==='contract'?' Se isso pesar na sua decisão, revise o plano antes de mobilizar.':' Consulte o boletim público antes de escolher uma operação.';
+ if(topic.conflicting)return 'As fontes divergem. A situação ainda não está confirmada.'+action;
+ if(!topic.estimate||!topic.confidence)return 'Ainda faltam dados para avaliar '+labels[topic.topic].toLowerCase()+'.';
+ if(topic.stale)return 'A estimativa de '+labels[topic.topic].toLowerCase()+' está desatualizada.'+action;
+ const {min,max}=topic.estimate;
+ const label=labels[topic.topic];
+ const tone=min>=65?'elevada':max<=35?'baixa':'incerta';
+ const qualifier=topic.confidence<60?'Os dados preliminares indicam ':'A estimativa disponível indica ';
+ return qualifier+label.toLowerCase()+' '+(label==='Risco'?({elevada:'elevado',baixa:'baixo',incerta:'incerto'}[tone]):tone)+'.'+
+  (props.targetType==='contract'&&max>=65?action:'');
+}
 const money=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'USD'}).format(n/100)
 let refreshSerial=0
 async function refresh(){const serial=++refreshSerial,scope=base()+query();try{const next=await $fetch<any>(scope+'&limit=10');if(serial!==refreshSerial||scope!==base()+query())return false;data.value=next;history.value=data.value.history;offset.value=history.value.length;return true}catch(e:any){if(serial!==refreshSerial||scope!==base()+query())return false;error.value=e.data?.message||'Não foi possível carregar a inteligência.';return false}}
@@ -25,7 +37,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
 </script>
 <template><section class="intel-panel" :class="{'intel-integrated':compact}" @click.capture="captureAction($event);error=''"><div v-if="!compact" class="panel-heading"><h3>Inteligência da companhia</h3><span class="tag">ESTIMATIVAS</span></div><p v-if="!compact">Uma análise busca uma estimativa mais precisa para ajudar no planejamento. Ela não altera as condições do país nem torna a missão mais segura. Fontes podem divergir, e a informação perde confiança com o tempo.</p><details class="intel-guide"><summary>Como ler as estimativas e quando analisar?</summary><p>A faixa listrada indica a avaliação disponível, de 0 a 100. Quanto mais estreita, mais precisa é a estimativa; ela ainda pode divergir da situação real.</p><p>Confiança mede a qualidade da informação, não a chance de sucesso da missão. O nível descreve o detalhamento: preliminar, verificado ou detalhado. Mesmo uma fonte verificada pode estar desatualizada.</p><p>Considere uma análise quando a informação estiver antiga, as fontes divergirem ou a incerteza pesar na sua decisão. O relatório pode trazer uma faixa diferente da anterior.<template v-if="data"> Prazo estimado: {{formatCampaignDuration(data.analysis.turns)}}.</template></p></details><ActionFeedback :target="feedbackTarget" :section="targetType + ':' + targetId" :turn="game.currentTurn" v-model:error="error" />
  <div v-if="pending&&!busy" class="panel intel-retry"><p>Análise aguardando confirmação. Repetir mantém o mesmo pedido e débito.</p><button class="primary action-block" @click="run">Repetir solicitação</button></div>
- <template v-if="data"><div class="intel-topics"><article v-for="t in topics" :key="t.topic" data-action-card :id="'intelligence-'+targetId+'-'+t.topic" class="intel-topic"><div class="panel-heading"><strong>{{labels[t.topic]}} · {{levels[t.level]}}<CardNews :game-id="game.id" :news-key="newsScope+'.intelligence:'+t.topic" :label="labels[t.topic]" /></strong><span v-if="t.conflicting" class="tag">FONTES CONFLITANTES</span><span v-else-if="t.stale" class="tag">OBSOLETA</span></div><IntelligenceEstimate :label="labels[t.topic]" :estimate="t.estimate" :confidence="t.confidence" :inverse="['tension','difficulty','risk'].includes(t.topic)"><p class="indicator-help">{{indicatorHelp[t.topic]}}</p></IntelligenceEstimate>
+ <template v-if="data"><div class="intel-topics"><article v-for="t in topics" :key="t.topic" data-action-card :id="'intelligence-'+targetId+'-'+t.topic" class="intel-topic"><div class="panel-heading"><strong>{{labels[t.topic]}} · {{levels[t.level]}}<CardNews :game-id="game.id" :news-key="newsScope+'.intelligence:'+t.topic" :label="labels[t.topic]" /></strong><span v-if="t.conflicting" class="tag">FONTES CONFLITANTES</span><span v-else-if="t.stale" class="tag">OBSOLETA</span></div><p>{{topicSummary(t)}}</p><details class="card-details"><summary>Ver detalhes da estimativa</summary><IntelligenceEstimate :label="labels[t.topic]" :estimate="t.estimate" :confidence="t.confidence" :inverse="['tension','difficulty','risk'].includes(t.topic)"><p class="indicator-help">{{indicatorHelp[t.topic]}}</p></IntelligenceEstimate></details>
  <details v-if="t.analysisReport" class="card-details">
   <summary>Análise de {{formatCampaignTurn(game,t.analysisReport.collectedTurn)}}</summary>
   <IntelligenceEstimate :label="'Resultado da análise de '+labels[t.topic].toLowerCase()" :estimate="t.analysisReport.estimate" :confidence="t.analysisReport.confidence" :inverse="['tension','difficulty','risk'].includes(t.topic)" />

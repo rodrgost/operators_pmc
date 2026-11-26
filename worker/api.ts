@@ -84,7 +84,7 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
     next.state.cashCents=effects.cash;
     if(logistics){const finance=facilitiesFinance(logistics,next.state.turn,next.state.cashCents);next.state.cashCents=finance.cash;logisticsLedger=finance.ledger;logisticsEvents.push(...finance.events);}
     next.state.status=next.state.cashCents<0||logistics?.headquarters.arrears_cents>0?'financial_crisis':effects.status;
-    if(worldEffects){await publishWorldContracts(worldEffects,opEffects.operations,g.seed,next.state.turn,digest,g.difficultyProfile);await refreshIntel(worldEffects,g.seed,next.state.turn,digest);next.summary.events=next.summary.events.filter(e=>e.type!=='public_bulletin');}
+    if(worldEffects){await publishWorldContracts(worldEffects,opEffects.operations,g.seed,next.state.turn,digest,g.difficultyProfile,g.registrationCountryId);await refreshIntel(worldEffects,g.seed,next.state.turn,digest);next.summary.events=next.summary.events.filter(e=>e.type!=='public_bulletin');}
     if(intelligence){await collectSources(intelligence,worldEffects,opEffects.operations,next.state.turn,digest);intelligence.snapshots=intelligence.snapshots.filter((s:any)=>opEffects.operations.missions.some((m:any)=>m.id===s.mission_id&&['active','awaiting_decision','returning'].includes(m.status)));}
     const weekly=next.summary.events.find(e=>e.type==='weekly_close');if(weekly)weekly.description='Semana encerrada. Consulte os pagamentos e vínculos no livro-razão.';
     for(const e of [...intelligenceEvents,...logisticsEvents,...(worldEffects?worldNotifications(worldEffects,next.state.turn):[]),...(opEffects?.events??[]),...effects.events])next.summary.events.push({...e,turn:next.state.turn,sequence:next.summary.events.length});
@@ -133,6 +133,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
    if(path.length===3&&request.method==='GET')return json({stateVersion:g.stateVersion,orders:await orders(db,id)});
    if(path[3]&&path[4]==='cancel'&&request.method==='POST')return json(await cancelOrder(db,id,owner,path[3],await request.json()));
   }
+  if(g.registrationCountryId&&!g.worldInitialized&&['contracts','operations'].includes(path[2]))await ensureWorld(db,id,owner,digest);
   const route=execution==='queued'?orderRoute(path,request.method):null;
   if(execution==='queued'&&path[2]==='squads'&&['POST','PATCH'].includes(request.method)&&path[4]!=='training'){
    const body=await request.clone().json(),pending=await orders(db,id);

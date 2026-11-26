@@ -1,9 +1,9 @@
 import {readIntelligence} from './intelligence.ts';
 import {dossier} from '../packages/engine/intelligence.ts';
 import {countries,rules} from '../packages/rules/index.ts';
-import {seedWorld,config,diplomaticValue,type World} from '../packages/engine/world.ts';
+import {seedWorld,config,diplomaticValue,applyDiplomaticOffers,type World} from '../packages/engine/world.ts';
 import type {Digest} from '../packages/engine/personnel.ts';
-import {ensureOperations,contractProjection,contractViewSelect} from './operations.ts';
+import {ensureOperations,readOperations,operationsWrites,contractProjection,contractViewSelect} from './operations.ts';
 import {getGame,mutate,ApiError,type Database,type Campaign} from './persistence.ts';
 const tables={organizations:['id','name','type','goal','resources','company_relation'],regions:['id','country_id','name','stability','security','economy','tension','controller_id','cooldown_until','last_event_id','last_event_type','intel_json'],influences:['region_id','organization_id','score'],relations:['org_low','org_high','value'],events:['id','region_id','type','category','created_turn','end_turn','status','origin_id','contract_id','summary','effects_json'],conflicts:['id','region_id','intensity','status','started_turn','ended_turn','cause_id'],participants:['conflict_id','organization_id','side'],rivals:['id','capacity','budget_cents','reputation','specialization','completed','failed'],jobs:['id','rival_id','contract_id','region_id','started_turn','completes_turn','status','origin_id']};
 const names:Record<string,string>={participants:'conflict_participants',jobs:'rival_jobs'};
@@ -25,7 +25,9 @@ export async function ensureWorld(db:Database,id:string,owner:string,digest:Dige
  for(let i=0;i<30;i++){
   const g=await getGame(db,id,owner);if(g.worldVersion!==config.version)throw new ApiError(422,'WORLD_RULES_MISMATCH','Regras mundiais indisponíveis.');if(g.worldInitialized)return;
   if(g.activeRequest)throw new ApiError(409,'LOCKED','Conclua o lote antes de abrir o mundo.');
-  const w=await seedWorld(g.seed,g.state.turn,digest);if(await mutate(db,g,{...g,worldInitialized:true},(guard,args)=>worldWrites(db,g,w,guard,args)))return;
+  const w=await seedWorld(g.seed,g.state.turn,digest);const operations=await readOperations(db,id);
+  applyDiplomaticOffers(w,operations,Math.floor(g.state.turn/rules.turnsPerWeek)*rules.turnsPerWeek,g.registrationCountryId);
+  if(await mutate(db,g,{...g,worldInitialized:true},(guard,args)=>[...worldWrites(db,g,w,guard,args),...operationsWrites(db,g,operations,guard,args)]))return;
  }throw new ApiError(409,'BUSY','Tente novamente.');
 }
 const eventProjection=(e:any)=>({id:e.id,regionId:e.region_id,type:e.type,category:e.category,createdTurn:e.created_turn,endTurn:e.end_turn,status:e.status,originId:e.origin_id,contractId:e.contract_id,summary:e.summary});

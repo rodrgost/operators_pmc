@@ -1,7 +1,7 @@
 import {it,expect} from 'vitest';
 import {createHash} from 'node:crypto';
 import {setupImmediate as setup} from './online-helpers.ts';
-import {seedWorld,worldTurn,publishWorldContracts,refreshIntel,validateWorld,applyMissionResults,worldCanonical} from '../packages/engine/world.ts';
+import {applyDiplomaticOffers,seedWorld,worldTurn,publishWorldContracts,refreshIntel,validateWorld,applyMissionResults,worldCanonical} from '../packages/engine/world.ts';
 import {countries} from '../packages/rules/index.ts';
 import {offers,emptyOperations} from '../packages/engine/operations.ts';
 const digest=async(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
@@ -148,4 +148,23 @@ it('mantém os boletins na cadência e publica conflito bilateral e cessar-fogo 
  ({world}=await worldTurn(world,operations,36,'border',forced));
  expect(world.conflicts.find(c=>c.cause_id===incident.id)?.status).toBe('resolved');
  expect(world.events.filter(e=>e.created_turn===36&&e.summary.includes('cessar-fogo')).map(e=>e.region_id).sort()).toEqual(['norvik','solmar']);
+});
+
+it('aplica termos diplomáticos na oferta uma vez e preserva contratos aceitos',async()=>{
+ const digest=async()=> 'f'.repeat(64);
+ const w=await seedWorld('diplomacy',0,digest);
+ const o=emptyOperations();
+ const base={region_id:'solmar',client_id:'gov-solmar',type:'security',status:'available',offered_turn:0,risk:50,reward_cents:10000,intel_json:JSON.stringify({estimatedRisk:{min:40,max:60}})};
+ o.contracts=[{...base,id:'new'},{...base,id:'signed',status:'accepted'},{...base,id:'domestic',region_id:'norvik'}];
+ applyDiplomaticOffers(w,o,0,'norvik');
+ applyDiplomaticOffers(w,o,0,'norvik');
+ expect(o.contracts.map(c=>[c.risk,c.reward_cents])).toEqual([[54,10500],[50,10000],[50,10000]]);
+ expect(JSON.parse(o.contracts[0].intel_json).estimatedRisk).toEqual({min:44,max:64});
+ w.conflicts.push({id:'border',status:'active'});
+ w.participants.push({conflict_id:'border',organization_id:'gov-norvik'},{conflict_id:'border',organization_id:'gov-solmar'});
+ o.contracts.push({...base,id:'restricted',offered_turn:28},{...base,id:'private',offered_turn:28,client_id:'corp-helion'});
+ applyDiplomaticOffers(w,o,28,'norvik');
+ expect(JSON.parse(o.contracts[3].intel_json).diplomacy.restricted).toBe(true);
+ expect(o.contracts[4].reward_cents).toBe(12000);
+ expect(o.contracts[4].risk).toBe(62);
 });

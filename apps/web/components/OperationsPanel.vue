@@ -69,6 +69,14 @@ const executionReport=computed(()=>progressReports.value.find(report=>report.sta
 const closingReason=computed(()=>closingReport.value?missionClosingReason(
  closingReport.value,executionReport.value,progressReports.value.find(report=>report.outcome==='returning'),
 ):'')
+function diplomaticSummary(contract:any){
+ const effect=contract?.diplomacy;
+ if(!effect)return '';
+ if(effect.restricted)return 'O governo local restringiu esta oferta para PMCs do país de origem da sua companhia.';
+ if(effect.level==='cooperative')return 'A boa relação com o país da operação reduz um pouco o risco de contratempos.';
+ return (effect.level==='conflict'?'Os dois países estão em conflito. ':'A relação com o país da operação está '+(effect.level==='hostile'?'hostil. ':'tensa. '))+
+  'O risco de complicações é maior'+(effect.premiumCents?' e a oferta inclui '+money(effect.premiumCents)+' a mais.':'.');
+}
 const missionDecisions=computed(()=>new Map<string,any>(data.value.decisions.map((decision:any)=>[decision.missionId,decision])))
 function missionCrew(mission:any){
  const finished=mission.endedTurn!==null
@@ -203,6 +211,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
     <span>{{selectedContract.countryName}}</span>
    </div>
    <h2><GameLabel kind="mission" :code="selectedContract.type" :label="selectedContract.title" /></h2>
+   <p v-if="selectedContract.diplomacy">{{diplomaticSummary(selectedContract)}}</p>
    <p class="planner-deadline">{{selectedContract.status==='accepted'?'Mobilizar até ':'Aceitar até '}}{{dateAt(selectedContract.mobilizationDueTurn??selectedContract.expiresTurn)}}</p>
    <nav class="preparation-nav" aria-label="Etapas da missão">
     <button v-for="(step,index) in preparationSteps" :key="step[0]" type="button" :class="{active:preparationStep===step[0]}" :aria-current="preparationStep===step[0]?'step':undefined" :disabled="locked" @click="preparationStep=step[0]">
@@ -379,6 +388,8 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
      <p class="contract-location">
       {{c.countryName}}<template v-if="c.status==='accepted'||c.status==='available'"> · {{c.status==='accepted'?'Mobilizar até':'Aceitar até'}} {{dateAt(c.mobilizationDueTurn??c.expiresTurn)}}</template>
      </p>
+     <p v-if="c.diplomacy">{{diplomaticSummary(c)}}</p>
+     <p v-if="c.objective">{{c.objective}}</p>
      <p v-if="c.rival" class="contract-rival-company"><OrganizationEmblem :id="c.rival.id" /><strong>{{c.rival.name}}</strong></p>
      <p v-if="c.status==='available'&&c.previousRewardCents!=null" class="contract-reopened">Reaberto após falha de rival · antes {{money(c.previousRewardCents)}}</p>
      <div class="contract-key-facts">
@@ -387,7 +398,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
      </div>
      <p v-if="c.requiredEquipment.length" class="contract-equipment">Kits · <KitList :categories="c.requiredEquipment" /></p>
      <button v-if="(c.status==='accepted'||(c.status==='available'&&scheduled(c.id,'accept').length))&&!scheduled(c.id,'start').length&&!scheduled(c.id,'cancel').length" type="button" class="primary contract-prepare" :disabled="locked" @click="openContract(c)">Planejar missão</button>
-     <button v-else-if="c.status==='available'&&!scheduled(c.id).length" type="button" class="primary contract-prepare" :disabled="locked" @click="openContract(c)">Preparar missão</button>
+     <button v-else-if="c.status==='available'&&!c.diplomacy?.restricted&&!scheduled(c.id).length" type="button" class="primary contract-prepare" :disabled="locked" @click="openContract(c)">Preparar missão</button>
      <details class="card-details contract-briefing" @toggle="($event.currentTarget as HTMLDetailsElement).open&&navigationNews.markRead(game.id,'contracts.'+c.id+'.offer:new')">
       <summary>Briefing e estimativas <NavigationBadge :status="navigationNews.status(game.id,'contracts.'+c.id+'.intelligence')" /></summary>
       <ContractEstimates :contract="c" />
