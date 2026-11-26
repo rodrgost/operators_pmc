@@ -41,7 +41,7 @@ function dueTurn(order:Order,context:any){
  const reservation=context.p?.reservations.find((r:any)=>r.source_id===order.id);
  const kit=context.l?.equipment.find((k:any)=>k.id==='kit-'+order.id+'-0'||k.id===order.target);
  const module=context.l?.modules.find((m:any)=>order.kind==='upgrade'&&m.type===order.target);
- const analysis=context.i?.jobs.find((j:any)=>j.id===analysisJobId(order.id,order.command.operational));
+ const analysis=context.i?.jobs.find((j:any)=>j.id===analysisJobId(order.id,order.command.operational,order.command.payment==='contact'));
  const mission=context.o?.missions.find((m:any)=>m.id==='mission-'+order.id);
  return reservation?.end_turn??module?.due_turn??kit?.due_turn??analysis?.due_turn??mission?.stage_due_turn??null;
 }

@@ -4,11 +4,15 @@ export {config};
 export interface Logistics {headquarters:any;modules:any[];equipment:any[];assignments:any[];progress:any[];activities:any[]}
 export const catalog=config.categories.flatMap(c=>[1,2,3].map(q=>({id:c.id+'-'+q,category:c.id,name:c.name+' '+['I','II','III'][q-1],quality:q,weight:c.weight,priceCents:c.priceCents*q*q,deliveryTurns:config.deliveryTurns})));
 export const itemType=(item:any)=>catalog.find(c=>c.id===item.catalog_id)!;
-export function moduleLevel(l:Logistics|undefined,type:string){return l?.modules.find(m=>m.type===type)?.level??1}
-export function moduleCapacity(l:Logistics|undefined,type:string){return config.modules.find(m=>m.id===type)!.capacities[moduleLevel(l,type)-1]}
+export function moduleLevel(l:Logistics|undefined,type:string){return l?.modules.find(m=>m.type===type)?.level??(type==='intelligence'?0:1)}
+export function moduleCapacity(l:Logistics|undefined,type:string){return config.modules.find(m=>m.id===type)!.capacities[moduleLevel(l,type)-(type==='intelligence'?0:1)]}
 export function equipmentLoad(l:Logistics){return l.equipment.filter(k=>k.status!=='destroyed').reduce((n,k)=>n+itemType(k).weight,0)}
 export function weeklyMaintenance(l:Logistics){return config.modules.reduce((n,m)=>n+m.weeklyBaseCents*moduleLevel(l,m.id),0)+Math.max(0,equipmentLoad(l)-moduleCapacity(l,'depot'))*config.overflowWeeklyCents}
-export function seedLogistics(turn:number):Logistics{return {headquarters:{name:'Sede central',activated_turn:turn,arrears_cents:0,last_bill_turn:Math.floor(turn/28)*28},modules:config.modules.map(m=>({type:m.id,level:1,target_level:null,due_turn:null})),equipment:[],assignments:[],progress:[],activities:[]}}
+export function ensureIntelligenceModule(l:Logistics){
+ if(!l.modules.some(m=>m.type==='intelligence'))l.modules.push({type:'intelligence',level:0,target_level:null,due_turn:null});
+}
+export function moduleUpgradeScale(type:string,level:number){return type==='intelligence'?level+1:level;}
+export function seedLogistics(turn:number):Logistics{return {headquarters:{name:'Sede central',activated_turn:turn,arrears_cents:0,last_bill_turn:Math.floor(turn/28)*28},modules:config.modules.map(m=>({type:m.id,level:m.id==='intelligence'?0:1,target_level:null,due_turn:null})),equipment:[],assignments:[],progress:[],activities:[]}}
 export function ready(k:any){return k.status==='available'&&k.condition>=config.minimumCondition&&k.supplies>=config.minimumSupplies}
 export function missionLoad(kits:any[]){return kits.reduce((n,k)=>n+itemType(k).weight,0)}
 export function missionLoadCapacity(kits:any[]){return Math.min(config.maximumMissionLoad,config.baseMissionLoad+Math.floor(kits.filter(k=>itemType(k).category==='logistics').sort((a,b)=>itemType(b).quality-itemType(a).quality).reduce((n,k,i)=>n+itemType(k).quality*config.logisticsLoadBonus/(1+i),0)))}

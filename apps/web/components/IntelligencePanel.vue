@@ -4,6 +4,7 @@ import {intelligenceTopicLabels as labels} from '../../../packages/rules/intelli
 const {feedbackTarget,captureAction}=useActionFeedback()
 const props=defineProps<{game:any;targetType:string;targetId:string;compact?:boolean;operationalOnly?:boolean}>(),emit=defineEmits(['changed','processing'])
 const data=ref<any>(null),error=ref(''),busy=ref(false),review=ref(''),history=ref<any[]>([]),offset=ref(0),expanded=ref(false)
+const operationalPayment=ref<'cash'|'contact'>('cash')
 const levels=['Desconhecido','Preliminar','Verificado','Detalhado']
 const commandStore=useState<Record<string,any>>('intelligence-commands',()=>({})),pending=computed({get:()=>commandStore.value[props.game.id]??null,set:(v:any)=>commandStore.value={...commandStore.value,[props.game.id]:v}}),locked=computed(()=>busy.value||!!pending.value)
 const base=()=>'/api/v1/games/'+props.game.id+'/intelligence',query=()=>'?targetType='+props.targetType+'&targetId='+encodeURIComponent(props.targetId)
@@ -31,7 +32,7 @@ const money=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency
 let refreshSerial=0
 async function refresh(){const serial=++refreshSerial,scope=base()+query();try{const next=await $fetch<any>(scope+'&limit=10');if(serial!==refreshSerial||scope!==base()+query())return false;data.value=next;history.value=data.value.history;offset.value=history.value.length;return true}catch(e:any){if(serial!==refreshSerial||scope!==base()+query())return false;error.value=e.data?.message||'Não foi possível carregar a inteligência.';return false}}
 async function more(){try{const page=await $fetch<any>(base()+query()+'&limit=10&offset='+offset.value);history.value.push(...page.history);offset.value+=page.history.length;data.value.pagination=page.pagination}catch{error.value='Não foi possível carregar o histórico.'}}
-async function run(){if(busy.value||(!pending.value&&(!review.value||activeAnalysis(review.value))))return;const command=pending.value||{requestId:crypto.randomUUID(),expectedVersion:data.value.stateVersion,targetType:props.targetType,targetId:props.targetId,topic:review.value==='operational'?'risk':review.value,...(review.value==='operational'?{operational:true}:{})};pending.value=command;busy.value=true;emit('processing',true);error.value='';let done=false;try{await $fetch(base()+'/analyses',{method:'POST',body:command});if(!await refresh())return;pending.value=null;review.value='';done=true}catch(e:any){if(e.status>=400&&e.status<500){pending.value=null;review.value='';await refresh()}error.value=e.data?.message||'Falha de conexão. Repita para recuperar a mesma análise.'}finally{busy.value=false;emit('processing',!!pending.value)}if(done)emit('changed')}
+async function run(){if(busy.value||(!pending.value&&(!review.value||activeAnalysis(review.value))))return;const command=pending.value||{requestId:crypto.randomUUID(),expectedVersion:data.value.stateVersion,targetType:props.targetType,targetId:props.targetId,topic:review.value==='operational'?'risk':review.value,...(review.value==='operational'?{operational:true,payment:operationalPayment.value}:{})};pending.value=command;busy.value=true;emit('processing',true);error.value='';let done=false;try{await $fetch(base()+'/analyses',{method:'POST',body:command});if(!await refresh())return;pending.value=null;review.value='';done=true}catch(e:any){if(e.status>=400&&e.status<500){pending.value=null;review.value='';await refresh()}error.value=e.data?.message||'Falha de conexão. Repita para recuperar a mesma análise.'}finally{busy.value=false;emit('processing',!!pending.value)}if(done)emit('changed')}
 watch(()=>[props.game.id,props.game.stateVersion,props.targetType,props.targetId],async()=>{review.value='';data.value=null;await refresh()})
 onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
 </script>
@@ -45,13 +46,16 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
     <p v-if="data.operational.report.concern==='low'">Há pouco indício de ferimentos. Se precisar priorizar espaço, avalie levar apenas os kits exigidos.</p>
     <p v-else>Há indícios de {{data.operational.report.concern==='high'?'risco elevado':'risco moderado'}} de ferimentos. Considere reservar um kit médico em boas condições para reduzir a gravidade de eventuais lesões na execução. Um operador médico melhora o efeito do kit.</p>
     <details class="card-details"><summary>Ver detalhes do relatório</summary>
-     <p>Fonte · consulta operacional avulsa. Coleta em {{formatCampaignTurn(game,data.operational.report.collectedTurn,true)}}. Oferta de referência · turno {{data.operational.report.offerRevision}}.</p>
+     <p>Fonte · {{data.operational.report.funding==='contact'?'rede de contatos da sede':'consulta operacional avulsa'}}. Coleta em {{formatCampaignTurn(game,data.operational.report.collectedTurn,true)}}. Oferta de referência · turno {{data.operational.report.offerRevision}}.</p>
     </details>
    </template>
    <p v-if="activeAnalysis('operational')" role="status">Relatório previsto para {{formatCampaignTurn(game,activeAnalysis('operational').dueTurn)}}.</p>
-   <button v-else-if="data.operational.available&&(!data.operational.report||data.operational.report.stale)" type="button" class="secondary action-block" :disabled="locked||game.cashCents<data.operational.costCents" @click="review='operational'">Contratar análise · {{money(data.operational.costCents)}} · 1 turno</button>
+   <div v-else-if="data.operational.available&&(!data.operational.report||data.operational.report.stale)" class="personnel-actions">
+    <button v-if="data.operational.contacts.remaining>0" type="button" class="secondary" :disabled="locked" @click="operationalPayment='contact';review='operational'">Usar contato · {{data.operational.contacts.remaining}} de {{data.operational.contacts.total}}</button>
+    <button type="button" class="secondary" :disabled="locked||game.cashCents<data.operational.costCents" @click="operationalPayment='cash';review='operational'">Contratar avulsa · {{money(data.operational.costCents)}}</button>
+   </div>
    <FocusDialog v-if="review==='operational'" title="Contratar análise operacional" :busy="busy" :error="error" @close="review=''">
-    <p>O relatório avalia a chance de ferimentos e indica se vale reservar um kit médico. Custo avulso de {{money(data.operational.costCents)}}. Entrega em um turno.</p>
+    <p>O relatório avalia a chance de ferimentos e indica se vale reservar um kit médico. {{operationalPayment==='contact'?'Usa um contato da sede.':'Custo avulso de '+money(data.operational.costCents)+'.'}} Entrega em um turno.</p>
     <button type="button" class="primary" :disabled="locked" @click="run">Confirmar consulta</button>
    </FocusDialog>
   </section>

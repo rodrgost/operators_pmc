@@ -78,6 +78,13 @@
       "when": 1795472848967,
       "tag": "0010_rival_contract_reoffers",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1795698000000,
+      "tag": "0011_intelligence_headquarters",
+      "breakpoints": true
     }
   ]
 }

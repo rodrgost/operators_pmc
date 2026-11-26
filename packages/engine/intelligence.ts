@@ -21,8 +21,10 @@ export async function collectSources(i:Intelligence,w:World,o:Operations,turn:nu
  for(const c of o.contracts){const intel=JSON.parse(c.intel_json);const current=i.current.find(p=>p.target_type==='contract'&&p.target_id===c.id&&p.source==='client'&&p.topic==='risk');if(current&&i.records.find(r=>r.id===current.record_id)?.collected_turn===intel.collectedTurn)continue;for(const topic of topicsFor('contract'))await appendRecord(i,{targetType:'contract',targetId:c.id,topic,source:'client',turn:intel.collectedTurn,estimate:topic==='risk'?intel.estimatedRisk:intel.estimatedDifficulty,confidence:intel.confidence},digest);}
 }
 export const operationalAnalysisTurns=1;
-export const analysisJobId=(requestId:string,operational=false)=>(operational?'analysis-operational/':'analysis-')+requestId;
-export const isOperationalAnalysis=(id:string)=>id.startsWith('analysis-operational/');
+export const analysisJobId=(requestId:string,operational=false,contact=false)=>(contact?'analysis-contact/':operational?'analysis-operational/':'analysis-')+requestId;
+export const contactAnalysisPrefix='analysis-contact/';
+export const isContactAnalysis=(id:string)=>id.startsWith(contactAnalysisPrefix);
+export const isOperationalAnalysis=(id:string)=>id.startsWith('analysis-operational/')||isContactAnalysis(id);
 export const offerRevision=(contract:any,intel=JSON.parse(contract.intel_json))=>Math.max(contract.offered_turn,intel.offerUpdate?.turn??0);
 
 export function operationalReport(contract:any){
@@ -30,15 +32,15 @@ export function operationalReport(contract:any){
  return report?{...report,stale:report.offerRevision!==offerRevision(contract,intel)}:null;
 }
 
-export function completeOperationalAnalysis(contract:any,turn:number){
+export function completeOperationalAnalysis(contract:any,turn:number,contact=false){
  const intel=JSON.parse(contract.intel_json);
  const concern=contract.risk>=60?'high':contract.risk>=35?'moderate':'low';
  intel.operationalReport={collectedTurn:turn,offerRevision:offerRevision(contract,intel),concern,
-  complication:'injury',kitCategory:'medical',specialist:'medic'};
+  funding:contact?'contact':'cash',complication:'injury',kitCategory:'medical',specialist:'medic'};
  contract.intel_json=JSON.stringify(intel);
 }
 
-export async function resolveAnalyses(i:Intelligence,w:World,o:Operations,turn:number,seed:string,digest:Digest){const events:any[]=[];for(const job of i.jobs.filter(j=>j.status==='pending'&&j.due_turn<=turn)){const target=job.target_type==='region'?w.regions.find(r=>r.id===job.target_id):o.contracts.find(c=>c.id===job.target_id);if(!target)throw Error('Missing intelligence analysis target');if(isOperationalAnalysis(job.id))completeOperationalAnalysis(target,turn);else await observation(i,job.target_type,job.target_id,job.topic,target[job.topic],'analysis',turn,seed,job.id,digest);job.status='completed';job.completed_turn=turn;events.push({type:'intelligence_analysis_completed',title:isOperationalAnalysis(job.id)?'Relatório operacional pronto':'Análise de inteligência concluída',description:isOperationalAnalysis(job.id)?target.title+' · Consulte a complicação e o preparo indicado no contrato.':'Novo registro disponível. Consulte fontes, confiança e validade no dossiê.',important:false});}return events;}
+export async function resolveAnalyses(i:Intelligence,w:World,o:Operations,turn:number,seed:string,digest:Digest){const events:any[]=[];for(const job of i.jobs.filter(j=>j.status==='pending'&&j.due_turn<=turn)){const target=job.target_type==='region'?w.regions.find(r=>r.id===job.target_id):o.contracts.find(c=>c.id===job.target_id);if(!target)throw Error('Missing intelligence analysis target');if(isOperationalAnalysis(job.id))completeOperationalAnalysis(target,turn,isContactAnalysis(job.id));else await observation(i,job.target_type,job.target_id,job.topic,target[job.topic],'analysis',turn,seed,job.id,digest);job.status='completed';job.completed_turn=turn;events.push({type:'intelligence_analysis_completed',title:isOperationalAnalysis(job.id)?'Relatório operacional pronto':'Análise de inteligência concluída',description:isOperationalAnalysis(job.id)?target.title+' · Consulte a complicação e o preparo indicado no contrato.':'Novo registro disponível. Consulte fontes, confiança e validade no dossiê.',important:false});}return events;}
 export async function collectReconnaissance(i:Intelligence,w:World,o:Operations,reports:any[],turn:number,seed:string,digest:Digest){const events:any[]=[];
  for(const report of reports){const data=JSON.parse(report.summary_json),m=o.missions.find(m=>m.id===report.mission_id),c=o.contracts.find(c=>c.id===m?.contract_id);if(!m||!c||!i.snapshots.some(s=>s.mission_id===m.id))continue;
   if(data.stageIndex===1&&['success','partial','complication'].includes(data.outcome)){for(const topic of topicsFor('contract'))await observation(i,'contract',c.id,topic,c[topic],'in_mission',turn,seed,m.id,digest,data.outcome==='partial');events.push({type:'intelligence_field_collected',title:'Reconhecimento reportado',description:c.title+' · estimativas do contrato atualizadas.',important:false});}

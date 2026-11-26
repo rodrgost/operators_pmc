@@ -103,7 +103,7 @@ export const headquarters=sqliteTable('online_headquarters',{
 },t=>[check('hq_arrears',sql`${t.arrears}>=0`)]);
 export const hqModules=sqliteTable('online_hq_modules',{
  gameId:text('game_id').notNull().references(()=>games.id),type:text('type').notNull(),level:integer('level').notNull(),target:integer('target_level'),due:integer('due_turn'),
-},t=>[primaryKey({columns:[t.gameId,t.type]}),check('hq_levels',sql`${t.level} BETWEEN 1 AND 5 AND (${t.target} IS NULL OR ${t.target}=${t.level}+1 AND ${t.target}<=5)`)]);
+},t=>[primaryKey({columns:[t.gameId,t.type]}),check('hq_levels',sql`(${t.level} BETWEEN 1 AND 5 OR ${t.type} = 'intelligence' AND ${t.level} = 0) AND (${t.target} IS NULL OR ${t.target}=${t.level}+1 AND ${t.target}<=5)`)]);
 export const equipment=sqliteTable('online_equipment',{
  gameId:text('game_id').notNull().references(()=>games.id),id:text('id').notNull(),catalogId:text('catalog_id').notNull(),condition:integer('condition').notNull(),supplies:integer('supplies').notNull(),status:text('status').notNull(),missionId:text('mission_id'),due:integer('due_turn'),task:text('task'),
 },t=>[primaryKey({columns:[t.gameId,t.id]}),foreignKey({columns:[t.gameId,t.missionId],foreignColumns:[missions.gameId,missions.id]}),check('equipment_bounds',sql`${t.condition} BETWEEN 0 AND 100 AND ${t.supplies} BETWEEN 0 AND 100`),check('equipment_status',sql`${t.status} IN ('in_delivery','available','reserved','in_use','maintenance','destroyed')`),index('equipment_status_due').on(t.gameId,t.status,t.due)]);

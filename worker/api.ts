@@ -2,7 +2,7 @@ import {isImportantMissionEvent} from '../packages/domain/index.ts';
 import {difficultyChoices} from '../packages/engine/difficulty.ts';
 import {orderRoute,enqueue,orders,cancelOrder,prepareOrders,plannedFacts,orderCommitWrites} from './planning.ts';
 import {commandCenter,advanceSummary} from './command-center.ts';
-import {ensureIntelligence,readIntelligence,intelligenceWrites,intelligenceView,analysisAction,analysisSchema} from './intelligence.ts';
+import {ensureIntelligence,readIntelligence,intelligenceWrites,intelligenceView,analysisAction,analysisSchema,intelligenceContacts} from './intelligence.ts';
 import {collectSources,resolveAnalyses,collectReconnaissance,intelligenceCanonical,dossier,config as intelligenceConfig} from '../packages/engine/intelligence.ts';
 import {ensureLogistics,readLogistics,logisticsWrites,logisticsView,logisticsAction,purchaseSchema} from './logistics.ts';
 import {isEquipmentService,logisticsStart,facilityTurn,facilitiesFinance,logisticsCanonical,config as logisticsConfig} from '../packages/engine/logistics.ts';
@@ -167,10 +167,12 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
     const {offset,limit}=paginationSchema.parse(Object.fromEntries(url.searchParams));
     const type=url.searchParams.get('targetType'),target=url.searchParams.get('targetId'),topic=url.searchParams.get('topic')??undefined;
     if(type&&target){
-     const scheduledAnalyses=(await orders(db,id))
+     const pending=await orders(db,id);
+     const scheduledAnalyses=pending
       .filter(order=>order.kind==='analysis'&&order.command.targetType===type&&order.command.targetId===target)
-      .map(order=>({id:order.id,topic:order.command.topic,operational:!!order.command.operational,dueTurn:order.dueTurn,status:'scheduled'}));
+      .map(order=>({id:order.id,topic:order.command.topic,operational:!!order.command.operational,payment:order.command.payment??'cash',dueTurn:order.dueTurn,status:'scheduled'}));
      const view=await intelligenceView(db,current,type,target,offset,limit,topic);
+     if(view.operational)view.operational.contacts=await intelligenceContacts(db,current,pending.filter(o=>o.kind==='analysis'&&o.command.payment==='contact').length);
      return json({...view,analyses:[...view.analyses,...scheduledAnalyses]});
     }
     if(type||target||topic)throw new ApiError(400,'INVALID_TARGET','Informe tipo e identificador do alvo.');
@@ -181,7 +183,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
   if(path[2]==='world'&&request.method==='GET'){await ensureWorld(db,id,owner,digest);const current=await getGame(db,id,owner);const {offset,limit}=paginationSchema.parse(Object.fromEntries(url.searchParams));return json(await worldRoute(db,current,path,url,offset,limit));}
   if(['logistics','equipment','headquarters'].includes(path[2])){
    await ensureLogistics(db,id,owner,digest);const current=await getGame(db,id,owner);
-   if(request.method==='GET'){const view={...logisticsView(current,await readLogistics(db,id)),pendingOrders:await orders(db,id)};if(path[2]==='equipment'&&path[3]==='catalog')return json(view.catalog);if(path[2]==='equipment'&&path[3]==='inventory')return json(view.inventory);if(path[2]==='logistics'||path[2]==='headquarters')return json(view);}
+   if(request.method==='GET'){const pendingOrders=await orders(db,id);const view={...logisticsView(current,await readLogistics(db,id)),pendingOrders,intelligenceContacts:await intelligenceContacts(db,current,pendingOrders.filter(o=>o.kind==='analysis'&&o.command.payment==='contact').length)};if(path[2]==='equipment'&&path[3]==='catalog')return json(view.catalog);if(path[2]==='equipment'&&path[3]==='inventory')return json(view.inventory);if(path[2]==='logistics'||path[2]==='headquarters')return json(view);}
    if(request.method==='POST'){const body=await request.json();if(path[2]==='equipment'&&path[3]==='purchases')return json(await logisticsAction(db,id,owner,'purchase','',purchaseSchema.parse(body),digest),201);if(path[2]==='equipment'&&isEquipmentService(path[4]))return json(await logisticsAction(db,id,owner,path[4],path[3],commandSchema.parse(body),digest));if(path[2]==='headquarters'&&path[3]==='modules'&&path[5]==='upgrade')return json(await logisticsAction(db,id,owner,'upgrade',path[4],commandSchema.parse(body),digest));}
   }
   if(['contracts','missions','decisions','operations'].includes(path[2])){
