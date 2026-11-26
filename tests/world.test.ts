@@ -128,3 +128,24 @@ it('países: subdivisões removidas não têm dossiê ou alvo de análise',async
  const g=(await s.call(s.path)).data;
  expect((await s.call(s.path+'/intelligence/analyses',{requestId:'removed-area',expectedVersion:g.stateVersion,targetType:'region',targetId:'valdoria-1',topic:'security'})).status).toBe(404);
 }finally{s.db.close()}});
+
+it('mantém os boletins na cadência e publica conflito bilateral e cessar-fogo nos dois países',async()=>{
+ const forced=async(value:unknown)=>JSON.stringify(value).includes('solmar-norvik-diplomacy')?'0'.repeat(64):'f'.repeat(64);
+ const initial=await seedWorld('border',25,forced);
+ let {world,operations}=await worldTurn(initial,emptyOperations(),28,'border',forced);
+ await publishWorldContracts(world,operations,'border',28,forced);
+ const incident=world.events.find(e=>e.type==='border_incident');
+ expect(incident.region_id).toBe('solmar');
+ expect(world.events.some(e=>e.region_id==='norvik'&&e.origin_id===incident.id)).toBe(true);
+ expect(world.participants.filter(p=>p.conflict_id==='conflict-'+incident.id).map(p=>p.organization_id).sort()).toEqual(['gov-norvik','gov-solmar']);
+ expect(operations.contracts.find(c=>c.origin_event_id===incident.id)?.type).toBe('escort');
+ await refreshIntel(world,'border',28,forced);
+ const area=world.regions.find(r=>r.id==='solmar');
+ const bulletin=area.intel_json;
+ world.events.push({...incident,id:'off-cadence',created_turn:29});
+ await refreshIntel(world,'border',29,forced);
+ expect(area.intel_json).toBe(bulletin);
+ ({world}=await worldTurn(world,operations,36,'border',forced));
+ expect(world.conflicts.find(c=>c.cause_id===incident.id)?.status).toBe('resolved');
+ expect(world.events.filter(e=>e.created_turn===36&&e.summary.includes('cessar-fogo')).map(e=>e.region_id).sort()).toEqual(['norvik','solmar']);
+});

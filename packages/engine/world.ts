@@ -2,7 +2,7 @@ import {contractContent,worldNarrative} from './content.ts';
 import {NORMAL_V1,eventProbability,rivalActs,rivalWindow,reward,type DifficultyProfile} from './difficulty.ts';
 import config from '../rules/world.json' with {type:'json'};
 
-import {countries,organizations} from '../rules/index.ts';
+import {countries,organizations,rules} from '../rules/index.ts';
 
 import {config as operationConfig,type Operations} from './operations.ts';
 
@@ -15,6 +15,15 @@ export interface World {regions:any[];organizations:any[];influences:any[];relat
 const clamp=(v:number)=>Math.max(0,Math.min(100,Math.round(v)));
 
 const relationClamp=(v:number)=>Math.max(-100,Math.min(100,Math.round(v)));
+
+const diplomaticDefaults: Record<string, number> = {
+ 'gov-arken:gov-valdoria': 55,
+ 'gov-norvik:gov-solmar': -25,
+};
+
+export function diplomaticValue(relation: {org_low:string;org_high:string;value:number}) {
+ return relation.value || diplomaticDefaults[relation.org_low+':'+relation.org_high] || 0;
+}
 
 const metrics=['stability','security','economy','tension'] as const;
 
@@ -36,7 +45,7 @@ export function validateWorld(w:World){for(const r of w.regions){if(metrics.some
 
 export async function refreshIntel(w:World,seed:string,turn:number,digest:Digest,force=false){
 
- for(const r of w.regions){if(!force&&turn%config.intelCadence!==0&&!w.events.some(e=>e.region_id===r.id&&e.created_turn===turn))continue;
+ for(const r of w.regions){if(!force&&turn%config.intelCadence!==0)continue;
 
   const hex=await digest([seed,config.version,'public-intel',r.id,turn]);const indicators:any={};
 
@@ -79,7 +88,8 @@ export async function seedWorld(seed:string,turn:number,digest:Digest):Promise<W
 
   const a=w.organizations.find(o=>o.id===ids[i]),b=w.organizations.find(o=>o.id===ids[j]);const hostile=[a.type,b.type].includes('armed_faction')&&[a.type,b.type].includes('government');
 
-  w.relations.push({org_low:ids[i],org_high:ids[j],value:hostile?-65:[a.type,b.type].includes('corporation')?20:0});
+  const relation={org_low:ids[i],org_high:ids[j],value:hostile?-65:[a.type,b.type].includes('corporation')?20:0};
+  w.relations.push({...relation,value:diplomaticValue(relation)});
 
  }
 
@@ -97,6 +107,33 @@ export function worldEvent(w:World,r:any,turn:number,type:string,category:string
 
 function change(r:any,effects:any){for(const m of metrics)r[m]=clamp(r[m]+(effects[m]??0));}
 
+async function updateDiplomacy(w:World, turn:number, seed:string, digest:Digest) {
+ const rivalry=w.relations.find(r=>r.org_low==='gov-norvik'&&r.org_high==='gov-solmar');
+ if(!rivalry)return;
+ rivalry.value=diplomaticValue(rivalry);
+ if(turn%rules.turnsPerWeek!==0 || w.conflicts.some(c=>c.status==='active'&&c.cause_id.startsWith('world-border_incident-')))return;
+
+ const [solmar,norvik]=['solmar','norvik'].map(id=>w.regions.find(r=>r.country_id===id));
+ if(!solmar||!norvik)return;
+ const draw=random(await digest([seed,config.version,turn,'solmar-norvik-diplomacy']));
+ if(draw<config.borderEscalationChance && rivalry.value<=-20 && solmar.tension>=40 && !w.conflicts.some(c=>c.region_id===solmar.id&&c.status==='active') && w.events.filter(e=>e.region_id===solmar.id&&e.status==='active').length<config.maxActiveEventsPerRegion){
+  rivalry.value=-50;
+  const summary='Uma disputa de fronteira entre Solmar e Norvik escalou para um confronto na fronteira de Solmar.';
+  const effects={security:-4,tension:6};
+  const incident=worldEvent(w,solmar,turn,'border_incident','conflict',summary,null,null,effects,config.cooldownTurns);
+  change(solmar,effects);
+  worldEvent(w,norvik,turn,'border_news','conflict',summary,incident.id);
+  const id='conflict-'+incident.id;
+  w.conflicts.push({id,region_id:solmar.id,intensity:30,status:'active',started_turn:turn,ended_turn:null,cause_id:incident.id});
+  w.participants.push({conflict_id:id,organization_id:rivalry.org_high,side:'government'},{conflict_id:id,organization_id:rivalry.org_low,side:'opposition'});
+ }else if(draw>=config.borderEscalationChance && draw<config.borderEscalationChance+config.borderTalksChance && rivalry.value<-12){
+  rivalry.value=Math.min(-12,rivalry.value+6);
+  const summary='Negociações entre Solmar e Norvik reduziram a tensão na fronteira.';
+  const news=worldEvent(w,solmar,turn,'border_talks','political',summary);
+  worldEvent(w,norvik,turn,'border_news','political',summary,news.id);
+ }
+}
+
 export async function worldTurn(original:World,operations:Operations,turn:number,seed:string,digest:Digest,profile:DifficultyProfile=NORMAL_V1){
 
  const w:World=structuredClone(original),o:Operations=structuredClone(operations);
@@ -111,6 +148,20 @@ export async function worldTurn(original:World,operations:Operations,turn:number
 
   const hostility=w.relations.find(x=>x.org_low===sides[0]&&x.org_high===sides[1])?.value??-50;
 
+  const interstate=conflict.cause_id.startsWith('world-border_incident-');
+  if(interstate){
+   if(turn-conflict.started_turn>=config.borderConflictTurns){
+    conflict.status='resolved';conflict.ended_turn=turn;conflict.intensity=0;
+    change(r,{tension:-4,security:2});
+    const relation=w.relations.find(x=>x.org_low===sides[0]&&x.org_high===sides[1]);
+    if(relation)relation.value=-25;
+    const summary='Solmar e Norvik anunciaram um cessar-fogo na fronteira de Solmar.';
+    const news=worldEvent(w,r,turn,'ceasefire','conflict',summary,conflict.cause_id);
+    const other=w.regions.find(area=>area.country_id==='norvik');
+    if(other)worldEvent(w,other,turn,'border_news','conflict',summary,news.id);
+   }
+   continue;
+  }
   conflict.intensity=clamp(conflict.intensity+(hostility<-40?1:-1));change(r,{stability:-config.conflictPressure,security:-config.conflictPressure,economy:-config.conflictPressure,tension:config.conflictPressure});
 
   shiftInfluence(w,r.id,'faction-north',1);
@@ -245,6 +296,7 @@ export async function worldTurn(original:World,operations:Operations,turn:number
 
  }
 
+ await updateDiplomacy(w,turn,seed,digest);
  validateWorld(w);return {world:w,operations:o};
 
 }
@@ -263,7 +315,7 @@ export function applyMissionResults(w:World,o:Operations,turn:number){
 
    shiftInfluence(w,r.id,c.client_id,config.missionInfluenceGain);
 
-   for(const conflict of w.conflicts.filter(x=>x.region_id===r.id&&x.status==='active')){conflict.intensity=clamp(conflict.intensity-config.missionConflictReduction);if(conflict.intensity<=config.conflictEndIntensity){conflict.status='resolved';conflict.ended_turn=turn;}}
+   for(const conflict of w.conflicts.filter(x=>x.region_id===r.id&&x.status==='active')){conflict.intensity=clamp(conflict.intensity-config.missionConflictReduction);if(conflict.intensity<=config.conflictEndIntensity&&!conflict.cause_id.startsWith('world-border_incident-')){conflict.status='resolved';conflict.ended_turn=turn;}}
 
    const origin=w.events.find(e=>e.id===c.origin_event_id);if(origin){origin.status='resolved';origin.end_turn=turn;}
 
@@ -281,9 +333,10 @@ export async function publishWorldContracts(w:World,o:Operations,seed:string,tur
 
  for(const e of w.events.filter(e=>e.created_turn===turn&&!e.contract_id)){
 
-  const definition=config.events.find(d=>d.type===e.type);if(!definition?.contract)continue;
+  const contractType=e.type==='border_incident'?config.borderContract:config.events.find(d=>d.type===e.type)?.contract;
+  if(!contractType)continue;
 
-  const r=w.regions.find(r=>r.id===e.region_id)!,template=operationConfig.templates.find(t=>t.type===definition.contract)!;
+  const r=w.regions.find(r=>r.id===e.region_id)!,template=operationConfig.templates.find(t=>t.type===contractType)!;
 
   const id='emergent-'+e.id;if(o.contracts.some(c=>c.id===id))continue;
 
