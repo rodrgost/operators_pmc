@@ -1,3 +1,4 @@
+import {operationStage} from './operation-stages.ts';
 import {catalog,contractContent,reportNarrative} from './content.ts';
 import {NORMAL_V1,reward,probability,type DifficultyProfile} from './difficulty.ts';
 import {perceivedRisk,type Intelligence} from './intelligence.ts';
@@ -63,7 +64,7 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
    operatorId:op.id,name:JSON.parse(op.profile_json).name,availability:availability(p,op,turn),
    health:op.health,fatigue:op.fatigue,morale:op.morale,
   }));
-  report(m,status,earlyPartial?'Missão encerrada com sucesso parcial':status==='completed'?'Missão concluída':status==='withdrawn'?'Retirada concluída':'Missão fracassada',earlyPartial?'A equipe encerrou a evacuação com parte do objetivo cumprida.':reportNarrative(status,[m.id,turn,'final']),{}, {paymentCents:payment,reputationDelta:reputation-previousReputation,reputationAfter:reputation,totalPaidCents:m.paid_cents,advanceCents:m.advance_cents,crewAtReturn,evacuationChoice});
+  report(m,status,earlyPartial?'Missão encerrada com sucesso parcial':status==='completed'?'Missão concluída':status==='withdrawn'?'Retirada concluída':'Missão fracassada',earlyPartial?'A equipe encerrou a evacuação com parte do objetivo cumprida.':reportNarrative(status,[m.id,turn,'final']),{}, {earlyPartial,successPoints:m.success_points,requiredSuccessPoints:config.minimumSuccessPoints,maximumSuccessPoints:config.stages.length*2,rewardCents:c.reward_cents,paymentCents:payment,reputationDelta:reputation-previousReputation,reputationAfter:reputation,totalPaidCents:m.paid_cents,advanceCents:m.advance_cents,crewAtReturn,evacuationChoice});
   event('mission_'+status,status==='completed'?'Missão concluída':status==='withdrawn'?'Equipe retornou':'Missão fracassada',c.title+' · consulte o relatório.',true);
  }
  for(const c of o.contracts)if(['available','accepted'].includes(c.status)&&contractDeadline(c)<=turn){const accepted=c.status==='accepted';c.status='expired';event('contract_expired',accepted?'Prazo de mobilização encerrado':'Oferta expirada',c.title);}
@@ -138,9 +139,17 @@ export async function operationsTurn(original:Operations,personnel:Personnel,tur
   const complication=complicationDraw<probability(effectiveRisk/config.riskDivisor,difficultyProfile.missionComplications);
   for(const {op} of operators){op.fatigue=clamp(op.fatigue+config.stageFatigue-equipment.fatigueReduction);const profile=JSON.parse(op.profile_json);profile.xp+=outcome==='success'?config.xpSuccess:outcome==='partial'?config.xpPartial:0;op.profile_json=JSON.stringify(profile);}
   if(complication){const victim=operators[parseInt(h.slice(16,20),16)%operators.length].op;victim.health=Math.max(5,victim.health-Math.max(1,Math.round((config.injuryMin+parseInt(h.slice(20,24),16)%(config.injuryMax-config.injuryMin+1))*(1-equipment.injuryReduction))));if(outcome==='success')outcome='complication';}
-  const name=config.stages[m.stage_index];
+  const stage=operationStage(c.type,m.stage_index);
+   const name=stage?.name??config.stages[m.stage_index];
+   const factors: [string,number][]=[
+    ['condition',conditionImpact],['leadership',leadershipImpact],['familiarity',familiarityImpact],
+    ['approach',action.capacity],['equipment',equipment.capacity],
+   ];
+   const decisiveFactor=factors
+    .filter(([,impact])=>(rolledOutcome==='success'?impact>0:impact<0)&&stageOutcome(margin-impact)!==rolledOutcome)
+    .sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0]?.[0];
   const assessment={skillSpecialists,conditionImpact,leaderName:profile.name,leadershipImpact,familiarityImpact,approach:action.label,approachImpact:action.capacity,kitImpact:equipment.capacity,baseOutcome,rolledOutcome,complication};
-  report(m,outcome,name+' · '+({success:'sucesso',partial:'resultado parcial',delay:'atraso',failure:'falha',complication:'complicação'}[outcome]),action.label+'. '+reportNarrative(outcome,[m.id,turn,m.stage_index,m.delays],name)+(complication&&outcome!=='complication'?' Uma complicação também afetou a saúde de um integrante.':'')+' Consulte as condições atuais da formação.',{capacity,difficulty:c.difficulty,risk:c.risk,draw,complicationDraw,utility:action.utility},{assessment,equipment:equipment.used,conditions:operators.map(({op})=>({operatorId:op.id,name:JSON.parse(op.profile_json).name,health:op.health,fatigue:op.fatigue,morale:op.morale}))});
+  report(m,outcome,name+' · '+({success:'sucesso',partial:'resultado parcial',delay:'atraso',failure:'falha',complication:'complicação'}[outcome]),action.label+'. '+reportNarrative(outcome,[m.id,turn,m.stage_index,m.delays],name)+(complication&&outcome!=='complication'?' Uma complicação também afetou a saúde de um integrante.':'')+' Consulte as condições atuais da formação.',{capacity,difficulty:c.difficulty,risk:c.risk,draw,complicationDraw,utility:action.utility},{stageDescription:stage?.description,decisiveFactor,assessment,equipment:equipment.used,conditions:operators.map(({op})=>({operatorId:op.id,name:JSON.parse(op.profile_json).name,health:op.health,fatigue:op.fatigue,morale:op.morale}))});
   event('mission_stage','Etapa processada · '+name,c.title+' · relatório disponível.');
   if(outcome==='delay'){m.delays++;m.stage_due_turn=turn+1;continue;}
   m.success_points+=outcome==='success'||outcome==='complication'?2:outcome==='partial'?1:0;m.completed_stages++;m.stage_index++;m.stage_due_turn=turn+1;

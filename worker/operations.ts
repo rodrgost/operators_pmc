@@ -1,3 +1,4 @@
+import {operationStage} from '../packages/engine/operation-stages.ts';
 import {readIntelligence,intelligenceWrites} from './intelligence.ts';
 import {dossier,type Intelligence} from '../packages/engine/intelligence.ts';
 import {readLogistics,logisticsWrites,equipmentPlan,logisticsView} from './logistics.ts';
@@ -84,7 +85,7 @@ export function decisionProjection(d:any){
   fallbackAction:d.fallback_action,chosenAction:d.chosen_action,resolvedTurn:d.resolved_turn,status:d.status,...context,options,
  };
 }
-export function missionProjection(m:any,assignments:any[]=[]){return {id:m.id,contractTitle:m.contract_title??null,contractType:m.contract_type??null,contractId:m.contract_id,squadId:m.squad_id,leaderId:m.leader_id,deputyId:m.deputy_id,status:m.status,startedTurn:m.started_turn,endedTurn:m.ended_turn,stageIndex:m.stage_index,stageName:config.stages[m.stage_index]??'Finalizada',stageDueTurn:m.stage_due_turn,totalStages:config.stages.length,completedStages:m.completed_stages,directives:JSON.parse(m.directives_json),advanceCents:m.advance_cents,paidCents:m.paid_cents,crew:assignments.filter(a=>a.mission_id===m.id).map(a=>({operatorId:a.operator_id,name:JSON.parse(a.snapshot_json).name,assignmentType:a.assignment_type,role:a.role}))};}
+export function missionProjection(m:any,assignments:any[]=[]){const stage=operationStage(m.contract_type,m.stage_index);return {id:m.id,contractTitle:m.contract_title??null,contractType:m.contract_type??null,contractId:m.contract_id,squadId:m.squad_id,leaderId:m.leader_id,deputyId:m.deputy_id,status:m.status,startedTurn:m.started_turn,endedTurn:m.ended_turn,stageIndex:m.stage_index,stageName:stage?.name??config.stages[m.stage_index]??'Finalizada',stageDescription:stage?.description??null,stageDueTurn:m.stage_due_turn,totalStages:config.stages.length,completedStages:m.completed_stages,directives:JSON.parse(m.directives_json),advanceCents:m.advance_cents,paidCents:m.paid_cents,crew:assignments.filter(a=>a.mission_id===m.id).map(a=>({operatorId:a.operator_id,name:JSON.parse(a.snapshot_json).name,assignmentType:a.assignment_type,role:a.role}))};}
 export function validatePlan(g:Campaign,p:Personnel,o:Operations,c:any,command:any,logistics?:Logistics,intelligence?:Intelligence){
  assert(c?.status==='accepted','CONTRACT_NOT_ACCEPTED','Aceite o contrato antes de iniciar ou planejar.');assert(contractDeadline(c)>g.state.turn,'CONTRACT_EXPIRED','O prazo de mobilização terminou.');
  const squad=p.squads.find(s=>s.id===command.squadId);assert(squad,'SQUAD_NOT_FOUND','Equipe não encontrada.');
