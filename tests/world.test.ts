@@ -21,7 +21,13 @@ it('mundo: 336 turnos mantêm limites, influência, cooldown e contratos causais
   for(const r of w.regions)expect(w.events.filter(e=>e.region_id===r.id&&e.status==='active').length).toBeLessThanOrEqual(2);
   for(const e of w.events.filter(e=>e.created_turn===t&&['industrial_crisis','armed_conflict','humanitarian_need','security_incident','political_reform','corporate_investment'].includes(e.type))){if(last.has(e.region_id))expect(t-last.get(e.region_id)!).toBeGreaterThanOrEqual(4);last.set(e.region_id,t);if(e.contract_id){emergents++;expect(o.contracts.find(c=>c.id===e.contract_id)?.origin_event_id).toBe(e.id)}}
  }
- expect(emergents).toBeGreaterThan(10);expect(w.conflicts.length).toBeGreaterThan(0);expect(w.participants.every(p=>p.side===(p.organization_id.startsWith('gov-')?'government':'opposition'))).toBe(true);
+ expect(emergents).toBeGreaterThan(10);expect(w.conflicts.length).toBeGreaterThan(0);for(const conflict of w.conflicts){
+  const participants=w.participants.filter(p=>p.conflict_id===conflict.id);
+  expect(participants.map(p=>p.side).sort()).toEqual(['government','opposition']);
+  expect(participants.find(p=>p.side==='government')?.organization_id).toBe('gov-'+conflict.region_id);
+  if(conflict.cause_id.startsWith('world-border_incident-'))expect(participants.find(p=>p.side==='opposition')?.organization_id).toBe('gov-norvik');
+  else expect(participants.find(p=>p.side==='opposition')?.organization_id).toBe('faction-north');
+ }
 });
 it('mundo: crise gera demanda e conflito encadeado com participantes',async()=>{
  const zero=async()=> '0'.repeat(64);let w=await seedWorld('cause',0,digest),o=emptyOperations();({world:w,operations:o}=await worldTurn(w,o,1,'cause',zero));await publishWorldContracts(w,o,'cause',1,zero);
