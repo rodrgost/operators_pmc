@@ -1,7 +1,7 @@
 import {it,expect} from 'vitest';
 import {createHash} from 'node:crypto';
 import {setupImmediate as setup} from './online-helpers.ts';
-import {applyDiplomaticOffers,seedWorld,worldTurn,publishWorldContracts,refreshIntel,validateWorld,applyMissionResults,worldCanonical} from '../packages/engine/world.ts';
+import {refreshOpenOffers,applyDiplomaticOffers,seedWorld,worldTurn,publishWorldContracts,refreshIntel,validateWorld,applyMissionResults,worldCanonical} from '../packages/engine/world.ts';
 import {countries} from '../packages/rules/index.ts';
 import {offers,emptyOperations} from '../packages/engine/operations.ts';
 const digest=async(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
@@ -167,4 +167,25 @@ it('aplica termos diplomáticos na oferta uma vez e preserva contratos aceitos',
  expect(JSON.parse(o.contracts[3].intel_json).diplomacy.restricted).toBe(true);
  expect(o.contracts[4].reward_cents).toBe(12000);
  expect(o.contracts[4].risk).toBe(62);
+});
+
+it('revisa apenas ofertas abertas quando o cenário muda e evita acumular risco',async()=>{
+ const w=await seedWorld('updated-offer',0,async()=> 'f'.repeat(64));
+ const o=emptyOperations();
+ const contract={id:'offer',region_id:'solmar',client_id:'gov-solmar',type:'escort',status:'available',offered_turn:0,expires_turn:28,risk:50,reward_cents:10000,intel_json:JSON.stringify({estimatedRisk:{min:40,max:60},collectedTurn:0})};
+ const accepted={...contract,id:'signed',status:'accepted'};
+ o.contracts=[contract,accepted];
+ refreshOpenOffers(w,o,0,'norvik');
+ const region=w.regions.find(r=>r.id==='solmar');
+ region.security-=12;
+ refreshOpenOffers(w,o,3,'norvik');
+ expect(contract.risk).toBe(50);
+ refreshOpenOffers(w,o,4,'norvik');
+ expect(contract.risk).toBe(57);
+ expect(JSON.parse(contract.intel_json).offerUpdate.turn).toBe(4);
+ refreshOpenOffers(w,o,8,'norvik');
+ expect(contract.risk).toBe(57);
+ expect(contract.reward_cents).toBe(10500);
+ expect(accepted.risk).toBe(50);
+ expect(JSON.parse(accepted.intel_json).offerUpdate).toBe(undefined);
 });

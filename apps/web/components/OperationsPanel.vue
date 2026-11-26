@@ -33,10 +33,30 @@ async function backToContracts(){
  card?.querySelector<HTMLElement>('.contract-prepare')?.focus({preventScroll:true})
 }
 function stepReady(step:string){return step==='team'?readiness.value.teamIssues.length===0:step==='kits'?readiness.value.missingEquipment.length===0:step==='plan'?!!preview.value:false}
+const acceptReview=ref<any>(null)
+const reviewIntel=ref(false)
+function acceptOffer(contract:any){
+ if(!contract||contract.status!=='available'||contract.diplomacy?.restricted||locked.value)return
+ if(!contract.offerUpdate)return run('/contracts/'+contract.id+'/accept')
+ reviewIntel.value=false
+ acceptReview.value={contract,version:data.value.stateVersion}
+}
+function confirmOffer(){
+ const review=acceptReview.value
+ if(!review||locked.value)return
+ const current=data.value.contracts.find((contract:any)=>contract.id===review.contract.id)
+ if(!current||current.status!=='available'||current.diplomacy?.restricted){acceptReview.value=null;return}
+ if(review.version!==data.value.stateVersion){
+  acceptReview.value={contract:current,version:data.value.stateVersion}
+  return
+ }
+ acceptReview.value=null
+ return run('/contracts/'+current.id+'/accept',{expectedVersion:review.version})
+}
 function acceptBeforePreparation(){
  if(!selectedContract.value||!blockedStep.value)return
  preparationStep.value=blockedStep.value
- return run('/contracts/'+selectedContract.value.id+'/accept')
+ return acceptOffer(selectedContract.value)
 }
 
 const ongoingMissionStatuses=['active','awaiting_decision','returning']
@@ -194,6 +214,17 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
 <template>
 <div ref="panelElement" class="operations-panel" :aria-busy="busy" @click.capture="captureAction($event)">
  <ActionFeedback :target="feedbackTarget" :section="operationSection" :turn="game.currentTurn" v-model:error="error" v-model:notice="notice" />
+ <FocusDialog v-if="acceptReview" title="Revisar oferta atualizada" :busy="busy" :error="error" @close="acceptReview=null">
+  <p>{{acceptReview.contract.offerUpdate?.summary}}</p>
+  <p v-if="acceptReview.contract.offerUpdate?.analysisOutdated">Sua análise de risco é anterior à mudança. Você pode confirmar com a informação atual ou consultar a inteligência.</p>
+  <p>Pagamento máximo · {{money(acceptReview.contract.rewardCents)}}</p>
+  <p v-if="acceptReview.version!==data.stateVersion">A partida avançou. Atualize esta revisão antes de confirmar.</p>
+  <div class="personnel-actions">
+   <button type="button" class="secondary" @click="reviewIntel=!reviewIntel">{{reviewIntel?'Ocultar inteligência':'Consultar inteligência'}}</button>
+   <button type="button" class="primary" :disabled="locked" @click="confirmOffer">{{acceptReview.version!==data.stateVersion?'Rever condições atuais':'Aceitar condições atuais'}}</button>
+  </div>
+  <IntelligencePanel v-if="reviewIntel" compact :game="game" target-type="contract" :target-id="acceptReview.contract.id" @changed="emit('changed')" @processing="emit('processing',$event)" />
+ </FocusDialog>
  <section v-if="pending&&!busy" class="panel"><p>Comando aguardando confirmação. A repetição não duplica efeitos.</p><button class="primary action-block" @click="run(pending.path,pending.body)">Repetir comando</button></section>
  <section v-if="mode==='contracts'&&(launchScheduled||launchedMissionInProgress)" class="panel mission-handoff"><h2>{{launchScheduled?'Início agendado':'Acompanhe sua missão'}}</h2><p>{{launchScheduled?'O início agendado será confirmado no próximo avanço. Confira as ordens e os custos antes de avançar.':'O início foi confirmado. Consulte o andamento e os relatórios em Operações.'}}</p><button class="primary action-block" :disabled="locked" @click="emit('navigate','operations','missions')">Acompanhar operações →</button></section>
  <section v-if="mode==='operations'&&(data.pendingOrders??[]).some((o:any)=>o.kind==='start')" class="panel mission-handoff"><h2>Mobilização aguardando confirmação</h2><p>Avance o tempo para confirmar o início. A equipe e os kits ainda não estão reservados.</p><button class="secondary action-block" :disabled="locked" @click="emit('navigate','contracts')">Revisar contratos →</button></section>
@@ -212,6 +243,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
    </div>
    <h2><GameLabel kind="mission" :code="selectedContract.type" :label="selectedContract.title" /></h2>
    <p v-if="selectedContract.diplomacy">{{diplomaticSummary(selectedContract)}}</p>
+   <p v-if="selectedContract.status==='available'&&selectedContract.offerUpdate">{{selectedContract.offerUpdate.summary}}<span v-if="selectedContract.offerUpdate.analysisOutdated"> Sua análise de risco é anterior à mudança.</span></p>
    <p class="planner-deadline">{{selectedContract.status==='accepted'?'Mobilizar até ':'Aceitar até '}}{{dateAt(selectedContract.mobilizationDueTurn??selectedContract.expiresTurn)}}</p>
    <nav class="preparation-nav" aria-label="Etapas da missão">
     <button v-for="(step,index) in preparationSteps" :key="step[0]" type="button" :class="{active:preparationStep===step[0]}" :aria-current="preparationStep===step[0]?'step':undefined" :disabled="locked" @click="preparationStep=step[0]">
@@ -343,7 +375,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
      <button v-if="blockedStep" type="button" class="primary" :disabled="locked" @click="preparationStep=blockedStep">{{blockedStep==='team'?'Completar equipe':'Completar kits'}}</button>
      <template v-else-if="selectedContract.status==='available'">
       <p>O prazo de mobilização começa agora. A validação vem em seguida.</p>
-      <button type="button" class="primary" :disabled="locked" @click="run('/contracts/'+selectedContract.id+'/accept')">Aceitar contrato</button>
+      <button type="button" class="primary" :disabled="locked" @click="acceptOffer(selectedContract)">Aceitar contrato</button>
      </template>
      <button v-else type="submit" form="mission-preparation-form" class="primary" :disabled="locked">Validar formação e custos</button>
     </template>

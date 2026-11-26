@@ -1,7 +1,7 @@
 import {readIntelligence} from './intelligence.ts';
 import {dossier} from '../packages/engine/intelligence.ts';
 import {countries,rules} from '../packages/rules/index.ts';
-import {seedWorld,config,diplomaticValue,applyDiplomaticOffers,type World} from '../packages/engine/world.ts';
+import {seedWorld,config,diplomaticValue,applyDiplomaticOffers,refreshOpenOffers,type World} from '../packages/engine/world.ts';
 import type {Digest} from '../packages/engine/personnel.ts';
 import {ensureOperations,readOperations,operationsWrites,contractProjection,contractViewSelect} from './operations.ts';
 import {getGame,mutate,ApiError,type Database,type Campaign} from './persistence.ts';
@@ -27,6 +27,7 @@ export async function ensureWorld(db:Database,id:string,owner:string,digest:Dige
   if(g.activeRequest)throw new ApiError(409,'LOCKED','Conclua o lote antes de abrir o mundo.');
   const w=await seedWorld(g.seed,g.state.turn,digest);const operations=await readOperations(db,id);
   applyDiplomaticOffers(w,operations,Math.floor(g.state.turn/rules.turnsPerWeek)*rules.turnsPerWeek,g.registrationCountryId);
+  refreshOpenOffers(w,operations,g.state.turn,g.registrationCountryId);
   if(await mutate(db,g,{...g,worldInitialized:true},(guard,args)=>[...worldWrites(db,g,w,guard,args),...operationsWrites(db,g,operations,guard,args)]))return;
  }throw new ApiError(409,'BUSY','Tente novamente.');
 }

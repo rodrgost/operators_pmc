@@ -362,7 +362,47 @@ export function applyDiplomaticOffers(w:World,o:Operations,turn:number,origin:st
    intel.estimatedRisk={min:clamp(intel.estimatedRisk.min+riskDelta),max:clamp(intel.estimatedRisk.max+riskDelta)};
   }
   intel.diplomacy={origin,destination,level,premiumCents,restricted};
+  intel.diplomaticRiskDelta=riskDelta;
   c.intel_json=JSON.stringify(intel);
+ }
+}
+
+export function refreshOpenOffers(w:World,o:Operations,turn:number,origin:string|null){
+ for(const c of o.contracts){
+  if(c.status!=='available'||c.expires_turn<=turn)continue;
+  const region=w.regions.find(r=>r.id===c.region_id);
+  if(!region)continue;
+  const intel=JSON.parse(c.intel_json);
+  const baseline=intel.offerBaseline;
+  if(!baseline || baseline.offeredTurn!==c.offered_turn){
+   intel.offerBaseline={offeredTurn:c.offered_turn,security:region.security,tension:region.tension,risk:c.risk,
+    diplomacyRisk:intel.diplomaticRiskDelta??(intel.diplomacy&&!intel.diplomacy.restricted?diplomaticTerms[intel.diplomacy.level as keyof typeof diplomaticTerms]?.risk??0:0),estimate:intel.estimatedRisk};
+   c.intel_json=JSON.stringify(intel);
+   continue;
+  }
+  if(turn%config.intelCadence!==0)continue;
+  const securityChange=baseline.security-region.security;
+  const tensionChange=region.tension-baseline.tension;
+  const securityMoved=Math.abs(securityChange)>=8;
+  const tensionMoved=Math.abs(tensionChange)>=8;
+  const regionalRisk=Math.round((securityMoved?securityChange:0)*0.25+(tensionMoved?tensionChange:0)*0.25);
+  const quote={...c,offered_turn:turn,risk:Math.max(1,clamp(baseline.risk-baseline.diplomacyRisk+regionalRisk)),
+   reward_cents:c.reward_cents-(intel.diplomacy?.premiumCents??0),intel_json:'{}'};
+  applyDiplomaticOffers(w,{...o,contracts:[quote]},turn,origin);
+  const current=JSON.parse(quote.intel_json);
+  const diplomacyChanged=(current.diplomacy?.level??null)!==(intel.diplomacy?.level??null)||
+   !!current.diplomacy?.restricted!==!!intel.diplomacy?.restricted;
+  if(quote.risk===c.risk&&quote.reward_cents===c.reward_cents&&!diplomacyChanged)continue;
+  const reasons=[];
+  if(diplomacyChanged)reasons.push('A relação com o país da operação mudou.');
+  if(regionalRisk!==(intel.regionalRisk??0))reasons.push(regionalRisk>(intel.regionalRisk??0)?
+   'As condições locais aumentaram o risco estimado.':'As condições locais reduziram o risco estimado.');
+  const offset=quote.risk-baseline.risk;
+  c.risk=quote.risk;
+  c.reward_cents=quote.reward_cents;
+  c.intel_json=JSON.stringify({...intel,diplomacy:current.diplomacy??null,diplomaticRiskDelta:current.diplomaticRiskDelta??0,
+   regionalRisk,collectedTurn:turn,estimatedRisk:{min:clamp(baseline.estimate.min+offset),max:clamp(baseline.estimate.max+offset)},
+   offerUpdate:{turn,summary:reasons.join(' ')||'As condições da oferta foram atualizadas.'}});
  }
 }
 
@@ -399,6 +439,7 @@ export async function publishWorldContracts(w:World,o:Operations,seed:string,tur
  }
 
  applyDiplomaticOffers(w,o,turn,origin);
+ refreshOpenOffers(w,o,turn,origin);
 }
 
 export function worldCanonical(w:World){const state={...w,events:w.events.filter(e=>e.status==='active'),conflicts:w.conflicts.filter(c=>c.status==='active'),jobs:w.jobs.filter(j=>j.status==='active')};return Object.fromEntries(Object.entries(state).map(([k,rows])=>[k,[...rows].sort((a:any,b:any)=>JSON.stringify(a).localeCompare(JSON.stringify(b),'en'))]));}
