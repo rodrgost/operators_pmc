@@ -1,3 +1,4 @@
+import {analysisJobId} from '../packages/engine/intelligence.ts';
 import {ApiError,getGame,mutate,projection,type Database,type Campaign,type Statement} from './persistence.ts';
 import {readPersonnel,personnelAction,ensurePersonnel,hireSchema,renewSchema,activitySchema,commandSchema,memberSchema,squadSchema} from './personnel.ts';
 import {readLogistics,logisticsAction,ensureLogistics,purchaseSchema} from './logistics.ts';
@@ -30,7 +31,7 @@ export async function orders(db:Database,id:string):Promise<Order[]>{
   WHERE p.game_id=? AND p.status='pending' ORDER BY p.rowid`).bind(id).all();
  return rows.results.map(r=>{
   const command=JSON.parse(r.command_json),result=JSON.parse(r.result_json);
-  const title=r.kind==='analysis'?analysisTitle(command.topic,command.targetType,command.targetId,r.contract_title):r.title;
+  const title=r.kind==='analysis'?(command.operational?'Análise operacional · '+(r.contract_title??command.targetId):analysisTitle(command.topic,command.targetType,command.targetId,r.contract_title)):r.title;
   const kit=r.kind==='purchase'?catalog.find(item=>item.id===command.catalogId):undefined;
   const labelIcon=kit?{kind:'kit' as const,code:kit.category}:r.contract_type?{kind:'mission' as const,code:r.contract_type}:undefined;
   return {id:r.id,scope:r.scope,kind:r.kind,target:r.target??'',command,title,costCents:r.cost_cents,previewText:normalizeSavedClock(result.previewText),dueTurn:result.dueTurn,...(labelIcon?{labelIcon}:{})};
@@ -40,7 +41,7 @@ function dueTurn(order:Order,context:any){
  const reservation=context.p?.reservations.find((r:any)=>r.source_id===order.id);
  const kit=context.l?.equipment.find((k:any)=>k.id==='kit-'+order.id+'-0'||k.id===order.target);
  const module=context.l?.modules.find((m:any)=>order.kind==='upgrade'&&m.type===order.target);
- const analysis=context.i?.jobs.find((j:any)=>j.id==='analysis-'+order.id);
+ const analysis=context.i?.jobs.find((j:any)=>j.id===analysisJobId(order.id,order.command.operational,order.command.payment==='contact'));
  const mission=context.o?.missions.find((m:any)=>m.id==='mission-'+order.id);
  return reservation?.end_turn??module?.due_turn??kit?.due_turn??analysis?.due_turn??mission?.stage_due_turn??null;
 }
@@ -90,12 +91,12 @@ export async function enqueue(db:Database,id:string,owner:string,route:any,comma
  if(await db.prepare('SELECT request_id FROM online_actions WHERE game_id=? AND request_id=? UNION ALL SELECT request_id FROM online_commands WHERE game_id=? AND request_id=?').bind(id,command.requestId,id,command.requestId).first())throw new ApiError(409,'REQUEST_REUSED','Identificador utilizado em outro comando.');
  if(g.activeRequest)throw new ApiError(409,'LOCKED','Conclua o lote antes de alterar o planejamento.');if(g.stateVersion!==command.expectedVersion)throw new ApiError(409,'VERSION_CONFLICT','A partida mudou. Atualize os dados.');
  const pending=await orders(db,id);
- const duplicate=pending.some(o=>o.kind===route.kind&&o.target===route.target&&(route.kind==='hire'?o.command.candidateId===command.candidateId:route.kind==='analysis'?o.command.targetType===command.targetType&&o.command.targetId===command.targetId&&o.command.topic===command.topic:true));
+ const duplicate=pending.some(o=>o.kind===route.kind&&o.target===route.target&&(route.kind==='hire'?o.command.candidateId===command.candidateId:route.kind==='analysis'?o.command.targetType===command.targetType&&o.command.targetId===command.targetId&&o.command.topic===command.topic&&!!o.command.operational===!!command.operational:true));
  if(!['purchase','squad_create'].includes(route.kind)&&duplicate)throw new ApiError(422,'ORDER_ALREADY_PENDING','Esta ação já está agendada. Remova a ordem existente para alterá-la.');
  if(pending.length>=20)throw new ApiError(422,'ORDER_LIMIT','O plano comporta até 20 ordens. Confirme ou remova uma ordem para liberar espaço.');
  const {context}=await prepareOrders(db,g,digest,pending);const order:Order={id:command.requestId,scope:route.scope,kind:route.kind,target:route.target,command,title:'',costCents:0};if(order.kind==='analysis'){
   const contract=command.targetType==='contract'?await db.prepare('SELECT title FROM online_contracts WHERE game_id=? AND id=?').bind(id,command.targetId).first():null;
-  order.title=analysisTitle(command.topic,command.targetType,command.targetId,contract?.title);
+  order.title=command.operational?'Análise operacional · '+(contract?.title??command.targetId):analysisTitle(command.topic,command.targetType,command.targetId,contract?.title);
  }else order.title=label(order,context);const cash=context.g.state.cashCents;const details=await applyOrder(context,order,digest);order.costCents=cash-context.g.state.cashCents;
  const next={...g,stateVersion:g.stateVersion+1};const response={...details,...projection(next),queued:true,orderId:order.id,title:order.title,costCents:order.costCents,dueTurn:dueTurn(order,context),previewText:preview(order,context),message:'Ordem planejada. O primeiro avanço já conta para a execução.'};
  if(await mutate(db,g,next,(guard,args)=>[db.prepare(`INSERT INTO online_pending_orders SELECT ?,?,?,?,?,?,?,?,?,?,'pending',NULL,? WHERE ${guard}`).bind(id,order.id,order.scope,order.kind,order.target,JSON.stringify(command),payload,order.title,order.costCents,g.state.turn,JSON.stringify(response),...args)]))return response;

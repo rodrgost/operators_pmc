@@ -11,6 +11,7 @@ const facilities={
  operations:{icon:'command',capacityLabel:'Operações simultâneas'},
  depot:{icon:'kit-logistics',capacityLabel:'Armazenagem'},
  training:{icon:'kit-combat',capacityLabel:'Vagas de treinamento'},
+ intelligence:{icon:'command',capacityLabel:'Contatos por semana'},
  infirmary:{icon:'kit-medical',capacityLabel:'Vagas de tratamento'},
 }
 const depotActions=[
@@ -118,7 +119,7 @@ watch(mode,closeFacility)
     <strong class="facility-room-name">{{facility.name}}</strong>
     <span class="facility-room-metric">
      <span>{{facilities[facility.type].capacityLabel}}</span>
-     <strong>{{facility.type==='depot'?`${data.load} / ${data.loadCapacity}`:facility.capacity}}</strong>
+     <strong>{{facility.type==='depot'?`${data.load} / ${data.loadCapacity}`:facility.type==='intelligence'?`${data.intelligenceContacts.remaining} / ${data.intelligenceContacts.total}`:facility.capacity}}</strong>
     </span>
     <span v-if="facility.type==='depot'" class="facility-room-metric">
      <span>Vagas de serviço ocupadas</span><strong>{{preparationUsage.occupied}} / {{data.preparationCapacity}}</strong>
@@ -137,9 +138,10 @@ watch(mode,closeFacility)
     <p v-if="notice" role="status">{{notice}}</p>
     <dl class="facility-facts">
      <div><dt>Nível atual</dt><dd>{{facilityDetail.level}} / 5</dd></div>
+     <div v-if="facilityDetail.type==='intelligence'"><dt>Renovação dos contatos</dt><dd>{{dateAt(data.intelligenceContacts.renewalTurn)}}</dd></div>
      <div>
       <dt>{{facilityDetail.type==='depot'?'Armazenagem comprometida':facilities[facilityDetail.type].capacityLabel}}</dt>
-      <dd>{{facilityDetail.type==='depot'?`${data.load} / ${data.loadCapacity}`:facilityDetail.capacity}}</dd>
+      <dd>{{facilityDetail.type==='depot'?`${data.load} / ${data.loadCapacity}`:facilityDetail.type==='intelligence'?`${data.intelligenceContacts.remaining} / ${data.intelligenceContacts.total}`:facilityDetail.capacity}}</dd>
      </div>
      <div v-if="facilityDetail.type==='depot'">
       <dt>Vagas de serviço ocupadas</dt><dd>{{preparationUsage.occupied}} / {{data.preparationCapacity}}</dd>

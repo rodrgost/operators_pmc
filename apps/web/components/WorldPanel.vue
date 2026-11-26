@@ -4,8 +4,8 @@ const dateAt=(turn:number|null|undefined,includeYear=false)=>formatCampaignTurn(
 const navigationNews=useNavigationNews()
 const data=ref<any>(null),error=ref(''),loading=ref(false),details=ref<Record<string,any>>({}),older=ref<Record<string,any[]>>({}),offset=ref<Record<string,number>>({})
 const context=useState<Record<string,string>>('world-region',()=>({})),selected=computed({get:()=>context.value[props.game.id]||'karsen',set:(v:string)=>context.value={...context.value,[props.game.id]:v}})
-const section=ref('regions'),locationOpen=ref(false),intelligenceRegion=ref('')
-watch(()=>props.agendaRegion,target=>{if(target){section.value='regions';selected.value=target.id;intelligenceRegion.value=target.id;locationOpen.value=false}},{immediate:true})
+const section=ref('regions'),locationOpen=ref(false)
+watch(()=>props.agendaRegion,target=>{if(target){section.value='regions';selected.value=target.id;locationOpen.value=false}},{immediate:true})
 const focus=useState<Record<string,string>>('world-event',()=>({}))
 const region=computed(()=>data.value?.regions.find((r:any)=>r.id===selected.value)),country=computed(()=>data.value?.countries.find((c:any)=>c.id===region.value?.countryId))
 const visibleRegions=computed(()=>data.value?.regions.filter((r:any)=>r.countryId===country.value?.id)||[])
@@ -27,9 +27,35 @@ function countryNews(country:any){
 async function history(regionId:string){try{const rows=await $fetch<any[]>(base()+'/regions/'+regionId+'/history?offset='+(offset.value[regionId]||0)+'&limit=20');older.value[regionId]=[...(older.value[regionId]||[]),...rows];offset.value[regionId]=(offset.value[regionId]||0)+rows.length}catch{error.value='Não foi possível carregar o histórico.'}}
 async function cause(id:string,regionId=selected.value){section.value='regions';try{details.value[regionId]=await $fetch(base()+'/events/'+id)}catch{error.value='Não foi possível carregar a origem.'}}
 function regionNews(regionId:string){return older.value[regionId]?.length?older.value[regionId]:data.value.history.filter((e:any)=>e.regionId===regionId)}
-function toggleIntelligence(regionId:string,event:Event){
- if((event.currentTarget as HTMLDetailsElement).open)intelligenceRegion.value=regionId
- else if(intelligenceRegion.value===regionId)intelligenceRegion.value=''
+function countrySummary(dossier:any){
+ const bilateral=country.value?.diplomacy?.find((relation:any)=>relation.relationship==='Em conflito');
+ if(bilateral)return 'Conflito com '+bilateral.name+'. A área afetada é '+bilateral.conflictLocation+'. Confira as condições dos contratos nessa área.';
+ if((conflictsByRegion.value.get(dossier.id)??[]).some(conflict=>conflict.status==='active'))return 'Há um conflito em andamento no país. Confira o risco antes de aceitar um contrato.';
+ const indicators=dossier.publicIndicators?.indicators;
+ if(indicators?.security?.max<=45)return 'O boletim indica segurança baixa. Contratos novos podem exigir mais preparo.';
+ if(indicators?.tension?.min>=60)return 'O boletim indica tensão alta. Novos contratos podem ter risco maior.';
+ const strained=country.value?.diplomacy?.find((relation:any)=>['Tensa','Hostil'].includes(relation.relationship));
+ return strained?'A relação com '+strained.name+' está '+strained.relationship.toLowerCase()+'. Consulte as notícias do país para acompanhar mudanças.':'Nenhum conflito ativo aparece no boletim do país.';
+}
+const metrics=[
+ {id:'stability',name:'Estabilidade',description:'Continuidade política e institucional'},
+ {id:'security',name:'Segurança',description:'Condições de segurança para operações na área'},
+ {id:'economy',name:'Economia',description:'Atividade comercial e capacidade financeira local'},
+ {id:'tension',name:'Tensão',description:'Pressão política e risco de agravamento de crises'},
+]
+type Estimate={min:number;max:number}
+const midpoint=(estimate:Estimate)=>Math.round((estimate.min+estimate.max)/2)
+function samples(dossier:any,topic:string){
+ const current=dossier.publicIndicators
+ if(!current?.indicators[topic])return []
+ const earlier=current.history.filter((entry:any)=>entry.turn<current.collectedTurn&&entry.indicators[topic])
+ return [...earlier,{turn:current.collectedTurn,indicators:current.indicators}].map(entry=>({turn:entry.turn,value:midpoint(entry.indicators[topic])}))
+}
+function trend(dossier:any,topic:string){
+ const points=samples(dossier,topic)
+ if(points.length<2)return 'Histórico insuficiente'
+ const difference=points.at(-1)!.value-points[0].value
+ return difference===0?'Estável':(difference>0?'+':'')+difference+' pts'
 }
 watch(()=>focus.value[props.game.id],async id=>{if(id&&data.value&&!loading.value){await cause(id);focus.value={...focus.value,[props.game.id]:''}}})
 watch(selected,()=>{details.value={};older.value={};offset.value={}})
@@ -64,12 +90,39 @@ onMounted(refresh)
      <div>
       <h2>{{dossier.name}}<NavigationBadge :status="navigationNews.status(game.id,'world.regions.'+dossier.id)" /></h2>
       <p>Controle · {{dossier.controllerName}}</p>
-      <p v-for="conflict in (conflictsByRegion.get(dossier.id)??[]).filter(item=>item.status==='active')" :key="conflict.id">Conflito ativo · intensidade {{conflict.intensity.toLowerCase()}}</p>
+      <p>{{countrySummary(dossier)}}</p>
      </div>
     </div>
-    <details class="card-details country-details" :open="intelligenceRegion===dossier.id" @toggle="toggleIntelligence(dossier.id,$event)">
-     <summary>Inteligência e estimativas <NavigationBadge :status="navigationNews.status(game.id,'world.regions.'+dossier.id+'.intelligence')" /></summary>
-     <IntelligencePanel :id="'intelligence-region-'+dossier.id" compact :key="game.id+':'+dossier.id" :game="game" target-type="region" :target-id="dossier.id" @changed="emit('changed')" @processing="emit('processing',$event)" />
+    <details v-if="dossier.publicIndicators" :id="'intelligence-region-'+dossier.id" class="public-indicators card-details">
+     <summary>Indicadores públicos</summary>
+     <p>Estimativas públicas · {{dateAt(dossier.publicIndicators.collectedTurn,true)}} · turno {{dossier.publicIndicators.collectedTurn}}</p>
+     <div class="indicator-grid">
+      <article v-for="metric in metrics" :key="metric.id">
+       <h3>{{metric.name}}</h3>
+       <strong v-if="dossier.publicIndicators.indicators[metric.id]">{{dossier.publicIndicators.indicators[metric.id].min}}–{{dossier.publicIndicators.indicators[metric.id].max}} / 100</strong>
+       <p>{{trend(dossier,metric.id)}}</p>
+       <p>{{metric.description}}</p>
+      </article>
+     </div>
+     <details class="card-details country-details">
+      <summary>Histórico dos últimos sete dias</summary>
+      <section v-for="metric in metrics" :key="metric.id" class="indicator-history">
+       <h3>{{metric.name}}</h3>
+       <div v-for="point in samples(dossier,metric.id)" :key="point.turn" class="indicator-point">
+        <span>Turno {{point.turn}}</span>
+        <meter min="0" max="100" :value="point.value" :aria-label="metric.name+' no turno '+point.turn"></meter>
+        <span>{{point.value}}</span>
+       </div>
+      </section>
+     </details>
+    </details>
+    <details v-if="country?.diplomacy?.length" class="card-details country-details">
+     <summary>Relações entre países</summary>
+     <article v-for="relation in country.diplomacy" :key="relation.countryId" class="mission-report">
+      <h3>{{relation.name}} · {{relation.relationship}}</h3>
+      <p v-if="relation.conflictLocation">Área afetada · {{relation.conflictLocation}}</p>
+      <button v-if="relation.causeId" type="button" class="secondary" @click="cause(relation.causeId,dossier.id)">Consultar origem</button>
+     </article>
     </details>
     <details class="card-details country-details">
      <summary>Presença e conflitos</summary>
@@ -125,4 +178,9 @@ onMounted(refresh)
 .country-details .report-meta{font-size:var(--text-caption);color:var(--command-info)}
 .world-cause>p+p,.world-cause>button{margin-top:var(--space-3)}
 .presence-meter{display:block;width:100%;height:14px;accent-color:#c5d9ad;margin:6px 0 14px}
+.indicator-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3);margin-block:var(--space-3)}
+.indicator-grid h3,.indicator-history h3{margin-bottom:var(--space-1)}
+.indicator-history{margin-block:var(--space-3)}
+.indicator-point{display:grid;grid-template-columns:auto minmax(0,1fr) 3ch;align-items:center;gap:var(--space-2);font-size:var(--text-caption)}
+.indicator-point meter{width:100%}
 </style>

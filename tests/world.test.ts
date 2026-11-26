@@ -1,7 +1,7 @@
 import {it,expect} from 'vitest';
 import {createHash} from 'node:crypto';
 import {setupImmediate as setup} from './online-helpers.ts';
-import {seedWorld,worldTurn,publishWorldContracts,refreshIntel,validateWorld,applyMissionResults,worldCanonical} from '../packages/engine/world.ts';
+import {refreshOpenOffers,applyDiplomaticOffers,seedWorld,worldTurn,publishWorldContracts,refreshIntel,validateWorld,applyMissionResults,worldCanonical} from '../packages/engine/world.ts';
 import {countries} from '../packages/rules/index.ts';
 import {offers,emptyOperations} from '../packages/engine/operations.ts';
 const digest=async(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
@@ -21,7 +21,13 @@ it('mundo: 336 turnos mantêm limites, influência, cooldown e contratos causais
   for(const r of w.regions)expect(w.events.filter(e=>e.region_id===r.id&&e.status==='active').length).toBeLessThanOrEqual(2);
   for(const e of w.events.filter(e=>e.created_turn===t&&['industrial_crisis','armed_conflict','humanitarian_need','security_incident','political_reform','corporate_investment'].includes(e.type))){if(last.has(e.region_id))expect(t-last.get(e.region_id)!).toBeGreaterThanOrEqual(4);last.set(e.region_id,t);if(e.contract_id){emergents++;expect(o.contracts.find(c=>c.id===e.contract_id)?.origin_event_id).toBe(e.id)}}
  }
- expect(emergents).toBeGreaterThan(10);expect(w.conflicts.length).toBeGreaterThan(0);expect(w.participants.every(p=>p.side===(p.organization_id.startsWith('gov-')?'government':'opposition'))).toBe(true);
+ expect(emergents).toBeGreaterThan(10);expect(w.conflicts.length).toBeGreaterThan(0);for(const conflict of w.conflicts){
+  const participants=w.participants.filter(p=>p.conflict_id===conflict.id);
+  expect(participants.map(p=>p.side).sort()).toEqual(['government','opposition']);
+  expect(participants.find(p=>p.side==='government')?.organization_id).toBe('gov-'+conflict.region_id);
+  if(conflict.cause_id.startsWith('world-border_incident-'))expect(participants.find(p=>p.side==='opposition')?.organization_id).toBe('gov-norvik');
+  else expect(participants.find(p=>p.side==='opposition')?.organization_id).toBe('faction-north');
+ }
 });
 it('mundo: crise gera demanda e conflito encadeado com participantes',async()=>{
  const zero=async()=> '0'.repeat(64);let w=await seedWorld('cause',0,digest),o=emptyOperations();({world:w,operations:o}=await worldTurn(w,o,1,'cause',zero));await publishWorldContracts(w,o,'cause',1,zero);
@@ -128,3 +134,64 @@ it('países: subdivisões removidas não têm dossiê ou alvo de análise',async
  const g=(await s.call(s.path)).data;
  expect((await s.call(s.path+'/intelligence/analyses',{requestId:'removed-area',expectedVersion:g.stateVersion,targetType:'region',targetId:'valdoria-1',topic:'security'})).status).toBe(404);
 }finally{s.db.close()}});
+
+it('mantém os boletins na cadência e publica conflito bilateral e cessar-fogo nos dois países',async()=>{
+ const forced=async(value:unknown)=>JSON.stringify(value).includes('solmar-norvik-diplomacy')?'0'.repeat(64):'f'.repeat(64);
+ const initial=await seedWorld('border',25,forced);
+ let {world,operations}=await worldTurn(initial,emptyOperations(),28,'border',forced);
+ await publishWorldContracts(world,operations,'border',28,forced);
+ const incident=world.events.find(e=>e.type==='border_incident');
+ expect(incident.region_id).toBe('solmar');
+ expect(world.events.some(e=>e.region_id==='norvik'&&e.origin_id===incident.id)).toBe(true);
+ expect(world.participants.filter(p=>p.conflict_id==='conflict-'+incident.id).map(p=>p.organization_id).sort()).toEqual(['gov-norvik','gov-solmar']);
+ expect(operations.contracts.find(c=>c.origin_event_id===incident.id)?.type).toBe('escort');
+ await refreshIntel(world,'border',28,forced);
+ const area=world.regions.find(r=>r.id==='solmar');
+ const bulletin=area.intel_json;
+ world.events.push({...incident,id:'off-cadence',created_turn:29});
+ await refreshIntel(world,'border',29,forced);
+ expect(area.intel_json).toBe(bulletin);
+ ({world}=await worldTurn(world,operations,36,'border',forced));
+ expect(world.conflicts.find(c=>c.cause_id===incident.id)?.status).toBe('resolved');
+ expect(world.events.filter(e=>e.created_turn===36&&e.summary.includes('cessar-fogo')).map(e=>e.region_id).sort()).toEqual(['norvik','solmar']);
+});
+
+it('aplica termos diplomáticos na oferta uma vez e preserva contratos aceitos',async()=>{
+ const digest=async()=> 'f'.repeat(64);
+ const w=await seedWorld('diplomacy',0,digest);
+ const o=emptyOperations();
+ const base={region_id:'solmar',client_id:'gov-solmar',type:'security',status:'available',offered_turn:0,risk:50,reward_cents:10000,intel_json:JSON.stringify({estimatedRisk:{min:40,max:60}})};
+ o.contracts=[{...base,id:'new'},{...base,id:'signed',status:'accepted'},{...base,id:'domestic',region_id:'norvik'}];
+ applyDiplomaticOffers(w,o,0,'norvik');
+ applyDiplomaticOffers(w,o,0,'norvik');
+ expect(o.contracts.map(c=>[c.risk,c.reward_cents])).toEqual([[54,10500],[50,10000],[50,10000]]);
+ expect(JSON.parse(o.contracts[0].intel_json).estimatedRisk).toEqual({min:44,max:64});
+ w.conflicts.push({id:'border',status:'active'});
+ w.participants.push({conflict_id:'border',organization_id:'gov-norvik'},{conflict_id:'border',organization_id:'gov-solmar'});
+ o.contracts.push({...base,id:'restricted',offered_turn:28},{...base,id:'private',offered_turn:28,client_id:'corp-helion'});
+ applyDiplomaticOffers(w,o,28,'norvik');
+ expect(JSON.parse(o.contracts[3].intel_json).diplomacy.restricted).toBe(true);
+ expect(o.contracts[4].reward_cents).toBe(12000);
+ expect(o.contracts[4].risk).toBe(62);
+});
+
+it('revisa apenas ofertas abertas quando o cenário muda e evita acumular risco',async()=>{
+ const w=await seedWorld('updated-offer',0,async()=> 'f'.repeat(64));
+ const o=emptyOperations();
+ const contract={id:'offer',region_id:'solmar',client_id:'gov-solmar',type:'escort',status:'available',offered_turn:0,expires_turn:28,risk:50,reward_cents:10000,intel_json:JSON.stringify({estimatedRisk:{min:40,max:60},collectedTurn:0})};
+ const accepted={...contract,id:'signed',status:'accepted'};
+ o.contracts=[contract,accepted];
+ refreshOpenOffers(w,o,0,'norvik');
+ const region=w.regions.find(r=>r.id==='solmar');
+ region.security-=12;
+ refreshOpenOffers(w,o,3,'norvik');
+ expect(contract.risk).toBe(50);
+ refreshOpenOffers(w,o,4,'norvik');
+ expect(contract.risk).toBe(57);
+ expect(JSON.parse(contract.intel_json).offerUpdate.turn).toBe(4);
+ refreshOpenOffers(w,o,8,'norvik');
+ expect(contract.risk).toBe(57);
+ expect(contract.reward_cents).toBe(10500);
+ expect(accepted.risk).toBe(50);
+ expect(JSON.parse(accepted.intel_json).offerUpdate).toBe(undefined);
+});

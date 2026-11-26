@@ -107,6 +107,21 @@
       "upgradeBaseCents": 350000,
       "upgradeTurns": 8,
       "weeklyBaseCents": 10000
+    },
+    {
+      "id": "intelligence",
+      "name": "Inteligência",
+      "capacities": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        10
+      ],
+      "upgradeBaseCents": 100000,
+      "upgradeTurns": 4,
+      "weeklyBaseCents": 37500
     }
   ],
   "categories": [

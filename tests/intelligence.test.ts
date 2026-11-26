@@ -20,3 +20,27 @@ it('inteligência: 336 turnos em lotes/individuais produzem mesmos hashes e font
 it('inteligência: ativação preserva resumos e política de missão já enviada',async()=>{const s=await fixture(undefined,false);try{const {m}=await mission(s,'security');await s.advance(1,'before');const hashes=s.db.prepare('SELECT state_hash FROM online_turn_summaries').all();expect((await s.call(s.path+'/intelligence')).status).toBe(200);expect(s.db.prepare('SELECT state_hash FROM online_turn_summaries').all()).toEqual(hashes);expect((await s.call(s.path+'/missions/'+m)).data.intelligenceAtDeparture).toBeNull();expect((await s.advance(3,'finish')).data.status).toBe('completed');}finally{s.db.close()}});
 
 it('inteligência: missão equipada, análise, mundo e finanças compartilham commit consistente',async()=>{const s=await fixture();try{await s.call(s.path+'/logistics');const offer=(await s.call(s.path+'/contracts')).data.find((c:any)=>c.type==='reconnaissance');await s.action('/contracts/'+offer.id+'/accept','reserve');await s.action('/equipment/purchases','buy',{catalogId:'recon-1',quantity:1});await s.advance(4,'delivery');const kit=(await s.call(s.path+'/equipment/inventory')).data[0],{m,c}=await mission(s,'reconnaissance',[kit.id]);await s.action('/intelligence/analyses','study',{targetType:'region',targetId:c.regionId,topic:'economy'});expect((await s.advance(4,'complete')).data.status).toBe('completed');expect((await s.call(s.path+'/missions/'+m)).data.status).toBe('completed');expect((await s.call(s.path+'/equipment/inventory')).data[0]).toMatchObject({status:'available',condition:88,supplies:68});expect((await s.view('region',c.regionId)).topics.economy.sources.map((r:any)=>r.source)).toEqual(expect.arrayContaining(['public','analysis','recon_mission']));const ledger=(await s.call(s.path+'/finances/ledger')).data;expect(ledger.reduce((n:number,r:any)=>n+r.amountCents,0)).toBe((await s.call(s.path)).data.cashCents);}finally{s.db.close()}});
+
+it('entrega a consulta operacional em um turno e preserva um único débito por solicitação',async()=>{
+ const s=await fixture();
+ try{
+  const contract=(await s.call(s.path+'/contracts')).data.find((c:any)=>c.status==='available');
+  const initial=(await s.call(s.path)).data;
+  const body={requestId:'operational-test',expectedVersion:initial.stateVersion,targetType:'contract',targetId:contract.id,topic:'risk',operational:true};
+  const request=await s.call(s.path+'/intelligence/analyses',body);
+  expect(request.status).toBe(201);
+  expect(request.data.dueTurn).toBe(initial.currentTurn+1);
+  const replay=await s.call(s.path+'/intelligence/analyses',body);
+  expect(replay.data).toEqual(request.data);
+  const pending=await s.action('/intelligence/analyses','another-analysis',{targetType:'contract',targetId:contract.id,topic:'risk',operational:true});
+  expect(pending.status).toBe(422);
+  expect((await s.call(s.path)).data.cashCents).toBe(initial.cashCents-request.data.costCents);
+  expect((await s.advance(1)).status).toBe(200);
+  const report=(await s.view('contract',contract.id)).operational.report;
+  expect(report).toMatchObject({complication:'injury',kitCategory:'medical',specialist:'medic',collectedTurn:initial.currentTurn+1,stale:false});
+  const row=s.db.prepare('SELECT intel_json FROM online_contracts WHERE id=?').get(contract.id) as {intel_json:string};
+  const intel=JSON.parse(row.intel_json);
+  s.db.prepare('UPDATE online_contracts SET intel_json=? WHERE id=?').run(JSON.stringify({...intel,offerUpdate:{turn:2,summary:'Condições atualizadas.'}}),contract.id);
+  expect((await s.view('contract',contract.id)).operational.report.stale).toBe(true);
+ }finally{s.db.close();}
+});
