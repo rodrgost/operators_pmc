@@ -169,7 +169,7 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
     if(type&&target){
      const scheduledAnalyses=(await orders(db,id))
       .filter(order=>order.kind==='analysis'&&order.command.targetType===type&&order.command.targetId===target)
-      .map(order=>({id:order.id,topic:order.command.topic,dueTurn:order.dueTurn,status:'scheduled'}));
+      .map(order=>({id:order.id,topic:order.command.topic,operational:!!order.command.operational,dueTurn:order.dueTurn,status:'scheduled'}));
      const view=await intelligenceView(db,current,type,target,offset,limit,topic);
      return json({...view,analyses:[...view.analyses,...scheduledAnalyses]});
     }

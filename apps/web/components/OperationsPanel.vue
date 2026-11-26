@@ -37,7 +37,7 @@ const acceptReview=ref<any>(null)
 const reviewIntel=ref(false)
 function acceptOffer(contract:any){
  if(!contract||contract.status!=='available'||contract.diplomacy?.restricted||locked.value)return
- if(!contract.offerUpdate)return run('/contracts/'+contract.id+'/accept')
+ if(!contract.offerUpdate&&!contract.operationalReport?.stale)return run('/contracts/'+contract.id+'/accept')
  reviewIntel.value=false
  acceptReview.value={contract,version:data.value.stateVersion}
 }
@@ -216,7 +216,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
  <ActionFeedback :target="feedbackTarget" :section="operationSection" :turn="game.currentTurn" v-model:error="error" v-model:notice="notice" />
  <FocusDialog v-if="acceptReview" title="Revisar oferta atualizada" :busy="busy" :error="error" @close="acceptReview=null">
   <p>{{acceptReview.contract.offerUpdate?.summary}}</p>
-  <p v-if="acceptReview.contract.offerUpdate?.analysisOutdated">Sua análise de risco é anterior à mudança. Você pode confirmar com a informação atual ou consultar a inteligência.</p>
+  <p v-if="acceptReview.contract.offerUpdate?.analysisOutdated||acceptReview.contract.operationalReport?.stale">Sua inteligência é anterior à mudança. Você pode confirmar com a informação atual ou consultar a inteligência.</p>
   <p>Pagamento máximo · {{money(acceptReview.contract.rewardCents)}}</p>
   <p v-if="acceptReview.version!==data.stateVersion">A partida avançou. Atualize esta revisão antes de confirmar.</p>
   <div class="personnel-actions">
@@ -244,6 +244,10 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
    <h2><GameLabel kind="mission" :code="selectedContract.type" :label="selectedContract.title" /></h2>
    <p v-if="selectedContract.diplomacy">{{diplomaticSummary(selectedContract)}}</p>
    <p v-if="selectedContract.status==='available'&&selectedContract.offerUpdate">{{selectedContract.offerUpdate.summary}}<span v-if="selectedContract.offerUpdate.analysisOutdated"> Sua análise de risco é anterior à mudança.</span></p>
+   <details v-if="selectedContract.status==='available'" class="card-details">
+    <summary>Análise operacional pré-contrato</summary>
+    <IntelligencePanel compact operational-only :key="selectedContract.id" :game="game" target-type="contract" :target-id="selectedContract.id" @changed="emit('changed')" @processing="emit('processing',$event)" />
+   </details>
    <p class="planner-deadline">{{selectedContract.status==='accepted'?'Mobilizar até ':'Aceitar até '}}{{dateAt(selectedContract.mobilizationDueTurn??selectedContract.expiresTurn)}}</p>
    <nav class="preparation-nav" aria-label="Etapas da missão">
     <button v-for="(step,index) in preparationSteps" :key="step[0]" type="button" :class="{active:preparationStep===step[0]}" :aria-current="preparationStep===step[0]?'step':undefined" :disabled="locked" @click="preparationStep=step[0]">
@@ -422,6 +426,7 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
      </p>
      <p v-if="c.diplomacy">{{diplomaticSummary(c)}}</p>
      <p v-if="c.objective">{{c.objective}}</p>
+     <button v-if="c.operationalReport" type="button" class="secondary action-block" @click="intelContract=c">{{c.operationalReport.stale?'Ver relatório operacional anterior':'Ver relatório operacional'}}</button>
      <p v-if="c.rival" class="contract-rival-company"><OrganizationEmblem :id="c.rival.id" /><strong>{{c.rival.name}}</strong></p>
      <p v-if="c.status==='available'&&c.previousRewardCents!=null" class="contract-reopened">Reaberto após falha de rival · antes {{money(c.previousRewardCents)}}</p>
      <div class="contract-key-facts">
