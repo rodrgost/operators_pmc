@@ -125,6 +125,8 @@ function openContract(contract:any){
  if(selectedContract.value?.id!==contract.id)plan(contract)
  else nextTick(()=>scrollCampaignElement(plannerElement.value))
 }
+const availableSquads=computed(()=>people.value.squads.filter((s:any)=>s.ready&&
+ !data.value.missions.some((m:any)=>m.squadId===s.id&&ongoingMissionStatuses.includes(m.status))))
 const permanentOptions=computed(()=>people.value.operators.filter((o:any)=>people.value.squads.find((s:any)=>s.id===squadId.value)?.memberIds.includes(o.id)))
 const availabilityLabels:Record<string,string>={
  available:'Disponível',training:'Em treinamento',rest:'Em descanso',recovery:'Em recuperação',
@@ -135,7 +137,11 @@ function planningAvailability(operator:any){
  const reservation=operator.reservation
  const contract=selectedContract.value
  const deadline=contract?.mobilizationDueTurn??contract?.expiresTurn
- if(!reservation)return label
+ if(!reservation){
+  if(operator.baseActivity==='team_training')return label+' · Treino em equipe'
+  if(operator.baseActivity==='rest')return label+' · Descanso automático'
+  return label
+ }
  if(reservation.kind==='mission'){
   const mission=data.value.missions.find((m:any)=>m.id===reservation.source_id)
   if(!mission)return label
@@ -153,7 +159,7 @@ const launchedMissionInProgress=computed(()=>!!launchContract.value&&data.value.
 const name=(id:string)=>people.value.operators.find((o:any)=>o.id===id)?.name||id
 const leadershipLabel=(id:string)=>{const op=people.value.operators.find((o:any)=>o.id===id);return `${name(id)} · Liderança ${op?.attributes?.leadership??'—'}`}
 async function refresh(){try{const [ops,staff]=await Promise.all([$fetch<any>(base()+'/operations'),$fetch<any>(base()+'/personnel')]);data.value=ops;people.value=(staff as any).plannedPersonnel??staff;
- if(selectedContract.value){const updated=ops.contracts.find((c:any)=>c.id===selectedContract.value.id);if(updated&&['available','accepted'].includes(updated.status)){selectedContract.value=updated;if(!squadId.value&&people.value.squads.length){squadId.value=people.value.squads[0].id;chooseSquad()}}else closePreparation()}
+ if(selectedContract.value){const updated=ops.contracts.find((c:any)=>c.id===selectedContract.value.id);if(updated&&['available','accepted'].includes(updated.status)){selectedContract.value=updated;if(!availableSquads.value.some((s:any)=>s.id===squadId.value)){squadId.value=availableSquads.value[0]?.id||'';chooseSquad();preparationStep.value='team'}}else closePreparation()}
  return true}catch(e:any){error.value=e.data?.message||'Não foi possível carregar as operações.';return false}}
 function resolveDecision(decisionId:string,choice:string){return run('/decisions/'+decisionId+'/resolve',{choice})}
 async function run(path:string,body:any={}){
@@ -169,8 +175,8 @@ async function run(path:string,body:any={}){
  finally{busy.value=false;emit('processing',!!pending.value)}
  if(done){if(command.path.endsWith('/accept')&&selectedContract.value?.status==='accepted'&&preparationStep.value==='plan')await review();emit('changed')}
 }
-function chooseSquad(){const s=people.value.squads.find((s:any)=>s.id===squadId.value);members.value=[...(s?.memberIds??[])];reinforcements.value=[];leader.value=s?.effectiveLeaderId||s?.leaderId||'';deputy.value=s?.deputyId===leader.value?'':s?.deputyId||'';posture.value=s?.directives.posture||'balanced';priority.value=s?.directives.priority||'team_safety';risk.value=s?.directives.riskTolerance||'medium';policy.value=s?.directives.withdrawalPolicy||'normal';preview.value=null}
-function plan(c:any){preparationStep.value='team';missionContext.value={gameId:props.game.id,contractId:c.id,title:c.title,type:c.type,requiredEquipment:c.requiredEquipment};planError.value='';equipmentIds.value=[];selectedContract.value=c;preview.value=null;squadId.value=people.value.squads[0]?.id||'';chooseSquad()}
+function chooseSquad(){const s=availableSquads.value.find((s:any)=>s.id===squadId.value);members.value=[...(s?.memberIds??[])];reinforcements.value=[];leader.value=s?.effectiveLeaderId||s?.leaderId||'';deputy.value=s?.deputyId===leader.value?'':s?.deputyId||'';posture.value=s?.directives.posture||'balanced';priority.value=s?.directives.priority||'team_safety';risk.value=s?.directives.riskTolerance||'medium';policy.value=s?.directives.withdrawalPolicy||'normal';preview.value=null}
+function plan(c:any){preparationStep.value='team';missionContext.value={gameId:props.game.id,contractId:c.id,title:c.title,type:c.type,requiredEquipment:c.requiredEquipment};planError.value='';equipmentIds.value=[];selectedContract.value=c;preview.value=null;squadId.value=availableSquads.value[0]?.id||'';chooseSquad()}
 function planBody(){return {equipmentIds:equipmentIds.value,squadId:squadId.value,memberIds:members.value,reinforcementIds:reinforcements.value,leaderId:leader.value||undefined,deputyId:deputy.value||null,directives:{posture:posture.value,priority:priority.value,riskTolerance:risk.value,withdrawalPolicy:policy.value}}}
 async function review(){if(locked.value)return;busy.value=true;emit('processing',true);error.value='';notice.value='';planError.value='';preview.value=null;try{const body=planBody();preview.value={...await $fetch<any>(base()+'/contracts/'+selectedContract.value.id+'/plan',{method:'POST',body}),body};preparationStep.value='launch'}catch(e:any){planError.value=e.data?.message||'Formação inválida.'}finally{busy.value=false;emit('processing',false)}}
 const reportsLoading=ref(false)
@@ -261,9 +267,10 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
      <label class="personnel-label">Equipe permanente
       <select v-model="squadId" :disabled="locked" required @change="chooseSquad">
        <option value="">Selecione</option>
-       <option v-for="s in people.squads" :key="s.id" :value="s.id">{{s.name}}</option>
+       <option v-for="s in availableSquads" :key="s.id" :value="s.id">{{s.name}}</option>
       </select>
      </label>
+     <p v-if="!availableSquads.length">Nenhuma equipe disponível para esta missão.</p>
      <fieldset v-if="permanentOptions.length" :disabled="locked">
       <legend>Membros enviados</legend>
       <label v-for="o in permanentOptions" :key="o.id" class="member-check"><input v-model="members" type="checkbox" :value="o.id" :disabled="o.availability!=='available'">{{o.name}} · {{planningAvailability(o)}}</label>

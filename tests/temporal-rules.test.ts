@@ -1,6 +1,7 @@
 import {it,expect} from 'vitest';
 import {createHash} from 'node:crypto';
 import {setup} from './online-helpers.ts';
+import {personnelAction,activitySchema,commandSchema} from '../worker/personnel.ts';
 import {enqueue,orderRoute} from '../worker/planning.ts';
 import {nextTurnCount} from '../apps/web/utils/turnSelection.ts';
 
@@ -10,6 +11,12 @@ async function fixture(logistics=true){
  const people=()=>s.call(path+'/personnel').then(r=>r.data);
  const state=()=>s.call(path).then(r=>r.data);
  const action=async(url:string,id:string,body:any={})=>s.call(path+url,{requestId:id,expectedVersion:(await state()).stateVersion,...body});
+ // Open sessions using the legacy domain action to exercise saves from before automatic training.
+ const legacyTraining=async(requestId:string,target:string,joint=false)=>{
+  const body={requestId,expectedVersion:(await state()).stateVersion,type:'training',attribute:'combat'};
+  return personnelAction(s.DB,g.id,'owner',joint?'squad_training':'activity',target,
+   joint?commandSchema.parse({requestId,expectedVersion:body.expectedVersion}):activitySchema.parse(body),digest);
+ };
  const pass=(id:string,turns=1)=>action('/advance',id,{turns,stopOnImportant:false});
  if(logistics)await s.call(path+'/logistics');
  const p=await people();for(let i=0;i<2;i++)await action('/recruitment/hire','hire'+i,{candidateId:p.candidates[i].id,weeks:4});
@@ -20,7 +27,7 @@ async function fixture(logistics=true){
  const contract=(await s.call(path+'/contracts')).data.find((c:any)=>c.type==='security');
  s.db.prepare('UPDATE online_contracts SET difficulty=1,risk=1 WHERE id=?').run(contract.id);
  const plan={squadId:'squad-team',memberIds:ids,leaderId:ids[0],deputyId:ids[1],reinforcementIds:[],equipmentIds:logistics?['kit-kit-0']:[]};
- return {...s,g,path,people,state,action,pass,ids,contract,plan};
+ return {...s,g,path,people,state,action,legacyTraining,pass,ids,contract,plan};
 }
 
 it('renovação, aceite e cancelamento são imediatos, sem custo de tempo, e retries não repetem',async()=>{
@@ -95,8 +102,8 @@ it('desfazer treino conjunto estorna a sessão inteira e libera todos os partici
  const s=await fixture();try{
   s.db.prepare("UPDATE online_hq_modules SET level=2 WHERE type='training'").run();
   const before=await s.state();
-  const started=await s.action('/squads/squad-team/training','joint');
-  expect(started.data).toMatchObject({action:'squad_training',currentTurn:4,dueTurn:8,cashCents:before.cashCents-4000});
+  const started=await s.legacyTraining('joint','squad-team',true);
+  expect(started).toMatchObject({action:'squad_training',currentTurn:4,dueTurn:8,cashCents:before.cashCents-4000});
   expect((await s.people()).operators.map((o:any)=>o.reservation?.source_id)).toEqual(['joint','joint']);
   const undone=await s.action('/operators/'+s.ids[0]+'/activities/cancel','undo-joint');
   expect(undone.data).toMatchObject({activityUndone:true,refundedCents:4000,cashCents:before.cashCents});
@@ -109,15 +116,15 @@ it('treino preserva progresso ao interromper imediatamente e mostra resultado es
   const op=(await s.people()).operators[0],stored=s.db.prepare('SELECT profile_json FROM online_operators WHERE id=?').get(op.id) as any,profile=JSON.parse(stored.profile_json);profile.attributes.combat=50;
   s.db.prepare('UPDATE online_operators SET profile_json=? WHERE id=?').run(JSON.stringify(profile),op.id);
   expect((await s.people()).operators[0].trainingEstimates.combat).toMatchObject({attributeBefore:50,attributeAfter:50,progressAfter:64});
-  const started=await s.action('/operators/'+op.id+'/activities','train',{type:'training',attribute:'combat'});
-  expect(started.data).toMatchObject({action:'activity',currentTurn:4,dueTurn:8});
+  const started=await s.legacyTraining('train',op.id);
+  expect(started).toMatchObject({action:'activity',currentTurn:4,dueTurn:8});
   await s.pass('progress');const progress=(await s.people()).trainingProgress[0].progress;expect(progress).toBe(16);
   const stopBody={requestId:'stop',expectedVersion:(await s.state()).stateVersion};
   const stopped=await s.call(s.path+'/operators/'+op.id+'/activities/cancel',stopBody);
-  expect(stopped.data).toMatchObject({action:'activity_cancel',currentTurn:5,activityUndone:false,refundedCents:0,cashCents:started.data.cashCents});
+  expect(stopped.data).toMatchObject({action:'activity_cancel',currentTurn:5,activityUndone:false,refundedCents:0,cashCents:started.cashCents});
   expect((await s.call(s.path+'/operators/'+op.id+'/activities/cancel',stopBody)).data).toEqual(stopped.data);
   expect((await s.people()).trainingProgress[0].progress).toBe(progress);
-  expect((await s.action('/operators/'+op.id+'/activities','again',{type:'training'})).data).toMatchObject({action:'activity',currentTurn:5});
+  expect((await s.action('/operators/'+op.id+'/activities','again',{type:'training'})).data).toMatchObject({code:'TRAINING_AUTOMATIC'});
  }finally{s.db.close()}
 });
 it('resposta e retirada são registradas agora; execução e devolução do adiantamento exigem tempo',async()=>{
@@ -196,7 +203,7 @@ it('previsão de treino considera melhoria prevista durante a sessão e preserva
   const before=s.db.prepare('SELECT profile_json FROM online_operators WHERE id=?').get(s.ids[0]) as any;
   const p=await s.people(),estimate=p.operators[0].trainingEstimates.combat;
   expect(s.db.prepare('SELECT profile_json FROM online_operators WHERE id=?').get(s.ids[0])).toEqual(before);
-  await s.action('/operators/'+s.ids[0]+'/activities','train',{type:'training',attribute:'combat'});await s.pass('session',4);
+  await s.legacyTraining('train',s.ids[0]);await s.pass('session',4);
   const after=await s.people();expect(after.operators[0].attributes.combat).toBe(estimate.attributeAfter);
   expect(after.trainingProgress.find((p:any)=>p.operator_id===s.ids[0]).progress).toBe(estimate.progressAfter);
  }finally{s.db.close()}

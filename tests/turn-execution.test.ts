@@ -36,7 +36,7 @@ it('descanso interrompe imediatamente, preserva recuperação e permite nova ord
   expect((await s.call(s.path+'/operators/'+s.operatorId+'/activities/cancel',body)).data).toEqual(stopped.data);
   expect((await s.people()).operators[0]).toMatchObject({fatigue:35,reservation:null});
   expect((await s.call(s.path+'/orders')).data.orders).toHaveLength(0);
-  expect((await s.action('/operators/'+s.operatorId+'/activities','train',{type:'training'})).data).toMatchObject({action:'activity',currentTurn:2});
+  expect((await s.action('/operators/'+s.operatorId+'/activities','resume-rest',{type:'rest'})).data).toMatchObject({action:'activity',currentTurn:2});
  }finally{s.db.close()}
 });
 it('descanso desnecessário é recusado e descanso curto termina no primeiro avanço',async()=>{
@@ -78,10 +78,15 @@ it('contratar, montar equipe, aceitar e enviar missão no mesmo planejamento',as
   s.db.prepare('UPDATE online_contracts SET risk=1,difficulty=1 WHERE id=?').run(contract.id);
   await s.action('/contracts/'+contract.id+'/accept','accept');
   const body={squadId:'squad-alpha',memberIds:ids,leaderId:ids[0],deputyId:ids[1],reinforcementIds:[],equipmentIds:['kit-kit-0']};
+  s.db.prepare('UPDATE online_operators SET fatigue=10 WHERE id=?').run(ids[0]);
   const reviewed=await s.call(s.path+'/contracts/'+contract.id+'/plan',body);expect(reviewed.status).toBe(200);
   expect((await s.action('/contracts/'+contract.id+'/start','start',body)).data.queued).toBe(true);
   expect((await s.pass('launch')).data.status).toBe('completed');
-  expect((await s.people()).squads).toHaveLength(1);
+  const launched=await s.people();
+  expect(launched.squads).toHaveLength(1);
+  expect(launched.squads[0].familiarity).toBe(0);
+  expect(launched.operators.find((o:any)=>o.id===ids[0])).toMatchObject({availability:'mission',baseActivity:null,fatigue:expect.any(Number)});
+  expect(launched.operators.find((o:any)=>o.id===ids[0]).fatigue).toBeGreaterThanOrEqual(10);
   expect(s.db.prepare('SELECT count(*) n FROM online_missions').get()).toMatchObject({n:1});
   const saved=s.db.prepare("SELECT command_json FROM online_pending_orders WHERE id='alpha'").get() as any;
   expect((await s.call(s.path+'/squads',JSON.parse(saved.command_json))).data).toMatchObject({queued:true,orderId:'alpha'});
@@ -97,5 +102,25 @@ it('remover contratação dependente mantém ordens visíveis e bloqueia confirm
   expect((await s.pass('invalid')).data.code).toBe('PENDING_ORDER_INVALID');
   expect((await s.call(s.path)).data.currentTurn).toBe(1);
   await s.action('/orders/dependent/cancel','remove-team');expect((await s.pass('valid')).data.status).toBe('completed');
+ }finally{s.db.close()}
+});
+
+it('rotina recupera fadiga sem reservar operador e treina apenas a dupla presente',async()=>{
+ const s=await fixture();try{
+  const people=await s.people();
+  const candidates=people.candidates.slice(0,2);
+  for(const candidate of candidates)await s.action('/recruitment/hire','hire-'+candidate.id,{candidateId:candidate.id,weeks:4});
+  await s.pass('hires');
+  const ids=[s.operatorId,...candidates.map((c:any)=>'operator-'+c.id)];
+  s.db.prepare('UPDATE online_operators SET fatigue=5 WHERE id=?').run(ids[0]);
+  await s.action('/squads','routine',{name:'Rotina',memberIds:ids,leaderId:ids[0]});
+  const before=await s.people();
+  expect(before.operators.find((o:any)=>o.id===ids[0])).toMatchObject({availability:'available',baseActivity:'rest',reservation:null});
+  await s.pass('routine-turn');
+  const after=await s.people();
+  expect(after.operators.find((o:any)=>o.id===ids[0])).toMatchObject({availability:'available',baseActivity:'team_training',fatigue:0});
+  const [low,high]=ids.slice(1).sort();
+  expect(after.familiarity).toEqual([{operator_low:low,operator_high:high,score:1}]);
+  expect(after.operators.map((o:any)=>o.xp)).toEqual(before.operators.map((o:any)=>o.xp));
  }finally{s.db.close()}
 });

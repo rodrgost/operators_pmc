@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type {RosterAction} from '../utils/rosterRecommendation'
 const {feedbackTarget,captureAction}=useActionFeedback()
-const trainingAttributes=ref<Record<string,string>>({})
 const props=defineProps<{game:any;destination?:{section:string}|null}>()
 const dateAt=(turn:number|null|undefined,includeYear=false)=>formatCampaignTurn(props.game,turn,includeYear)
 const navigationNews=useNavigationNews()
@@ -69,9 +68,9 @@ const assignedTeams=computed(()=>{
  return teams
 })
 const scheduled=(target:string)=>(data.value.pendingOrders??[]).filter((o:any)=>o.target===target)
-type OperatorView=RosterAction|'profile'|'training'|'cancel'
+type OperatorView=RosterAction|'profile'|'cancel'
 const operatorView=ref<OperatorView>('profile')
-const actionLabels:Record<OperatorView,string>={profile:'Ficha do operador',renew:'Renovar vínculo',recovery:'Tratar',rest:'Descansar',training:'Treinar atributo',cancel:'Gerenciar atividade'}
+const actionLabels:Record<OperatorView,string>={profile:'Ficha do operador',renew:'Renovar vínculo',recovery:'Tratar',rest:'Descansar',cancel:'Gerenciar atividade'}
 const activityLabels:Record<string,string>={rest:'Descanso',recovery:'Tratamento',training:'Treino'}
 function recoveryDuration(operator:any){
  const minimum=operator.health<25?data.value.facilityRules?.seriousRecoveryTurns??0:0
@@ -87,7 +86,6 @@ const operatorOptions=computed<OperatorView[]>(()=>{
  if(operator.employment){
   if(operator.health<100)options.push('recovery')
   if(operator.fatigue>0)options.push('rest')
-  if(data.value.facilityRules)options.push('training')
  }
  if(operator.reservation&&operator.reservation.kind!=='mission')options.push('cancel')
  return options
@@ -96,6 +94,8 @@ function operatorStatus(operator:any){
  const action=rosterActions.value.get(operator.id)
  if(operator.reservation?.kind&&operator.reservation.kind!=='mission')return 'Conclusão prevista · '+dateAt(operator.reservation.end_turn)
  if(!operator.employment)return ''
+ if(operator.baseActivity==='team_training')return 'Treino em equipe'
+ if(operator.baseActivity==='rest')return 'Descanso automático'
  if(action==='renew')return 'Vínculo até '+dateAt(operator.employment.end_turn)
  if(action==='recovery'||action==='rest')return 'Duração prevista · '+formatCampaignDuration(action==='rest'?operator.restTurns:recoveryDuration(operator))
  return ''
@@ -198,7 +198,6 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
       <ul v-if="squadView(s).issues.length"><li v-for="issue in squadView(s).issues" :key="issue">{{issue}}</li></ul>
       <div class="personnel-actions">
        <button type="button" class="primary" :disabled="locked" @click="edit(s)">Editar formação</button>
-       <button type="button" class="secondary" :disabled="locked||!s.ready||!!scheduled(s.id).length" @click="run('/squads/'+s.id+'/training',{})">Treinar juntos<template v-if="data.facilityRules"> · {{formatCampaignDuration(data.facilityRules.activityTurns)}}</template></button>
        <button v-if="undoTrainingMember(s)" type="button" class="secondary" :disabled="locked" @click="run('/operators/'+undoTrainingMember(s)+'/activities/cancel',{})">Desfazer treino conjunto</button>
        <button type="button" class="secondary" :disabled="locked" @click="run('/squads/'+s.id,{},'DELETE')">Desfazer equipe</button>
       </div>
@@ -272,18 +271,6 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
          <p v-else-if="o.employment.end_turn<data.currentTurn+(operatorView==='rest'?o.restTurns:recoveryDuration(o))">Renove o vínculo antes de iniciar esta atividade.</p>
          <p v-else>Conclusão estimada em {{dateAt(data.currentTurn+(operatorView==='rest'?o.restTurns:recoveryDuration(o)))}}.</p>
         </template>
-        <template v-else-if="operatorView==='training'&&data.facilityRules">
-         <label class="personnel-label">Atributo
-          <select :value="trainingAttributes[o.id]||'combat'" @change="trainingAttributes[o.id]=($event.target as HTMLSelectElement).value" :disabled="locked">
-           <option v-for="(label,key) in labels" :key="key" :value="key">{{label}}</option>
-          </select>
-         </label>
-         <p>{{money(data.facilityRules.trainingCostCents)}} · {{formatCampaignDuration(data.facilityRules.activityTurns)}} · {{data.trainingCapacity}} vagas na sede.</p>
-         <p v-if="o.trainingEstimates&&!o.reservation">
-          Atributo {{o.trainingEstimates[trainingAttributes[o.id]||'combat'].attributeBefore}} → {{o.trainingEstimates[trainingAttributes[o.id]||'combat'].attributeAfter}}
-          · Progresso {{o.trainingEstimates[trainingAttributes[o.id]||'combat'].progressBefore}}% → {{o.trainingEstimates[trainingAttributes[o.id]||'combat'].progressAfter}}%.
-         </p>
-        </template>
         <template v-else-if="operatorView==='cancel'&&o.reservation">
          <p>{{activityLabels[o.reservation.kind]}} · conclusão prevista para {{dateAt(o.reservation.end_turn)}}.</p>
          <p v-if="!canUndo(o)&&(o.minimumTreatmentEndTurn??0)>data.currentTurn">Tratamento mínimo até {{dateAt(o.minimumTreatmentEndTurn)}}.</p>
@@ -292,7 +279,6 @@ onMounted(async()=>{emit('processing',!!pending.value);await refresh()})
         <div class="action-row">
          <button v-if="operatorView==='renew'" type="button" class="primary" :disabled="locked||!!o.arrearsCents||(!o.employment&&data.employed>=data.capacity)" @click="run('/operators/'+o.id+'/renew-contract',{weeks})">Confirmar renovação</button>
          <button v-else-if="operatorView==='rest'||operatorView==='recovery'" type="button" class="primary" :disabled="locked||!!o.reservation||!!scheduled(o.id).length||o.employment.end_turn<data.currentTurn+(operatorView==='rest'?o.restTurns:recoveryDuration(o))" @click="run('/operators/'+o.id+'/activities',{type:operatorView})">{{operatorView==='rest'?'Confirmar descanso':'Confirmar tratamento'}}</button>
-         <button v-else-if="operatorView==='training'&&data.facilityRules" type="button" class="primary" :disabled="locked||!!o.reservation||!!scheduled(o.id).length" @click="run('/operators/'+o.id+'/activities',{type:'training',attribute:trainingAttributes[o.id]||'combat'})">Iniciar treino</button>
          <button v-else-if="operatorView==='cancel'&&o.reservation" type="button" class="primary" :disabled="locked||!!scheduled(o.id).length||(!canUndo(o)&&(o.minimumTreatmentEndTurn??0)>data.currentTurn)" @click="run('/operators/'+o.id+'/activities/cancel',{})">{{canUndo(o)?(isJointTraining(o)?'Desfazer treino conjunto':'Desfazer atividade'):'Interromper atividade'}}</button>
          <button type="button" class="secondary" :disabled="busy" @click="details(o)">Voltar à ficha</button>
         </div>
