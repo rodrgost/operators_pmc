@@ -4,18 +4,20 @@ import {runInNewContext} from 'node:vm'
 import ts from 'typescript'
 function fixture(){
  let status='available'
+ let missions:any[]=[]
  const store:Record<string,any>={}
  const contract=()=>({id:'c',title:'Escolta',status})
- const staff={operators:[{id:'a',availability:'available'},{id:'b',availability:'available'}],squads:[{id:'s',memberIds:['a','b'],leaderId:'a',directives:{posture:'balanced',priority:'team_safety',riskTolerance:'medium',withdrawalPolicy:'normal'}}]}
+ const staff={operators:[{id:'a',availability:'available'},{id:'b',availability:'available'}],squads:[{id:'s',ready:true,memberIds:['a','b'],leaderId:'a',directives:{posture:'balanced',priority:'team_safety',riskTolerance:'medium',withdrawalPolicy:'normal'}}]}
  const context:any={useActionFeedback:()=>({feedbackTarget:{value:''},captureAction:()=>{}}),useNavigationNews:()=>({markRead:()=>{}}),defineProps:()=>({game:{id:'g'},mode:'contracts'}),defineEmits:()=>()=>{},ref:(value:any)=>({value}),computed:(fn:any)=>typeof fn==='function'?{get value(){return fn()}}:{get value(){return fn.get()},set value(v){fn.set(v)}},useState:(key:string,init:any)=>store[key]??(store[key]={value:init()}),watch:()=>{},onMounted:()=>{},crypto:{randomUUID:()=> 'request'},$fetch:async(path:string,options:any={})=>{
   if(path.endsWith('/plan'))return {valid:true}
   if(options.method){status='accepted';return {action:'accept'}}
   if(path.endsWith('/personnel'))return staff
-  return {contracts:[contract()],missions:[],decisions:[],stateVersion:1}
+  return {contracts:[contract()],missions,decisions:[],stateVersion:1}
  }}
  const source=readFileSync('apps/web/components/OperationsPanel.vue','utf8').split('<script setup lang="ts">')[1].split('</script>')[0]
- runInNewContext(ts.transpileModule(source+';globalThis.h={refresh,plan,run,planBody,equipmentIds,selectedContract,missionContext,preparationStep,preview};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,context)
- return {h:context.h,contract,setStatus:(value:string)=>status=value}
+ runInNewContext(ts.transpileModule(source+';globalThis.h={refresh,plan,run,planBody,equipmentIds,selectedContract,missionContext,preparationStep,preview,availableSquads};',{compilerOptions:{target:ts.ScriptTarget.ES2023,module:ts.ModuleKind.None}}).outputText,context)
+ staff.squads.unshift({...staff.squads[0],id:'unready',ready:false})
+ return {h:context.h,contract,setMissions:(value:any[])=>missions=value,setStatus:(value:string)=>status=value}
 }
 it('jornada: aceitar preserva equipe e kits e revisa o plano para confirmar a mobilização',async()=>{
  const {h,contract}=fixture();await h.refresh();h.plan(contract());h.equipmentIds.value=['kit'];h.preparationStep.value='plan'
@@ -34,4 +36,15 @@ it('relatórios: resposta tardia não substitui a missão selecionada',async()=>
  requests[2]({intelligenceAtDeparture:'b'});requests[3]([{id:'b-report'}]);await b
  requests[0]({intelligenceAtDeparture:'a'});requests[1]([{id:'a-report'}]);await a
  expect(ctx.h.departure.value).toBe('b');expect(ctx.h.reports.value[0].id).toBe('b-report');expect(ctx.h.reportsLoading.value).toBe(false)
+})
+
+it('jornada: oculta equipe pendente ou em missão e limpa a seleção antiga',async()=>{
+ const {h,contract,setMissions}=fixture()
+ await h.refresh();h.plan(contract())
+ expect(h.availableSquads.value.map((s:any)=>s.id)).toEqual(['s'])
+ expect(h.planBody().squadId).toBe('s')
+ setMissions([{squadId:'s',status:'returning'}]);await h.refresh()
+ expect(h.availableSquads.value).toHaveLength(0)
+ expect(h.planBody().squadId).toBe('')
+ expect(h.planBody().memberIds).toHaveLength(0)
 })

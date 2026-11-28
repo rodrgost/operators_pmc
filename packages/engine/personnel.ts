@@ -66,6 +66,31 @@ export function availability(p:Personnel,op:any,turn:number){
  if(op.fatigue>=balance.exhaustionFatigue)return 'exhausted';
  return 'available';
 }
+export function baseRoutine(p:Personnel,turn:number){
+ const resting:string[]=[];
+ const training:string[][]=[];
+ for(const squad of p.squads){
+  if(JSON.parse(squad.directives_json).disbanded)continue;
+  const participants:string[]=[];
+  for(const member of p.members.filter(m=>m.squad_id===squad.id)){
+   const op=p.operators.find(o=>o.id===member.operator_id);
+   if(!op)continue;
+   const status=availability(p,op,turn);
+   if(status==='exhausted'||(status==='available'&&op.fatigue>0))resting.push(op.id);
+   else if(status==='available')participants.push(op.id);
+  }
+  if(participants.length>=2)training.push(participants.sort());
+ }
+ return {resting,training};
+}
+export function gainFamiliarity(p:Personnel,sortedIds:string[],gain:number){
+ for(let i=0;i<sortedIds.length;i++)for(let j=i+1;j<sortedIds.length;j++){
+  const low=sortedIds[i],high=sortedIds[j];
+  let pair=p.familiarity.find(f=>f.operator_low===low&&f.operator_high===high);
+  if(!pair){pair={operator_low:low,operator_high:high,score:0};p.familiarity.push(pair);}
+  pair.score=clamp(pair.score+gain);
+ }
+}
 export function squadProjection(p:Personnel,s:any,turn:number){
  const ids=p.members.filter(m=>m.squad_id===s.id).map(m=>m.operator_id).sort();
  const apt=(id:string)=>ids.includes(id)&&p.operators.some(o=>o.id===id&&availability(p,o,turn)==='available');
@@ -74,7 +99,7 @@ export function squadProjection(p:Personnel,s:any,turn:number){
  return {id:s.id,name:s.name,specialization:s.specialization,leaderId:s.leader_id,deputyId:s.deputy_id,effectiveLeaderId:leader,memberIds:ids,directives:JSON.parse(s.directives_json),familiarity:scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0,ready:ids.length>=balance.squadMin&&!!leader&&ids.every(apt)};
 }
 export function canonical(p:Personnel){return Object.fromEntries(Object.entries(p).map(([key,rows])=>[key,[...rows].sort((a:any,b:any)=>JSON.stringify(a).localeCompare(JSON.stringify(b),'en'))]));}
-export async function personnelTurn(original:Personnel,turn:number,cash:number,seed:string,reputation:number,digest:Digest,managedIds:string[]=[]){
+export async function personnelTurn(original:Personnel,turn:number,cash:number,seed:string,reputation:number,digest:Digest,managedIds:string[]=[],routine=baseRoutine(original,turn)){
  const p:Personnel=structuredClone(original),ledger:any[]=[],events:any[]=[],history:any[]=[];
  const add=(type:string,title:string,description:string,important=false)=>{events.push({type,title,description,important});};
  const record=(id:string,type:string,title:string,data:any)=>history.push({id,turn,event_type:type,title,data_json:JSON.stringify(data)});
@@ -107,11 +132,15 @@ export async function personnelTurn(original:Personnel,turn:number,cash:number,s
   record('activity:'+r.source_id+':'+op.id,'activity_completed','Atividade concluída',{operatorId:op.id,kind:r.kind});
  }
  const groups=[...new Set(ended.filter(r=>r.kind==='training').map(r=>r.source_id))];
- for(const group of groups){const ids=ended.filter(r=>r.kind==='training'&&r.source_id===group).map(r=>r.operator_id).sort();
-  for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
-   let f=p.familiarity.find(f=>f.operator_low===ids[i]&&f.operator_high===ids[j]);if(!f){f={operator_low:ids[i],operator_high:ids[j],score:0};p.familiarity.push(f);}f.score=clamp(f.score+balance.familiarityGain);
-  }
+ for(const group of groups){
+  const ids=ended.filter(r=>r.kind==='training'&&r.source_id===group).map(r=>r.operator_id).sort();
+  gainFamiliarity(p,ids,balance.familiarityGain);
  }
+ for(const id of routine.resting){
+  const op=p.operators.find(o=>o.id===id);
+  if(op)op.fatigue=clamp(op.fatigue-restFatiguePerTurn);
+ }
+ for(const ids of routine.training)gainFamiliarity(p,ids,balance.routineFamiliarityGain);
  if(ended.length)add('activity_completed','Atividades concluídas',ended.length+' operador(es) concluíram atividades.');
  p.reservations=p.reservations.filter(r=>!ended.includes(r));
  if(turn%28===0){p.candidates=await market(seed,turn/28,reputation,digest,p.operators);add('recruitment_refreshed','Mercado renovado','Novos candidatos disponíveis para contratação.');}

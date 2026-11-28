@@ -13,7 +13,7 @@ import { countries, RULES_VERSION } from '../packages/rules/index.ts';
 import { ZodError } from 'zod';
 import {operationsTurn,opsCanonical,config as opsConfig} from '../packages/engine/operations.ts';
 import {ensureOperations,readOperations,operationsWrites,operationsView,operationAction,validatePlan,contractProjection,contractViewSelect,missionProjection,decisionProjection,planSchema,startSchema,decisionSchema} from './operations.ts';
-import { canonical,personnelTurn,balance } from '../packages/engine/personnel.ts';
+import { canonical,personnelTurn,baseRoutine,balance } from '../packages/engine/personnel.ts';
 import { ensurePersonnel,readPersonnel,personnelProjection,personnelAction,personnelWrites,hireSchema,renewSchema,squadSchema,activitySchema,commandSchema,memberSchema } from './personnel.ts';
 import { drawInput, stateInput, drawFromHash, resolveTurn } from '../packages/engine/core.ts';
 import { ApiError, type Database, type Command, getGame,listGames,createGame,deleteGame,snapshot,projection,result,register,commitTurn,failCommand,timeline,turnSummary,financialLedger } from './persistence.ts';
@@ -68,6 +68,7 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
    if(g.personnelInitialized){
     if(g.personnelVersion!==balance.version)throw new ApiError(422,'PERSONNEL_RULES_MISMATCH','Regras de pessoal indisponíveis.');
     const p=planned?.context.p??(await readPersonnel(db,id,owner)).p;
+    const routine=baseRoutine(p,next.state.turn);
     let turnPersonnel=p;
     if(g.operationsInitialized){
      if(g.operationsVersion!==opsConfig.version)throw new ApiError(422,'OPERATIONS_RULES_MISMATCH','Regras de operações indisponíveis.');
@@ -80,7 +81,7 @@ async function advance(db:Database,owner:string,id:string,command:any,resume=fal
      turnPersonnel=opEffects.personnel;next.state.cashCents=opEffects.cash;next.state.reputation=opEffects.reputation;
     }
     const managed=logistics?facilityTurn(logistics,turnPersonnel,next.state.turn):[];
-    effects=await personnelTurn(turnPersonnel,next.state.turn,next.state.cashCents,g.seed,next.state.reputation,digest,managed);
+    effects=await personnelTurn(turnPersonnel,next.state.turn,next.state.cashCents,g.seed,next.state.reputation,digest,managed,routine);
     next.state.cashCents=effects.cash;
     if(logistics){const finance=facilitiesFinance(logistics,next.state.turn,next.state.cashCents);next.state.cashCents=finance.cash;logisticsLedger=finance.ledger;logisticsEvents.push(...finance.events);}
     next.state.status=next.state.cashCents<0||logistics?.headquarters.arrears_cents>0?'financial_crisis':effects.status;
@@ -150,6 +151,9 @@ export async function handleApi(request:Request,env:{DB:Database},execution:'que
    // Existing queued commands retain their original protocol, including retries after commit.
    const queued=await db.prepare('SELECT id FROM online_pending_orders WHERE game_id=? AND id=?').bind(id,body.requestId).first();
    const previous=await db.prepare('SELECT request_id FROM online_actions WHERE game_id=? AND request_id=?').bind(id,body.requestId).first();
+   if(!queued&&!previous&&(route.kind==='squad_training'||(route.kind==='activity'&&body.type==='training'))){
+    throw new ApiError(422,'TRAINING_AUTOMATIC','O treino agora acontece automaticamente em equipe ao passar o turno.');
+   }
    const pending=await orders(db,id);
    const futureHire=['renew','activity'].includes(route.kind)&&pending.some(o=>o.kind==='hire'&&'operator-'+o.command.candidateId===route.target);
    const futureSquad=route.kind==='squad_training'&&pending.some(o=>o.kind==='squad_create'&&'squad-'+o.id===route.target);
